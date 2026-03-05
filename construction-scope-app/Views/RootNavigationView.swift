@@ -60,7 +60,9 @@ struct RootNavigationView: View {
                 PhoneScopesListView(
                     scopes: scopes,
                     createNewScope: createNewScope,
-                    autosave: autosave
+                    autosave: autosave,
+                    renameScope: renameScope,
+                    deleteScope: deleteScope
                 )
             } else {
                 NavigationSplitView {
@@ -68,7 +70,9 @@ struct RootNavigationView: View {
                         scopes: scopes,
                         selectedScopeID: $selectedScopeID,
                         selectedSection: $selectedSection,
-                        createNewScope: createNewScope
+                        createNewScope: createNewScope,
+                        renameScope: renameScope,
+                        deleteScope: deleteScope
                     )
                 } detail: {
                     if let scope = selectedScope {
@@ -108,6 +112,37 @@ struct RootNavigationView: View {
         selectedSection = .projectInfo
     }
 
+    private func renameScope(_ scope: JobScope, newName: String) {
+        let trimmed = newName.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+
+        var projectInfo = scope.projectInfo
+        projectInfo.clientName = trimmed
+        scope.projectInfo = projectInfo
+        scope.updatedAt = .now
+
+        do {
+            try modelContext.save()
+        } catch {
+            assertionFailure("Failed to rename scope: \(error)")
+        }
+    }
+
+    private func deleteScope(_ scope: JobScope) {
+        if selectedScopeID == scope.id {
+            selectedScopeID = nil
+        }
+
+        modelContext.delete(scope)
+        do {
+            try modelContext.save()
+        } catch {
+            assertionFailure("Failed to delete scope: \(error)")
+        }
+
+        selectFirstScopeIfNeeded()
+    }
+
     private func selectFirstScopeIfNeeded() {
         guard !scopes.isEmpty else {
             selectedScopeID = nil
@@ -128,6 +163,12 @@ private struct ScopeSidebarView: View {
     @Binding var selectedScopeID: UUID?
     @Binding var selectedSection: ScopeSection
     let createNewScope: () -> Void
+    let renameScope: (JobScope, String) -> Void
+    let deleteScope: (JobScope) -> Void
+
+    @State private var scopePendingRename: JobScope?
+    @State private var renameDraft = ""
+    @State private var scopePendingDelete: JobScope?
 
     private var selectedScope: JobScope? {
         scopes.first(where: { $0.id == selectedScopeID })
@@ -170,6 +211,16 @@ private struct ScopeSidebarView: View {
                         .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
+                    .contextMenu {
+                        Button("Rename Scope") {
+                            scopePendingRename = scope
+                            renameDraft = scope.displayName
+                        }
+
+                        Button("Delete Scope", role: .destructive) {
+                            scopePendingDelete = scope
+                        }
+                    }
                 }
             }
 
@@ -202,6 +253,56 @@ private struct ScopeSidebarView: View {
         }
         .listStyle(.sidebar)
         .navigationTitle("Scopes")
+        .alert("Rename Scope", isPresented: renameAlertPresented) {
+            TextField("Scope Name", text: $renameDraft)
+            Button("Cancel", role: .cancel) {
+                scopePendingRename = nil
+                renameDraft = ""
+            }
+            Button("Save") {
+                guard let scope = scopePendingRename else { return }
+                renameScope(scope, renameDraft)
+                scopePendingRename = nil
+                renameDraft = ""
+            }
+        } message: {
+            Text("Update the project name shown in your scope list.")
+        }
+        .alert("Delete Scope?", isPresented: deleteAlertPresented) {
+            Button("Cancel", role: .cancel) {
+                scopePendingDelete = nil
+            }
+            Button("Delete", role: .destructive) {
+                guard let scope = scopePendingDelete else { return }
+                deleteScope(scope)
+                scopePendingDelete = nil
+            }
+        } message: {
+            Text("This permanently removes the scope and its entered details.")
+        }
+    }
+
+    private var renameAlertPresented: Binding<Bool> {
+        Binding(
+            get: { scopePendingRename != nil },
+            set: { isPresented in
+                if !isPresented {
+                    scopePendingRename = nil
+                    renameDraft = ""
+                }
+            }
+        )
+    }
+
+    private var deleteAlertPresented: Binding<Bool> {
+        Binding(
+            get: { scopePendingDelete != nil },
+            set: { isPresented in
+                if !isPresented {
+                    scopePendingDelete = nil
+                }
+            }
+        )
     }
 }
 
@@ -209,6 +310,12 @@ private struct PhoneScopesListView: View {
     let scopes: [JobScope]
     let createNewScope: () -> Void
     @ObservedObject var autosave: DebouncedAutosave
+    let renameScope: (JobScope, String) -> Void
+    let deleteScope: (JobScope) -> Void
+
+    @State private var scopePendingRename: JobScope?
+    @State private var renameDraft = ""
+    @State private var scopePendingDelete: JobScope?
 
     var body: some View {
         NavigationStack {
@@ -232,6 +339,17 @@ private struct PhoneScopesListView: View {
                             }
                             .frame(minHeight: 44)
                         }
+                        .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                            Button("Delete", role: .destructive) {
+                                scopePendingDelete = scope
+                            }
+
+                            Button("Rename") {
+                                scopePendingRename = scope
+                                renameDraft = scope.displayName
+                            }
+                            .tint(.blue)
+                        }
                     }
                 }
             }
@@ -244,6 +362,56 @@ private struct PhoneScopesListView: View {
                 }
             }
         }
+        .alert("Rename Scope", isPresented: renameAlertPresented) {
+            TextField("Scope Name", text: $renameDraft)
+            Button("Cancel", role: .cancel) {
+                scopePendingRename = nil
+                renameDraft = ""
+            }
+            Button("Save") {
+                guard let scope = scopePendingRename else { return }
+                renameScope(scope, renameDraft)
+                scopePendingRename = nil
+                renameDraft = ""
+            }
+        } message: {
+            Text("Update the project name shown in your scope list.")
+        }
+        .alert("Delete Scope?", isPresented: deleteAlertPresented) {
+            Button("Cancel", role: .cancel) {
+                scopePendingDelete = nil
+            }
+            Button("Delete", role: .destructive) {
+                guard let scope = scopePendingDelete else { return }
+                deleteScope(scope)
+                scopePendingDelete = nil
+            }
+        } message: {
+            Text("This permanently removes the scope and its entered details.")
+        }
+    }
+
+    private var renameAlertPresented: Binding<Bool> {
+        Binding(
+            get: { scopePendingRename != nil },
+            set: { isPresented in
+                if !isPresented {
+                    scopePendingRename = nil
+                    renameDraft = ""
+                }
+            }
+        )
+    }
+
+    private var deleteAlertPresented: Binding<Bool> {
+        Binding(
+            get: { scopePendingDelete != nil },
+            set: { isPresented in
+                if !isPresented {
+                    scopePendingDelete = nil
+                }
+            }
+        )
     }
 }
 

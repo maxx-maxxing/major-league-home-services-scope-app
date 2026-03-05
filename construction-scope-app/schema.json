@@ -1,0 +1,807 @@
+{
+  "version": 1,
+  "entities": {
+    "JobScope": {
+      "fields": {
+        "id": {
+          "type": "uuid",
+          "required": true
+        },
+        "createdAt": {
+          "type": "date",
+          "required": true
+        },
+        "updatedAt": {
+          "type": "date",
+          "required": true
+        },
+        "status": {
+          "type": "enum",
+          "values": [
+            "draft",
+            "sold",
+            "in_production",
+            "closed"
+          ],
+          "required": true
+        },
+        "jobNumber": {
+          "type": "string",
+          "required": false
+        },
+        "projectInfo": {
+          "type": "ProjectInfo",
+          "required": true
+        },
+        "existingConditions": {
+          "type": "ExistingConditions",
+          "required": false
+        },
+        "dimensions": {
+          "type": "Dimensions",
+          "required": false
+        },
+        "structuralSystem": {
+          "type": "StructuralSystem",
+          "required": false
+        },
+        "enclosure": {
+          "type": "Enclosure",
+          "required": false
+        },
+        "electrical": {
+          "type": "Electrical",
+          "required": false
+        },
+        "drainage": {
+          "type": "Drainage",
+          "required": false
+        },
+        "attachment": {
+          "type": "AttachmentConditions",
+          "required": false
+        },
+        "finishes": {
+          "type": "Finishes",
+          "required": false
+        },
+        "permitsHOA": {
+          "type": "PermitsHOA",
+          "required": false
+        },
+        "production": {
+          "type": "ProductionOrderMeta",
+          "required": false
+        },
+        "customerApproval": {
+          "type": "CustomerApproval",
+          "required": false
+        },
+        "photos": {
+          "type": "array",
+          "items": "PhotoAttachment",
+          "required": false
+        },
+        "sketches": {
+          "type": "array",
+          "items": "SketchAttachment",
+          "required": false
+        }
+      }
+    }
+  },
+  "types": {
+    "ProjectInfo": {
+      "fields": {
+        "clientName": {
+          "type": "string",
+          "required": true
+        },
+        "address": {
+          "type": "string",
+          "required": true
+        },
+        "city": {
+          "type": "string",
+          "required": false
+        },
+        "zip": {
+          "type": "string",
+          "required": false
+        },
+        "phone": {
+          "type": "string",
+          "required": false
+        },
+        "email": {
+          "type": "string",
+          "required": false
+        },
+        "salesperson": {
+          "type": "string",
+          "required": false
+        },
+        "estimator": {
+          "type": "string",
+          "required": false
+        },
+        "siteVisitDate": {
+          "type": "date",
+          "required": false
+        },
+        "projectType": {
+          "type": "enum",
+          "values": [
+            "patio_cover",
+            "screen_room",
+            "sunroom",
+            "deck",
+            "pergola",
+            "concrete",
+            "other"
+          ],
+          "required": true
+        },
+        "notes": {
+          "type": "string",
+          "required": false
+        }
+      }
+    },
+    "ExistingConditions": {
+      "fields": {
+        "houseStories": {
+          "type": "enum",
+          "values": [
+            "one_story",
+            "two_story"
+          ],
+          "required": false
+        },
+        "exteriorFinish": {
+          "type": "enum",
+          "values": [
+            "brick",
+            "hardie",
+            "stucco",
+            "stone",
+            "other"
+          ],
+          "required": false
+        },
+        "existingStructure": {
+          "type": "enum",
+          "values": [
+            "existing_patio_cover",
+            "none",
+            "deck",
+            "concrete_slab",
+            "other"
+          ],
+          "required": false
+        },
+        "obstaclesNotes": {
+          "type": "string",
+          "required": false
+        },
+        "utilitiesNotes": {
+          "type": "string",
+          "required": false
+        },
+        "hoaNotes": {
+          "type": "string",
+          "required": false
+        },
+        "photoChecklist": {
+          "type": "PhotoChecklist",
+          "required": false
+        }
+      }
+    },
+    "PhotoChecklist": {
+      "fields": {
+        "frontOfHouse": {
+          "type": "bool",
+          "required": false
+        },
+        "rearElevation": {
+          "type": "bool",
+          "required": false
+        },
+        "roofLine": {
+          "type": "bool",
+          "required": false
+        },
+        "electricalPanel": {
+          "type": "bool",
+          "required": false
+        },
+        "workArea": {
+          "type": "bool",
+          "required": false
+        }
+      }
+    },
+    "Dimensions": {
+      "fields": {
+        "width": {
+          "type": "number",
+          "required": false
+        },
+        "projection": {
+          "type": "number",
+          "required": false
+        },
+        "fasciaHeight": {
+          "type": "number",
+          "required": false
+        },
+        "beamHeight": {
+          "type": "number",
+          "required": false
+        },
+        "roofStyle": {
+          "type": "enum",
+          "values": [
+            "flat",
+            "low_slope",
+            "gable",
+            "pergola"
+          ],
+          "required": false
+        },
+        "attachmentType": {
+          "type": "enum",
+          "values": [
+            "fascia_mount",
+            "wall_mount",
+            "free_standing"
+          ],
+          "required": false
+        },
+        "elevationNotes": {
+          "type": "string",
+          "required": false
+        }
+      }
+    },
+    "StructuralSystem": {
+      "fields": {
+        "frameMaterial": {
+          "type": "enum",
+          "values": [
+            "aluminum",
+            "cedar",
+            "steel"
+          ],
+          "required": false
+        },
+        "postSize": {
+          "type": "string",
+          "required": false
+        },
+        "beamType": {
+          "type": "string",
+          "required": false
+        },
+        "roofSystem": {
+          "type": "enum",
+          "values": [
+            "insulated_panels",
+            "polycarbonate",
+            "metal",
+            "shingle"
+          ],
+          "required": false
+        },
+        "roofColor": {
+          "type": "string",
+          "required": false
+        },
+        "frameColor": {
+          "type": "string",
+          "required": false
+        }
+      }
+    },
+    "Enclosure": {
+      "fields": {
+        "enclosureType": {
+          "type": "enum",
+          "values": [
+            "screen_only",
+            "screen_room_with_door",
+            "vinyl_window_enclosure",
+            "glass_sunroom",
+            "mixed"
+          ],
+          "required": false
+        },
+        "screenWallType": {
+          "type": "enum",
+          "values": [
+            "18x14_standard_fiberglass",
+            "20x20_no_see_um",
+            "18x14_tuff",
+            "20x20_tuff"
+          ],
+          "required": false
+        },
+        "screenFrameColor": {
+          "type": "enum",
+          "values": [
+            "white",
+            "beige",
+            "bronze",
+            "black",
+            "custom"
+          ],
+          "required": false
+        },
+        "screenFrameColorCustom": {
+          "type": "string",
+          "required": false
+        },
+        "windowSystem": {
+          "type": "WindowSystem",
+          "required": false
+        },
+        "kneeWall": {
+          "type": "KneeWall",
+          "required": false
+        },
+        "doors": {
+          "type": "DoorOptions",
+          "required": false
+        }
+      }
+    },
+    "WindowSystem": {
+      "fields": {
+        "windowType": {
+          "type": "enum",
+          "values": [
+            "pgt_ezebreeze_4track_vinyl",
+            "double_pane_insulated_glass"
+          ],
+          "required": false
+        },
+        "frameSystem": {
+          "type": "enum",
+          "values": [
+            "standard_patio_extrusion",
+            "heavy_duty_extrusion",
+            "thermally_broken_insulated"
+          ],
+          "required": false
+        },
+        "glassType": {
+          "type": "enum",
+          "values": [
+            "clear",
+            "low_e",
+            "tinted"
+          ],
+          "required": false
+        },
+        "glassSafety": {
+          "type": "enum",
+          "values": [
+            "annealed",
+            "tempered",
+            "tempered_required_by_code"
+          ],
+          "required": false
+        },
+        "gridOption": {
+          "type": "enum",
+          "values": [
+            "none",
+            "2x2",
+            "2x3",
+            "colonial"
+          ],
+          "required": false
+        },
+        "operation": {
+          "type": "enum",
+          "values": [
+            "vertical_slide",
+            "horizontal_slide",
+            "fixed",
+            "casement"
+          ],
+          "required": false
+        },
+        "color": {
+          "type": "enum",
+          "values": [
+            "white",
+            "beige",
+            "bronze",
+            "black",
+            "custom"
+          ],
+          "required": false
+        },
+        "colorCustom": {
+          "type": "string",
+          "required": false
+        },
+        "windowHeight": {
+          "type": "number",
+          "required": false
+        },
+        "numBays": {
+          "type": "number",
+          "required": false
+        },
+        "configuration": {
+          "type": "enum",
+          "values": [
+            "full_height",
+            "above_knee_wall",
+            "mixed"
+          ],
+          "required": false
+        }
+      }
+    },
+    "KneeWall": {
+      "fields": {
+        "option": {
+          "type": "enum",
+          "values": [
+            "none",
+            "aluminum_kickplate",
+            "framed_knee_wall",
+            "insulated_aluminum_panel"
+          ],
+          "required": false
+        },
+        "panelHeight": {
+          "type": "number",
+          "required": false
+        },
+        "panelColor": {
+          "type": "string",
+          "required": false
+        },
+        "trimColor": {
+          "type": "string",
+          "required": false
+        },
+        "interiorFinish": {
+          "type": "string",
+          "required": false
+        }
+      }
+    },
+    "DoorOptions": {
+      "fields": {
+        "doorType": {
+          "type": "enum",
+          "values": [
+            "none",
+            "hinged_screen",
+            "heavy_duty_aluminum",
+            "sliding_glass",
+            "french"
+          ],
+          "required": false
+        },
+        "notes": {
+          "type": "string",
+          "required": false
+        }
+      }
+    },
+    "Electrical": {
+      "fields": {
+        "outletCount": {
+          "type": "number",
+          "required": false
+        },
+        "lighting": {
+          "type": "enum",
+          "values": [
+            "none",
+            "recessed",
+            "fan_light",
+            "surface_mount"
+          ],
+          "required": false
+        },
+        "fanInstall": {
+          "type": "bool",
+          "required": false
+        },
+        "switchLocations": {
+          "type": "string",
+          "required": false
+        },
+        "dedicatedCircuits": {
+          "type": "array",
+          "items": "enum:mini_split|hot_tub|ev_charger|other",
+          "required": false
+        },
+        "notes": {
+          "type": "string",
+          "required": false
+        }
+      }
+    },
+    "Drainage": {
+      "fields": {
+        "gutters": {
+          "type": "bool",
+          "required": false
+        },
+        "downspoutLocations": {
+          "type": "string",
+          "required": false
+        },
+        "drainTieIn": {
+          "type": "bool",
+          "required": false
+        },
+        "slopeNotes": {
+          "type": "string",
+          "required": false
+        }
+      }
+    },
+    "AttachmentConditions": {
+      "fields": {
+        "houseWallMaterial": {
+          "type": "enum",
+          "values": [
+            "brick",
+            "stone",
+            "stucco",
+            "hardie",
+            "wood_siding",
+            "lp_siding",
+            "structural_fascia",
+            "roof_fascia",
+            "other"
+          ],
+          "required": false
+        },
+        "houseWallOther": {
+          "type": "string",
+          "required": false
+        },
+        "houseMountingType": {
+          "type": "enum",
+          "values": [
+            "ledger_required",
+            "direct_mount",
+            "through_siding_into_framing",
+            "through_masonry_into_structure"
+          ],
+          "required": false
+        },
+        "postColumnMaterial": {
+          "type": "enum",
+          "values": [
+            "wood",
+            "cedar",
+            "aluminum",
+            "steel",
+            "brick_column",
+            "stone_column",
+            "wrapped_structural",
+            "other"
+          ],
+          "required": false
+        },
+        "postColumnOther": {
+          "type": "string",
+          "required": false
+        },
+        "postSize": {
+          "type": "string",
+          "required": false
+        },
+        "postSpacing": {
+          "type": "string",
+          "required": false
+        },
+        "trimPresent": {
+          "type": "bool",
+          "required": false
+        },
+        "trimMaterial": {
+          "type": "enum",
+          "values": [
+            "wood",
+            "pvc",
+            "hardie",
+            "aluminum_wrap",
+            "other"
+          ],
+          "required": false
+        },
+        "trimMaterialOther": {
+          "type": "string",
+          "required": false
+        },
+        "trimThickness": {
+          "type": "enum",
+          "values": [
+            "none",
+            "0.5",
+            "0.75",
+            "1.0",
+            "1.5",
+            "2.0",
+            "custom"
+          ],
+          "required": false
+        },
+        "trimThicknessCustom": {
+          "type": "number",
+          "required": false
+        },
+        "mountCondition": {
+          "type": "enum",
+          "values": [
+            "direct_to_structural",
+            "through_trim_to_structural",
+            "trim_cut_back",
+            "spacer_block_required"
+          ],
+          "required": false
+        },
+        "fastenerPlan": {
+          "type": "array",
+          "items": "enum:structural_lags|masonry_anchors|tapcons|sleeve_anchors|epoxy_anchors",
+          "required": false
+        },
+        "notes": {
+          "type": "string",
+          "required": false
+        }
+      }
+    },
+    "Finishes": {
+      "fields": {
+        "trimType": {
+          "type": "string",
+          "required": false
+        },
+        "paintOrPowderColor": {
+          "type": "string",
+          "required": false
+        },
+        "sidingReplacementRequired": {
+          "type": "bool",
+          "required": false
+        },
+        "caulkingSealingNotes": {
+          "type": "string",
+          "required": false
+        }
+      }
+    },
+    "PermitsHOA": {
+      "fields": {
+        "permitRequired": {
+          "type": "bool",
+          "required": false
+        },
+        "jurisdiction": {
+          "type": "string",
+          "required": false
+        },
+        "hoaApprovalRequired": {
+          "type": "bool",
+          "required": false
+        },
+        "engineeringRequired": {
+          "type": "bool",
+          "required": false
+        },
+        "statusNotes": {
+          "type": "string",
+          "required": false
+        }
+      }
+    },
+    "ProductionOrderMeta": {
+      "fields": {
+        "startDate": {
+          "type": "date",
+          "required": false
+        },
+        "crewLead": {
+          "type": "string",
+          "required": false
+        },
+        "durationEstimate": {
+          "type": "string",
+          "required": false
+        },
+        "materialOrderStatus": {
+          "type": "enum",
+          "values": [
+            "not_ordered",
+            "ordered",
+            "delivered"
+          ],
+          "required": false
+        },
+        "permitStatus": {
+          "type": "enum",
+          "values": [
+            "not_submitted",
+            "submitted",
+            "approved"
+          ],
+          "required": false
+        }
+      }
+    },
+    "CustomerApproval": {
+      "fields": {
+        "optionsConfirmedText": {
+          "type": "string",
+          "required": false
+        },
+        "signaturePNGPath": {
+          "type": "string",
+          "required": false
+        },
+        "signedDate": {
+          "type": "date",
+          "required": false
+        }
+      }
+    },
+    "PhotoAttachment": {
+      "fields": {
+        "id": {
+          "type": "uuid",
+          "required": true
+        },
+        "caption": {
+          "type": "string",
+          "required": false
+        },
+        "imagePath": {
+          "type": "string",
+          "required": true
+        },
+        "createdAt": {
+          "type": "date",
+          "required": true
+        }
+      }
+    },
+    "SketchAttachment": {
+      "fields": {
+        "id": {
+          "type": "uuid",
+          "required": true
+        },
+        "title": {
+          "type": "string",
+          "required": false
+        },
+        "drawingDataPath": {
+          "type": "string",
+          "required": true
+        },
+        "previewPNGPath": {
+          "type": "string",
+          "required": true
+        },
+        "createdAt": {
+          "type": "date",
+          "required": true
+        }
+      }
+    }
+  }
+}

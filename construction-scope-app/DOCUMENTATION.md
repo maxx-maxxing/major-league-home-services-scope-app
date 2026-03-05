@@ -5,6 +5,7 @@
 - Milestone 0: Implemented
 - Milestone 1: Implemented
 - Milestone 2: Implemented (requested section editors)
+- Milestone 2.1: Implemented (Windows & Glass stability/usability pass)
 - Milestone 3+: Not started
 
 ## Decisions
@@ -26,6 +27,10 @@
 - Inputs follow native control guidance:
   - Picker / Toggle / Segmented controls for discrete options
   - TextEditor for notes (Scribble-friendly)
+- Milestone 2.1 Windows & Glass fixes:
+  - `Window Type` and `Glass Type` now support `Not Set` to restore schema-optional (`nil`) state.
+  - Empty `windowSystem` is now cleaned up to `nil` instead of persisting an all-empty nested object.
+  - Empty `enclosure` is now cleaned up to `nil` when no enclosure data remains.
 - Production notes are stored in `customerApproval.optionsConfirmedText` (schema-consistent text field already available).
 - `schema.json` was not changed.
 
@@ -45,6 +50,8 @@
    - `Production Notes`
 3. Wait briefly for autosave debounce (~0.8s).
 4. Relaunch the app and verify edits persist.
+5. In `Windows & Glass`, toggle `Configure Window System` on/off and verify empty data does not persist.
+6. Set `Window Type` and `Glass Type`, then reset each to `Not Set` and verify values clear after autosave + relaunch.
 
 ## Known Issues / Follow-ups
 - Remaining section editors are still placeholders.

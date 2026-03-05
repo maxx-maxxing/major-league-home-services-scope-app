@@ -504,8 +504,9 @@ struct WindowsAndGlassEditorView: View {
 
                     if scope.enclosure?.windowSystem != nil {
                         Picker("Window Type", selection: windowTypeBinding) {
+                            Text("Not Set").tag(nil as WindowType?)
                             ForEach(WindowType.allCases, id: \.self) { type in
-                                Text(type.displayName).tag(type)
+                                Text(type.displayName).tag(Optional(type))
                             }
                         }
                         .pickerStyle(.menu)
@@ -527,11 +528,13 @@ struct WindowsAndGlassEditorView: View {
                 CardGroup(title: "Glass") {
                     VStack(spacing: 12) {
                         Picker("Glass Type", selection: glassTypeBinding) {
+                            Text("Not Set").tag(nil as GlassType?)
                             ForEach(GlassType.allCases, id: \.self) { type in
-                                Text(type.displayName).tag(type)
+                                Text(type.displayName).tag(Optional(type))
                             }
                         }
-                        .pickerStyle(.segmented)
+                        .pickerStyle(.menu)
+                        .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
 
                         Picker("Glass Safety", selection: glassSafetyBinding) {
                             Text("Not Set").tag(nil as GlassSafety?)
@@ -614,9 +617,9 @@ struct WindowsAndGlassEditorView: View {
         )
     }
 
-    private var windowTypeBinding: Binding<WindowType> {
+    private var windowTypeBinding: Binding<WindowType?> {
         Binding(
-            get: { scope.enclosure?.windowSystem?.windowType ?? .pgtEzebreeze4TrackVinyl },
+            get: { scope.enclosure?.windowSystem?.windowType },
             set: { newValue in
                 updateWindowSystem { $0.windowType = newValue }
             }
@@ -632,9 +635,9 @@ struct WindowsAndGlassEditorView: View {
         )
     }
 
-    private var glassTypeBinding: Binding<GlassType> {
+    private var glassTypeBinding: Binding<GlassType?> {
         Binding(
-            get: { scope.enclosure?.windowSystem?.glassType ?? .clear },
+            get: { scope.enclosure?.windowSystem?.glassType },
             set: { newValue in
                 updateWindowSystem { $0.glassType = newValue }
             }
@@ -721,7 +724,7 @@ struct WindowsAndGlassEditorView: View {
     private func updateEnclosure(_ update: (inout Enclosure) -> Void) {
         var enclosure = scope.enclosure ?? emptyEnclosure()
         update(&enclosure)
-        scope.enclosure = enclosure
+        scope.enclosure = enclosure.isEffectivelyEmpty ? nil : enclosure
         autosave.scheduleSave(for: scope)
     }
 
@@ -729,7 +732,7 @@ struct WindowsAndGlassEditorView: View {
         updateEnclosure { enclosure in
             var windowSystem = enclosure.windowSystem ?? emptyWindowSystem()
             update(&windowSystem)
-            enclosure.windowSystem = windowSystem
+            enclosure.windowSystem = windowSystem.isEffectivelyEmpty ? nil : windowSystem
         }
     }
 }
@@ -1307,6 +1310,34 @@ private func emptyWindowSystem() -> WindowSystem {
         numBays: nil,
         configuration: nil
     )
+}
+
+private extension Enclosure {
+    var isEffectivelyEmpty: Bool {
+        enclosureType == nil &&
+        screenWallType == nil &&
+        screenFrameColor == nil &&
+        screenFrameColorCustom.nilIfBlank == nil &&
+        windowSystem == nil &&
+        kneeWall == nil &&
+        doors == nil
+    }
+}
+
+private extension WindowSystem {
+    var isEffectivelyEmpty: Bool {
+        windowType == nil &&
+        frameSystem == nil &&
+        glassType == nil &&
+        glassSafety == nil &&
+        gridOption == nil &&
+        operation == nil &&
+        color == nil &&
+        colorCustom.nilIfBlank == nil &&
+        windowHeight == nil &&
+        numBays == nil &&
+        configuration == nil
+    }
 }
 
 private func emptyKneeWall() -> KneeWall {

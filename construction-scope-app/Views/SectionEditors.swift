@@ -196,6 +196,7 @@ struct EnclosureEditorView: View {
     var body: some View {
         VStack(spacing: 16) {
             CardGroup(title: "Enclosure Type") {
+                FieldHeader("Type")
                 Picker("Type", selection: enclosureTypeBinding) {
                     Text("Not Set").tag(nil as EnclosureType?)
                     ForEach(EnclosureType.allCases, id: \.self) { type in
@@ -209,6 +210,7 @@ struct EnclosureEditorView: View {
             if showsScreenOptions {
                 CardGroup(title: "Screen Options") {
                     VStack(spacing: 12) {
+                        FieldHeader("Screen Wall Type")
                         Picker("Screen Wall Type", selection: screenWallTypeBinding) {
                             Text("Not Set").tag(nil as ScreenWallType?)
                             ForEach(ScreenWallType.allCases, id: \.self) { option in
@@ -218,6 +220,7 @@ struct EnclosureEditorView: View {
                         .pickerStyle(.menu)
                         .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
 
+                        FieldHeader("Screen Frame Color")
                         Picker("Screen Frame Color", selection: screenFrameColorBinding) {
                             Text("Not Set").tag(nil as StandardColorOption?)
                             ForEach(StandardColorOption.allCases, id: \.self) { color in
@@ -494,6 +497,7 @@ struct EnclosureEditorView: View {
 struct WindowsAndGlassEditorView: View {
     @Bindable var scope: JobScope
     @ObservedObject var autosave: DebouncedAutosave
+    @State private var isWindowSystemEnabled = false
 
     var body: some View {
         VStack(spacing: 16) {
@@ -502,15 +506,18 @@ struct WindowsAndGlassEditorView: View {
                     Toggle("Configure Window System", isOn: includeWindowSystemBinding)
                         .frame(minHeight: 44)
 
-                    if scope.enclosure?.windowSystem != nil {
+                    if isWindowSystemEnabled {
+                        FieldHeader("Window Type")
                         Picker("Window Type", selection: windowTypeBinding) {
+                            Text("Not Set").tag(nil as WindowType?)
                             ForEach(WindowType.allCases, id: \.self) { type in
-                                Text(type.displayName).tag(type)
+                                Text(type.displayName).tag(Optional(type))
                             }
                         }
                         .pickerStyle(.menu)
                         .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
 
+                        FieldHeader("Frame System")
                         Picker("Frame System", selection: frameSystemBinding) {
                             Text("Not Set").tag(nil as WindowFrameSystem?)
                             ForEach(WindowFrameSystem.allCases, id: \.self) { frame in
@@ -523,16 +530,20 @@ struct WindowsAndGlassEditorView: View {
                 }
             }
 
-            if scope.enclosure?.windowSystem != nil {
+            if isWindowSystemEnabled {
                 CardGroup(title: "Glass") {
                     VStack(spacing: 12) {
+                        FieldHeader("Glass Type")
                         Picker("Glass Type", selection: glassTypeBinding) {
+                            Text("Not Set").tag(nil as GlassType?)
                             ForEach(GlassType.allCases, id: \.self) { type in
-                                Text(type.displayName).tag(type)
+                                Text(type.displayName).tag(Optional(type))
                             }
                         }
-                        .pickerStyle(.segmented)
+                        .pickerStyle(.menu)
+                        .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
 
+                        FieldHeader("Glass Safety")
                         Picker("Glass Safety", selection: glassSafetyBinding) {
                             Text("Not Set").tag(nil as GlassSafety?)
                             ForEach(GlassSafety.allCases, id: \.self) { safety in
@@ -542,6 +553,7 @@ struct WindowsAndGlassEditorView: View {
                         .pickerStyle(.menu)
                         .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
 
+                        FieldHeader("Grid Option")
                         Picker("Grid Option", selection: gridOptionBinding) {
                             Text("Not Set").tag(nil as GridOption?)
                             ForEach(GridOption.allCases, id: \.self) { grid in
@@ -555,6 +567,7 @@ struct WindowsAndGlassEditorView: View {
 
                 CardGroup(title: "Frame + Layout") {
                     VStack(spacing: 12) {
+                        FieldHeader("Operation")
                         Picker("Operation", selection: operationBinding) {
                             Text("Not Set").tag(nil as WindowOperation?)
                             ForEach(WindowOperation.allCases, id: \.self) { operation in
@@ -564,6 +577,7 @@ struct WindowsAndGlassEditorView: View {
                         .pickerStyle(.menu)
                         .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
 
+                        FieldHeader("Frame Color")
                         Picker("Frame Color", selection: frameColorBinding) {
                             Text("Not Set").tag(nil as StandardColorOption?)
                             ForEach(StandardColorOption.allCases, id: \.self) { color in
@@ -589,6 +603,7 @@ struct WindowsAndGlassEditorView: View {
                             .keyboardType(.decimalPad)
                             .frame(minHeight: 44)
 
+                        FieldHeader("Configuration")
                         Picker("Configuration", selection: configurationBinding) {
                             Text("Not Set").tag(nil as WindowConfiguration?)
                             ForEach(WindowConfiguration.allCases, id: \.self) { config in
@@ -601,22 +616,27 @@ struct WindowsAndGlassEditorView: View {
                 }
             }
         }
+        .onAppear {
+            isWindowSystemEnabled = scope.enclosure?.windowSystem != nil
+        }
     }
 
     private var includeWindowSystemBinding: Binding<Bool> {
         Binding(
-            get: { scope.enclosure?.windowSystem != nil },
+            get: { isWindowSystemEnabled },
             set: { newValue in
+                isWindowSystemEnabled = newValue
+                guard !newValue else { return }
                 updateEnclosure { enclosure in
-                    enclosure.windowSystem = newValue ? (enclosure.windowSystem ?? emptyWindowSystem()) : nil
+                    enclosure.windowSystem = nil
                 }
             }
         )
     }
 
-    private var windowTypeBinding: Binding<WindowType> {
+    private var windowTypeBinding: Binding<WindowType?> {
         Binding(
-            get: { scope.enclosure?.windowSystem?.windowType ?? .pgtEzebreeze4TrackVinyl },
+            get: { scope.enclosure?.windowSystem?.windowType },
             set: { newValue in
                 updateWindowSystem { $0.windowType = newValue }
             }
@@ -632,9 +652,9 @@ struct WindowsAndGlassEditorView: View {
         )
     }
 
-    private var glassTypeBinding: Binding<GlassType> {
+    private var glassTypeBinding: Binding<GlassType?> {
         Binding(
-            get: { scope.enclosure?.windowSystem?.glassType ?? .clear },
+            get: { scope.enclosure?.windowSystem?.glassType },
             set: { newValue in
                 updateWindowSystem { $0.glassType = newValue }
             }
@@ -721,7 +741,7 @@ struct WindowsAndGlassEditorView: View {
     private func updateEnclosure(_ update: (inout Enclosure) -> Void) {
         var enclosure = scope.enclosure ?? emptyEnclosure()
         update(&enclosure)
-        scope.enclosure = enclosure
+        scope.enclosure = enclosure.isEffectivelyEmpty ? nil : enclosure
         autosave.scheduleSave(for: scope)
     }
 
@@ -742,6 +762,7 @@ struct AttachmentConditionsEditorView: View {
         VStack(spacing: 16) {
             CardGroup(title: "House Attachment") {
                 VStack(spacing: 12) {
+                    FieldHeader("House Wall Material")
                     Picker("House Wall Material", selection: houseWallMaterialBinding) {
                         Text("Not Set").tag(nil as HouseWallMaterial?)
                         ForEach(HouseWallMaterial.allCases, id: \.self) { material in
@@ -753,10 +774,11 @@ struct AttachmentConditionsEditorView: View {
 
                     if scope.attachment?.houseWallMaterial == .other {
                         TextField("Describe wall material", text: houseWallOtherBinding)
-                            .textFieldStyle(.roundedBorder)
-                            .frame(minHeight: 44)
+                        .textFieldStyle(.roundedBorder)
+                        .frame(minHeight: 44)
                     }
 
+                    FieldHeader("House Mounting Type")
                     Picker("House Mounting Type", selection: houseMountingTypeBinding) {
                         Text("Not Set").tag(nil as HouseMountingType?)
                         ForEach(HouseMountingType.allCases, id: \.self) { mountingType in
@@ -766,6 +788,7 @@ struct AttachmentConditionsEditorView: View {
                     .pickerStyle(.menu)
                     .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
 
+                    FieldHeader("Mount Condition")
                     Picker("Mount Condition", selection: mountConditionBinding) {
                         Text("Not Set").tag(nil as MountCondition?)
                         ForEach(MountCondition.allCases, id: \.self) { condition in
@@ -779,6 +802,7 @@ struct AttachmentConditionsEditorView: View {
 
             CardGroup(title: "Posts + Trim") {
                 VStack(spacing: 12) {
+                    FieldHeader("Post / Column Material")
                     Picker("Post / Column Material", selection: postMaterialBinding) {
                         Text("Not Set").tag(nil as PostColumnMaterial?)
                         ForEach(PostColumnMaterial.allCases, id: \.self) { material in
@@ -806,6 +830,7 @@ struct AttachmentConditionsEditorView: View {
                         .frame(minHeight: 44)
 
                     if scope.attachment?.trimPresent == true {
+                        FieldHeader("Trim Material")
                         Picker("Trim Material", selection: trimMaterialBinding) {
                             Text("Not Set").tag(nil as TrimMaterial?)
                             ForEach(TrimMaterial.allCases, id: \.self) { material in
@@ -817,10 +842,11 @@ struct AttachmentConditionsEditorView: View {
 
                         if scope.attachment?.trimMaterial == .other {
                             TextField("Describe trim material", text: trimMaterialOtherBinding)
-                                .textFieldStyle(.roundedBorder)
-                                .frame(minHeight: 44)
+                            .textFieldStyle(.roundedBorder)
+                            .frame(minHeight: 44)
                         }
 
+                        FieldHeader("Trim Thickness")
                         Picker("Trim Thickness", selection: trimThicknessBinding) {
                             Text("Not Set").tag(nil as TrimThickness?)
                             ForEach(TrimThickness.allCases, id: \.self) { thickness in
@@ -1261,6 +1287,21 @@ struct ProductionNotesEditorView: View {
     }
 }
 
+private struct FieldHeader: View {
+    let title: String
+
+    init(_ title: String) {
+        self.title = title
+    }
+
+    var body: some View {
+        Text(title)
+            .font(.subheadline)
+            .foregroundStyle(.secondary)
+            .frame(maxWidth: .infinity, alignment: .leading)
+    }
+}
+
 private extension String {
     var nilIfBlank: String? {
         trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : self
@@ -1309,9 +1350,21 @@ private func emptyWindowSystem() -> WindowSystem {
     )
 }
 
+private extension Enclosure {
+    var isEffectivelyEmpty: Bool {
+        enclosureType == nil &&
+        screenWallType == nil &&
+        screenFrameColor == nil &&
+        (screenFrameColorCustom ?? "").nilIfBlank == nil &&
+        windowSystem == nil &&
+        kneeWall == nil &&
+        doors == nil
+    }
+}
+
 private func emptyKneeWall() -> KneeWall {
     KneeWall(
-        option: .none,
+        option: KneeWallOption.none,
         panelHeight: nil,
         panelColor: nil,
         trimColor: nil,
@@ -1320,7 +1373,7 @@ private func emptyKneeWall() -> KneeWall {
 }
 
 private func emptyDoorOptions() -> DoorOptions {
-    DoorOptions(doorType: .none, notes: nil)
+    DoorOptions(doorType: DoorType.none, notes: nil)
 }
 
 private func emptyAttachmentConditions() -> AttachmentConditions {

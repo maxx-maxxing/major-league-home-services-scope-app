@@ -6,7 +6,8 @@
 - Milestone 1: Implemented
 - Milestone 2: Implemented (requested section editors)
 - Milestone 2.1: Implemented (Windows & Glass stability/usability pass)
-- Milestone 3+: Not started
+- Milestone 3: Implemented (PencilKit signature + sketch capture)
+- Milestone 4+: Not started
 
 ## Decisions
 - SwiftData remains the persistence layer (`JobScope` model + Codable value types).
@@ -31,6 +32,14 @@
   - `Window Type` and `Glass Type` now support `Not Set` to restore schema-optional (`nil`) state.
   - Empty `windowSystem` is now cleaned up to `nil` instead of persisting an all-empty nested object.
   - Empty `enclosure` is now cleaned up to `nil` when no enclosure data remains.
+- Milestone 3 Pencil support:
+  - `Signature & Export` section now renders a dedicated PencilKit editor (replacing placeholder stub view in that section).
+  - Customer signature is captured and persisted:
+    - PNG preview path -> `customerApproval.signaturePNGPath`
+    - Signed date -> `customerApproval.signedDate` (defaults on first signature)
+  - Salesperson signature is captured and persisted as a `SketchAttachment` titled `Salesperson Signature`.
+  - Optional site diagram is captured and persisted as a `SketchAttachment` titled `Site Diagram`.
+  - Drawing data (`.drawing`) and PNG previews are stored in app Application Support under `ScopeAssets/<scope-id>/`.
 - Production notes are stored in `customerApproval.optionsConfirmedText` (schema-consistent text field already available).
 - `schema.json` was not changed.
 
@@ -52,9 +61,12 @@
 4. Relaunch the app and verify edits persist.
 5. In `Windows & Glass`, toggle `Configure Window System` on/off and verify empty data does not persist.
 6. Set `Window Type` and `Glass Type`, then reset each to `Not Set` and verify values clear after autosave + relaunch.
+7. Open `Signature & Export`, draw customer and salesperson signatures, and add a site diagram.
+8. Wait for autosave debounce (~0.8s), relaunch app, and verify all drawings restore.
+9. Clear each drawing and verify related stored model fields clear after autosave + relaunch.
 
 ## Known Issues / Follow-ups
 - Remaining section editors are still placeholders.
-- Signature capture and sketch are not implemented yet (Milestone 3).
 - PDF preview/export is still stubbed (Milestone 4).
-- Build/runtime validation could not be executed in this environment because Xcode tooling (`xcodebuild`) is unavailable on this machine.
+- Customer signature uses `customerApproval` schema fields directly; salesperson signature is currently stored as a sketch attachment because schema does not yet include a dedicated salesperson-signature field.
+- Runtime Pencil interaction still needs on-device/manual verification in simulator or hardware (build validation completed with `xcodebuild` on March 9, 2026).

@@ -472,7 +472,7 @@ struct SectionEditorView: View {
                 case .productionNotes:
                     ProductionNotesEditorView(scope: scope, autosave: autosave)
                 case .signatureAndExport:
-                    PDFPreviewStubView(scope: scope)
+                    SignatureAndSketchEditorView(scope: scope, autosave: autosave)
                 default:
                     PlaceholderSectionView(section: section)
                 }

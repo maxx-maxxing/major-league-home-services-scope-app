@@ -1,6 +1,7 @@
 ﻿
 import SwiftUI
 import SwiftData
+import PencilKit
 
 struct ProjectInfoEditorView: View {
     @Bindable var scope: JobScope
@@ -1268,6 +1269,251 @@ struct ProductionNotesEditorView: View {
         var production = scope.production ?? emptyProductionOrderMeta()
         update(&production)
         scope.production = production
+        autosave.scheduleSave(for: scope)
+    }
+
+    private func updateCustomerApproval(_ update: (inout CustomerApproval) -> Void) {
+        var approval = scope.customerApproval ?? emptyCustomerApproval()
+        update(&approval)
+
+        if approval.optionsConfirmedText == nil,
+           approval.signaturePNGPath == nil,
+           approval.signedDate == nil {
+            scope.customerApproval = nil
+        } else {
+            scope.customerApproval = approval
+        }
+
+        autosave.scheduleSave(for: scope)
+    }
+}
+
+struct SignatureAndSketchEditorView: View {
+    @Bindable var scope: JobScope
+    @ObservedObject var autosave: DebouncedAutosave
+
+    @State private var customerSignatureDrawing = PKDrawing()
+    @State private var salespersonSignatureDrawing = PKDrawing()
+    @State private var siteDiagramDrawing = PKDrawing()
+    @State private var hasLoadedDrawings = false
+
+    private let salespersonSketchTitle = "Salesperson Signature"
+    private let siteDiagramSketchTitle = "Site Diagram"
+    private let customerSignatureBaseName = "customer-signature"
+    private let salespersonSignatureBaseName = "salesperson-signature"
+    private let siteDiagramBaseName = "site-diagram"
+
+    var body: some View {
+        VStack(spacing: 16) {
+            CardGroup(title: "Customer Signature") {
+                VStack(alignment: .leading, spacing: 12) {
+                    Text("Capture customer sign-off with Apple Pencil or touch.")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+
+                    PencilDrawingCanvas(drawing: $customerSignatureDrawing)
+                        .frame(minHeight: 220)
+
+                    Toggle("Include Signed Date", isOn: includesSignedDateBinding)
+                        .frame(minHeight: 44)
+
+                    if scope.customerApproval?.signedDate != nil {
+                        DatePicker(
+                            "Signed Date",
+                            selection: signedDateBinding,
+                            displayedComponents: .date
+                        )
+                        .datePickerStyle(.compact)
+                        .frame(minHeight: 44)
+                    }
+
+                    Button("Clear Signature", role: .destructive) {
+                        customerSignatureDrawing = PKDrawing()
+                    }
+                    .frame(minHeight: 44)
+                    .disabled(customerSignatureDrawing.strokes.isEmpty)
+                }
+            }
+
+            CardGroup(title: "Salesperson Signature") {
+                VStack(alignment: .leading, spacing: 12) {
+                    Text("Stored as a sketch attachment for Milestone 3.")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+
+                    PencilDrawingCanvas(drawing: $salespersonSignatureDrawing)
+                        .frame(minHeight: 220)
+
+                    Button("Clear Signature", role: .destructive) {
+                        salespersonSignatureDrawing = PKDrawing()
+                    }
+                    .frame(minHeight: 44)
+                    .disabled(salespersonSignatureDrawing.strokes.isEmpty)
+                }
+            }
+
+            CardGroup(title: "Site Diagram (Optional)") {
+                VStack(alignment: .leading, spacing: 12) {
+                    Text("Use a quick sketch to show site-specific details.")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+
+                    PencilDrawingCanvas(drawing: $siteDiagramDrawing)
+                        .frame(minHeight: 260)
+
+                    Button("Clear Diagram", role: .destructive) {
+                        siteDiagramDrawing = PKDrawing()
+                    }
+                    .frame(minHeight: 44)
+                    .disabled(siteDiagramDrawing.strokes.isEmpty)
+                }
+            }
+        }
+        .onAppear {
+            loadDrawingsIfNeeded()
+        }
+        .onChange(of: customerSignatureDrawing.dataRepresentation()) { _, _ in
+            guard hasLoadedDrawings else { return }
+            persistCustomerSignatureDrawing()
+        }
+        .onChange(of: salespersonSignatureDrawing.dataRepresentation()) { _, _ in
+            guard hasLoadedDrawings else { return }
+            persistSketchDrawing(
+                salespersonSignatureDrawing,
+                title: salespersonSketchTitle,
+                baseName: salespersonSignatureBaseName
+            )
+        }
+        .onChange(of: siteDiagramDrawing.dataRepresentation()) { _, _ in
+            guard hasLoadedDrawings else { return }
+            persistSketchDrawing(
+                siteDiagramDrawing,
+                title: siteDiagramSketchTitle,
+                baseName: siteDiagramBaseName
+            )
+        }
+    }
+
+    private var includesSignedDateBinding: Binding<Bool> {
+        Binding(
+            get: { scope.customerApproval?.signedDate != nil },
+            set: { newValue in
+                if newValue {
+                    updateCustomerApproval { approval in
+                        approval.signedDate = approval.signedDate ?? .now
+                    }
+                } else {
+                    updateCustomerApproval { approval in
+                        approval.signedDate = nil
+                    }
+                }
+            }
+        )
+    }
+
+    private var signedDateBinding: Binding<Date> {
+        Binding(
+            get: { scope.customerApproval?.signedDate ?? .now },
+            set: { newValue in
+                updateCustomerApproval { approval in
+                    approval.signedDate = newValue
+                }
+            }
+        )
+    }
+
+    private func loadDrawingsIfNeeded() {
+        guard !hasLoadedDrawings else { return }
+
+        if let customerURLs = try? DrawingAssetStore.urls(scopeID: scope.id, baseName: customerSignatureBaseName) {
+            customerSignatureDrawing = DrawingAssetStore.drawing(for: customerURLs.drawing.path)
+        }
+
+        salespersonSignatureDrawing = DrawingAssetStore.drawing(
+            for: scope.sketches?.first(where: { $0.title == salespersonSketchTitle })?.drawingDataPath
+        )
+        siteDiagramDrawing = DrawingAssetStore.drawing(
+            for: scope.sketches?.first(where: { $0.title == siteDiagramSketchTitle })?.drawingDataPath
+        )
+
+        hasLoadedDrawings = true
+    }
+
+    private func persistCustomerSignatureDrawing() {
+        guard let urls = try? DrawingAssetStore.urls(scopeID: scope.id, baseName: customerSignatureBaseName) else {
+            return
+        }
+
+        if customerSignatureDrawing.strokes.isEmpty {
+            DrawingAssetStore.remove(urls: urls)
+            updateCustomerApproval { approval in
+                approval.signaturePNGPath = nil
+                approval.signedDate = nil
+            }
+            return
+        }
+
+        do {
+            try DrawingAssetStore.save(customerSignatureDrawing, to: urls)
+            updateCustomerApproval { approval in
+                approval.signaturePNGPath = urls.preview.path
+                approval.signedDate = approval.signedDate ?? .now
+            }
+        } catch {
+            assertionFailure("Failed to save customer signature: \(error)")
+        }
+    }
+
+    private func persistSketchDrawing(_ drawing: PKDrawing, title: String, baseName: String) {
+        guard let urls = try? DrawingAssetStore.urls(scopeID: scope.id, baseName: baseName) else {
+            return
+        }
+
+        if drawing.strokes.isEmpty {
+            DrawingAssetStore.remove(urls: urls)
+            removeSketch(title: title)
+            return
+        }
+
+        do {
+            try DrawingAssetStore.save(drawing, to: urls)
+            upsertSketch(
+                title: title,
+                drawingPath: urls.drawing.path,
+                previewPath: urls.preview.path
+            )
+        } catch {
+            assertionFailure("Failed to save sketch \(title): \(error)")
+        }
+    }
+
+    private func upsertSketch(title: String, drawingPath: String, previewPath: String) {
+        var sketches = scope.sketches ?? []
+
+        if let index = sketches.firstIndex(where: { $0.title == title }) {
+            var existing = sketches[index]
+            existing.drawingDataPath = drawingPath
+            existing.previewPNGPath = previewPath
+            sketches[index] = existing
+        } else {
+            sketches.append(
+                SketchAttachment(
+                    title: title,
+                    drawingDataPath: drawingPath,
+                    previewPNGPath: previewPath
+                )
+            )
+        }
+
+        scope.sketches = sketches
+        autosave.scheduleSave(for: scope)
+    }
+
+    private func removeSketch(title: String) {
+        guard var sketches = scope.sketches else { return }
+
+        sketches.removeAll(where: { $0.title == title })
+        scope.sketches = sketches.isEmpty ? nil : sketches
         autosave.scheduleSave(for: scope)
     }
 

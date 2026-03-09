@@ -37,6 +37,19 @@ Keep milestones small, testable, and reviewable.
 - Ensure TextEditor note fields support Scribble
 - PencilKit signature capture page
 - Optional: PencilKit site diagram page with minimal tools
+- Milestone 3.1 – PencilKit Foundation
+  - Add a reusable PencilKit canvas bridge for SwiftUI
+  - Support load/save of PKDrawing data + PNG previews
+- Milestone 3.2 – Signature Capture UX
+  - Replace Signature & Export placeholder with a signature editor
+  - Capture customer signature + signed date into `customerApproval`
+  - Capture salesperson signature as a saved sketch attachment
+- Milestone 3.3 – Site Diagram UX
+  - Add optional site diagram canvas with clear action
+  - Persist diagram to `sketches` with autosave behavior
+- Milestone 3.4 – Milestone Validation + Docs
+  - Verify relaunch persistence for signature/diagram
+  - Update `DOCUMENTATION.md` with milestone status and known follow-ups
 
 ## Milestone 4 – PDF Preview + Export
 - Build PDF engine that renders a flattened PDF (PDFKit/CoreGraphics)

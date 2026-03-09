@@ -7,7 +7,8 @@
 - Milestone 2: Implemented (requested section editors)
 - Milestone 2.1: Implemented (Windows & Glass stability/usability pass)
 - Milestone 3: Implemented (PencilKit signature + sketch capture)
-- Milestone 4+: Not started
+- Milestone 4: Implemented (flattened PDF preview + export)
+- Milestone 5+: Not started
 
 ## Decisions
 - SwiftData remains the persistence layer (`JobScope` model + Codable value types).
@@ -40,6 +41,19 @@
   - Salesperson signature is captured and persisted as a `SketchAttachment` titled `Salesperson Signature`.
   - Optional site diagram is captured and persisted as a `SketchAttachment` titled `Site Diagram`.
   - Drawing data (`.drawing`) and PNG previews are stored in app Application Support under `ScopeAssets/<scope-id>/`.
+- Milestone 4 PDF/export implementation:
+  - Added CoreGraphics-based PDF renderer (`UIGraphicsPDFRenderer`) for flattened PDF output.
+  - Added native preview sheet using PDFKit (`PDFView`) and toolbar `Preview` action wiring.
+  - Added toolbar `Export` action wiring via iOS share sheet (`UIActivityViewController`).
+  - Rendered output includes:
+    - Header: client, address, project type, optional job number
+    - Footer: generated date/time and page X of Y
+    - Five core content pages based on `PDF_EXPORT.md` outline
+    - Customer signature image + signed date when present
+    - Optional site diagram appendix page when present
+  - Added missing-required-field checks (currently client name + address) surfaced in preview.
+  - Export filename now follows a sanitized convention:
+    - `{ClientLastToken}-{AddressNoSpaces}-{ProjectType}-Scope.pdf`
 - Production notes are stored in `customerApproval.optionsConfirmedText` (schema-consistent text field already available).
 - `schema.json` was not changed.
 
@@ -64,9 +78,12 @@
 7. Open `Signature & Export`, draw customer and salesperson signatures, and add a site diagram.
 8. Wait for autosave debounce (~0.8s), relaunch app, and verify all drawings restore.
 9. Clear each drawing and verify related stored model fields clear after autosave + relaunch.
+10. Tap toolbar `Preview` and verify the PDF loads with section pages and (if available) missing required field warnings.
+11. Tap toolbar `Export` and verify share sheet opens with generated PDF file.
+12. Verify generated PDF shows header/footer and customer signature/date when signature exists.
 
 ## Known Issues / Follow-ups
 - Remaining section editors are still placeholders.
-- PDF preview/export is still stubbed (Milestone 4).
 - Customer signature uses `customerApproval` schema fields directly; salesperson signature is currently stored as a sketch attachment because schema does not yet include a dedicated salesperson-signature field.
-- Runtime Pencil interaction still needs on-device/manual verification in simulator or hardware (build validation completed with `xcodebuild` on March 9, 2026).
+- PDF rendering currently uses deterministic text blocks rather than full visual chips/checkmark treatments from design aspirational notes.
+- Runtime PDF preview/export behavior still needs manual simulator/device interaction verification (compile/build validation completed with `xcodebuild` on March 9, 2026).

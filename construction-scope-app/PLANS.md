@@ -56,12 +56,50 @@ Keep milestones small, testable, and reviewable.
 - Implement Preview screen
 - Implement Export/Share flow (ShareLink/Files)
 - Follow PDF_EXPORT.md layout outline
+- Milestone 4.1 – PDF Data Mapping
+  - Define printable summary rows for each schema section
+  - Add missing-field checks used by preview warnings
+- Milestone 4.2 – Flattened PDF Renderer
+  - Implement CoreGraphics renderer with fixed page layout + wrapped notes
+  - Add header/footer (project metadata + page X of Y + generated timestamp)
+  - Embed customer signature image + signed date
+- Milestone 4.3 – Preview Experience
+  - Replace PDF stub with a PDFKit-backed preview view
+  - Surface missing required fields before export
+- Milestone 4.4 – Export/Share Flow
+  - Generate PDF file to app temp directory using naming convention
+  - Wire toolbar actions for Preview and Share/Export
+- Milestone 4.5 – Validation + Docs
+  - Validate generated PDF opens and contains expected sections
+  - Update `DOCUMENTATION.md` with implementation notes and follow-ups
 
-## Milestone 5 – Photos Appendix (Optional)
+## Milestone 5 – JobTread Integration
+- Milestone 5.1 – Integration Readiness Freeze
+  - Confirm `schema.json` fields/enums used for integration are stable
+  - Finalize canonical string/enum mapping table between app model and JobTread objects
+  - Confirm required/optional field behavior and default values
+- Milestone 5.2 – API Foundation
+  - Add secure credential/config handling for JobTread API access
+  - Add typed API client + request/response models
+  - Add resilient networking (timeouts, retry/backoff, offline queue strategy)
+- Milestone 5.3 – Initial Sync Flow (One-Way)
+  - Implement manual `Send to JobTread` action per scope
+  - Map core scope entities into JobTread entities (customer/location/job/etc.)
+  - Upload supported artifacts (signature/diagram and other attachments as applicable)
+- Milestone 5.4 – Sync UX + Operations
+  - Add per-scope sync status (never sent / in progress / success / failed)
+  - Add actionable error UI and retry controls
+  - Add integration logs/diagnostics suitable for support troubleshooting
+- Milestone 5.5 – Validation
+  - Validate payload correctness against JobTread docs/sandbox
+  - Verify idempotency to prevent duplicate records on retry
+  - Document mapping assumptions and known gaps
+
+## Milestone 6 – Photos Appendix (Optional)
 - Photo capture per checklist
 - Store locally, add appendix pages in PDF export
 
-## Milestone 6 – Acceptance + Polish
+## Milestone 7 – Acceptance + Polish
 - Run through ACCEPTANCE.md checklist
 - Dark mode verification
 - Dynamic Type verification

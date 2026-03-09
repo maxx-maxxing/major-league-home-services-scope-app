@@ -442,6 +442,10 @@ struct SectionEditorView: View {
     @Bindable var scope: JobScope
     let section: ScopeSection
     @ObservedObject var autosave: DebouncedAutosave
+    @State private var showingPreview = false
+    @State private var shareURL: URL?
+    @State private var showingShareSheet = false
+    @State private var errorMessage: String?
 
     var body: some View {
         ScrollView {
@@ -487,12 +491,14 @@ struct SectionEditorView: View {
         .toolbar {
             ToolbarItemGroup(placement: .topBarTrailing) {
                 Button {
+                    showingPreview = true
                 } label: {
                     Image(systemName: "doc.text.magnifyingglass")
                 }
                 .accessibilityLabel("Preview")
 
                 Button {
+                    exportPDF()
                 } label: {
                     Image(systemName: "square.and.arrow.up")
                 }
@@ -510,6 +516,44 @@ struct SectionEditorView: View {
                 }
                 .accessibilityLabel("Sketch")
             }
+        }
+        .sheet(isPresented: $showingPreview) {
+            NavigationStack {
+                ScopePDFPreviewSheet(scope: scope)
+            }
+        }
+        .sheet(isPresented: $showingShareSheet) {
+            if let shareURL {
+                ActivityShareSheet(items: [shareURL])
+            }
+        }
+        .alert("PDF Export Failed", isPresented: exportErrorBinding) {
+            Button("OK", role: .cancel) {
+                errorMessage = nil
+            }
+        } message: {
+            Text(errorMessage ?? "An unknown export error occurred.")
+        }
+    }
+
+    private var exportErrorBinding: Binding<Bool> {
+        Binding(
+            get: { errorMessage != nil },
+            set: { isPresented in
+                if !isPresented {
+                    errorMessage = nil
+                }
+            }
+        )
+    }
+
+    private func exportPDF() {
+        do {
+            let result = try ScopePDFExporter.generate(scope: scope)
+            shareURL = result.fileURL
+            showingShareSheet = true
+        } catch {
+            errorMessage = error.localizedDescription
         }
     }
 }

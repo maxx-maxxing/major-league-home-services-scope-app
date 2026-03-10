@@ -111,6 +111,7 @@ struct ProjectInfoEditorView: View {
                         )
                         .datePickerStyle(.compact)
                         .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+                        .formRevealTransition()
                     }
 
                     VStack(alignment: .leading, spacing: 6) {
@@ -124,6 +125,7 @@ struct ProjectInfoEditorView: View {
                 }
             }
         }
+        .animation(.formReveal, value: scope.projectInfo.siteVisitDate != nil)
     }
 
     private var projectTypeBinding: Binding<ProjectType> {
@@ -604,9 +606,11 @@ struct EnclosureEditorView: View {
                             TextField("Custom screen frame color", text: screenFrameColorCustomBinding)
                                 .textFieldStyle(.roundedBorder)
                                 .frame(minHeight: 44)
+                                .formRevealTransition()
                         }
                     }
                 }
+                .formRevealTransition()
             }
 
             CardGroup(title: "Knee Wall + Doors") {
@@ -622,24 +626,29 @@ struct EnclosureEditorView: View {
                         }
                         .pickerStyle(.menu)
                         .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+                        .formRevealTransition()
 
                         if scope.enclosure?.kneeWall?.option != KneeWallOption.none {
                             TextField("Panel height", text: kneeWallPanelHeightBinding)
                                 .textFieldStyle(.roundedBorder)
                                 .keyboardType(.decimalPad)
                                 .frame(minHeight: 44)
+                                .formRevealTransition()
 
                             TextField("Panel color", text: kneeWallPanelColorBinding)
                                 .textFieldStyle(.roundedBorder)
                                 .frame(minHeight: 44)
+                                .formRevealTransition()
 
                             TextField("Trim color", text: kneeWallTrimColorBinding)
                                 .textFieldStyle(.roundedBorder)
                                 .frame(minHeight: 44)
+                                .formRevealTransition()
 
                             TextField("Interior finish", text: kneeWallInteriorFinishBinding)
                                 .textFieldStyle(.roundedBorder)
                                 .frame(minHeight: 44)
+                                .formRevealTransition()
                         }
                     }
 
@@ -656,6 +665,7 @@ struct EnclosureEditorView: View {
                         }
                         .pickerStyle(.menu)
                         .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+                        .formRevealTransition()
 
                         VStack(alignment: .leading, spacing: 6) {
                             Text("Door Notes")
@@ -665,10 +675,16 @@ struct EnclosureEditorView: View {
                                 .padding(8)
                                 .background(Color(uiColor: .secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
                         }
+                        .formRevealTransition()
                     }
                 }
             }
         }
+        .animation(.formReveal, value: showsScreenOptions)
+        .animation(.formReveal, value: scope.enclosure?.screenFrameColor == .custom)
+        .animation(.formReveal, value: scope.enclosure?.kneeWall != nil)
+        .animation(.formReveal, value: scope.enclosure?.kneeWall?.option != KneeWallOption.none)
+        .animation(.formReveal, value: scope.enclosure?.doors != nil)
     }
 
     private var showsScreenOptions: Bool {
@@ -886,6 +902,7 @@ struct WindowsAndGlassEditorView: View {
                         }
                         .pickerStyle(.menu)
                         .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+                        .formRevealTransition()
 
                         FieldHeader("Frame System")
                         Picker("Frame System", selection: frameSystemBinding) {
@@ -896,6 +913,7 @@ struct WindowsAndGlassEditorView: View {
                         }
                         .pickerStyle(.menu)
                         .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+                        .formRevealTransition()
                     }
                 }
             }
@@ -934,6 +952,7 @@ struct WindowsAndGlassEditorView: View {
                         .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
                     }
                 }
+                .formRevealTransition()
 
                 CardGroup(title: "Frame + Layout") {
                     VStack(spacing: 12) {
@@ -961,6 +980,7 @@ struct WindowsAndGlassEditorView: View {
                             TextField("Custom frame color", text: frameColorCustomBinding)
                                 .textFieldStyle(.roundedBorder)
                                 .frame(minHeight: 44)
+                                .formRevealTransition()
                         }
 
                         TextField("Window Height", text: windowHeightBinding)
@@ -984,11 +1004,14 @@ struct WindowsAndGlassEditorView: View {
                         .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
                     }
                 }
+                .formRevealTransition()
             }
         }
         .onAppear {
             isWindowSystemEnabled = scope.enclosure?.windowSystem != nil
         }
+        .animation(.formReveal, value: isWindowSystemEnabled)
+        .animation(.formReveal, value: scope.enclosure?.windowSystem?.color == .custom)
     }
 
     private var includeWindowSystemBinding: Binding<Bool> {
@@ -1331,8 +1354,9 @@ struct AttachmentConditionsEditorView: View {
 
                     if scope.attachment?.houseWallMaterial == .other {
                         TextField("Describe wall material", text: houseWallOtherBinding)
-                        .textFieldStyle(.roundedBorder)
-                        .frame(minHeight: 44)
+                            .textFieldStyle(.roundedBorder)
+                            .frame(minHeight: 44)
+                            .formRevealTransition()
                     }
 
                     FieldHeader("House Mounting Type")
@@ -1373,6 +1397,7 @@ struct AttachmentConditionsEditorView: View {
                         TextField("Describe post/column material", text: postMaterialOtherBinding)
                             .textFieldStyle(.roundedBorder)
                             .frame(minHeight: 44)
+                            .formRevealTransition()
                     }
 
                     TextField("Post size", text: postSizeBinding)
@@ -1396,11 +1421,13 @@ struct AttachmentConditionsEditorView: View {
                         }
                         .pickerStyle(.menu)
                         .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+                        .formRevealTransition()
 
                         if scope.attachment?.trimMaterial == .other {
                             TextField("Describe trim material", text: trimMaterialOtherBinding)
-                            .textFieldStyle(.roundedBorder)
-                            .frame(minHeight: 44)
+                                .textFieldStyle(.roundedBorder)
+                                .frame(minHeight: 44)
+                                .formRevealTransition()
                         }
 
                         FieldHeader("Trim Thickness")
@@ -1412,12 +1439,14 @@ struct AttachmentConditionsEditorView: View {
                         }
                         .pickerStyle(.menu)
                         .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+                        .formRevealTransition()
 
                         if scope.attachment?.trimThickness == .custom {
                             TextField("Custom trim thickness", text: trimThicknessCustomBinding)
                                 .textFieldStyle(.roundedBorder)
                                 .keyboardType(.decimalPad)
                                 .frame(minHeight: 44)
+                                .formRevealTransition()
                         }
                     }
                 }
@@ -1443,6 +1472,11 @@ struct AttachmentConditionsEditorView: View {
                     .background(Color(uiColor: .secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
             }
         }
+        .animation(.formReveal, value: scope.attachment?.houseWallMaterial == .other)
+        .animation(.formReveal, value: scope.attachment?.postColumnMaterial == .other)
+        .animation(.formReveal, value: scope.attachment?.trimPresent == true)
+        .animation(.formReveal, value: scope.attachment?.trimMaterial == .other)
+        .animation(.formReveal, value: scope.attachment?.trimThickness == .custom)
     }
 
     private var houseWallMaterialBinding: Binding<HouseWallMaterial?> {
@@ -1802,6 +1836,7 @@ struct ProductionNotesEditorView: View {
                     if scope.production != nil {
                         Toggle("Include Start Date", isOn: includeStartDateBinding)
                             .frame(minHeight: 44)
+                            .formRevealTransition()
 
                         if scope.production?.startDate != nil {
                             DatePicker(
@@ -1811,15 +1846,18 @@ struct ProductionNotesEditorView: View {
                             )
                             .datePickerStyle(.compact)
                             .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+                            .formRevealTransition()
                         }
 
                         TextField("Crew lead", text: crewLeadBinding)
                             .textFieldStyle(.roundedBorder)
                             .frame(minHeight: 44)
+                            .formRevealTransition()
 
                         TextField("Duration estimate", text: durationEstimateBinding)
                             .textFieldStyle(.roundedBorder)
                             .frame(minHeight: 44)
+                            .formRevealTransition()
 
                         Picker("Material Order", selection: materialOrderStatusBinding) {
                             ForEach(MaterialOrderStatus.allCases, id: \.self) { status in
@@ -1827,6 +1865,7 @@ struct ProductionNotesEditorView: View {
                             }
                         }
                         .pickerStyle(.segmented)
+                        .formRevealTransition()
 
                         Picker("Permit Status", selection: permitStatusBinding) {
                             ForEach(PermitStatus.allCases, id: \.self) { status in
@@ -1834,6 +1873,7 @@ struct ProductionNotesEditorView: View {
                             }
                         }
                         .pickerStyle(.segmented)
+                        .formRevealTransition()
                     }
                 }
             }
@@ -1848,10 +1888,14 @@ struct ProductionNotesEditorView: View {
                             .frame(minHeight: 140)
                             .padding(8)
                             .background(Color(uiColor: .secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+                            .formRevealTransition()
                     }
                 }
             }
         }
+        .animation(.formReveal, value: scope.production != nil)
+        .animation(.formReveal, value: scope.production?.startDate != nil)
+        .animation(.formReveal, value: includeProductionNotesBinding.wrappedValue)
     }
 
     private var statusBinding: Binding<JobStatus> {
@@ -1878,7 +1922,7 @@ struct ProductionNotesEditorView: View {
         Binding(
             get: { scope.production != nil },
             set: { newValue in
-                scope.production = newValue ? (scope.production ?? emptyProductionOrderMeta()) : nil
+                scope.production = newValue ? (scope.production ?? defaultProductionOrderMeta()) : nil
                 autosave.scheduleSave(for: scope)
             }
         )
@@ -2028,10 +2072,13 @@ struct SignatureAndSketchEditorView: View {
                         )
                         .datePickerStyle(.compact)
                         .frame(minHeight: 44)
+                        .formRevealTransition()
                     }
 
                     Button("Clear Signature", role: .destructive) {
-                        customerSignatureDrawing = PKDrawing()
+                        withAnimation(.formReveal) {
+                            customerSignatureDrawing = PKDrawing()
+                        }
                     }
                     .frame(minHeight: 44)
                     .disabled(customerSignatureDrawing.strokes.isEmpty)
@@ -2048,7 +2095,9 @@ struct SignatureAndSketchEditorView: View {
                         .frame(minHeight: 220)
 
                     Button("Clear Signature", role: .destructive) {
-                        salespersonSignatureDrawing = PKDrawing()
+                        withAnimation(.formReveal) {
+                            salespersonSignatureDrawing = PKDrawing()
+                        }
                     }
                     .frame(minHeight: 44)
                     .disabled(salespersonSignatureDrawing.strokes.isEmpty)
@@ -2065,7 +2114,9 @@ struct SignatureAndSketchEditorView: View {
                         .frame(minHeight: 260)
 
                     Button("Clear Diagram", role: .destructive) {
-                        siteDiagramDrawing = PKDrawing()
+                        withAnimation(.formReveal) {
+                            siteDiagramDrawing = PKDrawing()
+                        }
                     }
                     .frame(minHeight: 44)
                     .disabled(siteDiagramDrawing.strokes.isEmpty)
@@ -2095,6 +2146,10 @@ struct SignatureAndSketchEditorView: View {
                 baseName: siteDiagramBaseName
             )
         }
+        .animation(.formReveal, value: scope.customerApproval?.signedDate != nil)
+        .animation(.formReveal, value: customerSignatureDrawing.strokes.isEmpty)
+        .animation(.formReveal, value: salespersonSignatureDrawing.strokes.isEmpty)
+        .animation(.formReveal, value: siteDiagramDrawing.strokes.isEmpty)
     }
 
     private var includesSignedDateBinding: Binding<Bool> {
@@ -2317,6 +2372,19 @@ private struct OptionalBoolPicker: View {
 private extension String {
     var nilIfBlank: String? {
         trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : self
+    }
+}
+
+private extension Animation {
+    static let formReveal = Animation.snappy(duration: 0.24, extraBounce: 0)
+}
+
+private extension View {
+    func formRevealTransition() -> some View {
+        transition(.asymmetric(
+            insertion: .move(edge: .top).combined(with: .opacity),
+            removal: .scale(scale: 0.96).combined(with: .opacity)
+        ))
     }
 }
 
@@ -2544,6 +2612,16 @@ private func emptyProductionOrderMeta() -> ProductionOrderMeta {
         durationEstimate: nil,
         materialOrderStatus: nil,
         permitStatus: nil
+    )
+}
+
+private func defaultProductionOrderMeta() -> ProductionOrderMeta {
+    ProductionOrderMeta(
+        startDate: nil,
+        crewLead: nil,
+        durationEstimate: nil,
+        materialOrderStatus: .notOrdered,
+        permitStatus: .notSubmitted
     )
 }
 

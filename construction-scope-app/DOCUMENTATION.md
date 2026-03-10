@@ -11,6 +11,7 @@
 - Milestone 4: Implemented (flattened PDF preview + export)
 - Milestone 5: Not started
 - Milestone 6: Implemented (photo attachment flow + PDF photo appendix)
+- Milestone 7.1: In progress (interaction animation polish)
 
 ## Decisions
 - SwiftData remains the persistence layer (`JobScope` model + Codable value types).
@@ -104,6 +105,24 @@
   - Imported photos are stored locally under the scope asset directory and persisted in `scope.photos`.
   - Photo captions can be edited after import and individual photos can be deleted.
   - The PDF appendix now adds one page per stored photo with caption + created timestamp.
+- Milestone 7.1 interaction polish:
+  - Added animated new-scope creation/deposit feedback in the sidebar.
+  - Added animated scope row deletion transitions in scope lists.
+  - Added animated scope selection changes in the sidebar.
+  - Added animated section switching transitions in the iPad detail pane.
+  - Added animated folder disclosure expand/collapse behavior in the sidebar.
+  - Added consistent reveal/collapse motion for progressive-disclosure form content:
+    - site visit date
+    - enclosure screen/knee-wall/door options
+    - window-system configuration blocks
+    - attachment custom-material/trim fields
+    - production schedule metadata and notes
+    - signed-date controls in signature capture
+  - Added subtle content transitions for editor header text and status-pill changes.
+  - Added toolbar action feedback for preview/export/photos controls in the editor.
+  - Added animated photo import/delete transitions inside the photo-management sheet.
+  - Added animated clear-state feedback for signature and site-diagram reset actions.
+  - Native sheet presentations for preview/photos/share remain system-driven; additional custom presentation polish can be layered on if needed after runtime review.
 - Production notes are stored in `customerApproval.optionsConfirmedText` (schema-consistent text field already available).
 - `schema.json` was not changed.
 

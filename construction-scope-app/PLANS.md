@@ -134,3 +134,13 @@ Keep milestones small, testable, and reviewable.
 - Dynamic Type verification
 - Tap target verification
 - Light performance polish and accessibility labels
+
+## Milestone 7.1 – Interaction Animation Polish
+- Add motion to key UI state changes so content changes are visually legible
+- Prioritize:
+  - scope selection transitions
+  - section switching in the detail pane
+  - sidebar folder expansion/collapse
+  - modal/sheet presentation polish where current changes feel abrupt
+- Keep animations subtle, fast, and system-aligned rather than decorative
+- Validate that animations do not interfere with autosave, selection state, or accessibility

@@ -23,6 +23,7 @@ struct StatusPill: View {
         Text(status.displayName)
             .font(.footnote)
             .foregroundStyle(.secondary)
+            .contentTransition(.opacity)
             .padding(.horizontal, 10)
             .padding(.vertical, 6)
             .background(Color.secondary.opacity(0.12), in: Capsule())

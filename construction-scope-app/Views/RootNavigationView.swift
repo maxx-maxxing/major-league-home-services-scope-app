@@ -66,6 +66,10 @@ struct RootNavigationView: View {
         horizontalSizeClass == .compact
     }
 
+    private var detailTransitionKey: String {
+        "\(selectedScopeID?.uuidString ?? "none")-\(selectedSection.rawValue)"
+    }
+
     var body: some View {
         ZStack {
             Group {
@@ -90,15 +94,25 @@ struct RootNavigationView: View {
                             newScopeTapPoint: $sidebarRenameOrigin
                         )
                     } detail: {
-                        if let scope = selectedScope {
-                            SectionEditorView(scope: scope, section: selectedSection, autosave: autosave)
-                        } else {
-                            ContentUnavailableView(
-                                "No Scope Selected",
-                                systemImage: "doc.badge.plus",
-                                description: Text("Create a new scope to begin.")
-                            )
+                        ZStack {
+                            if let scope = selectedScope {
+                                SectionEditorView(scope: scope, section: selectedSection, autosave: autosave)
+                                    .id(detailTransitionKey)
+                                    .transition(.asymmetric(
+                                        insertion: .move(edge: .trailing).combined(with: .opacity),
+                                        removal: .move(edge: .leading).combined(with: .opacity)
+                                    ))
+                            } else {
+                                ContentUnavailableView(
+                                    "No Scope Selected",
+                                    systemImage: "doc.badge.plus",
+                                    description: Text("Create a new scope to begin.")
+                                )
+                                .id("no-scope-selected")
+                                .transition(.opacity)
+                            }
                         }
+                        .animation(.snappy(duration: 0.28, extraBounce: 0), value: detailTransitionKey)
                     }
                     .navigationSplitViewStyle(.balanced)
                 }
@@ -328,7 +342,9 @@ private struct ScopeSidebarView: View {
                 Section("Sections") {
                     ForEach(ScopeSection.allCases) { section in
                         Button {
-                            selectedSection = section
+                            withAnimation(.snappy(duration: 0.26, extraBounce: 0)) {
+                                selectedSection = section
+                            }
                         } label: {
                             Label(section.rawValue, systemImage: section.symbol)
                                 .font(.body)
@@ -343,6 +359,7 @@ private struct ScopeSidebarView: View {
         }
         .listStyle(.sidebar)
         .animation(.snappy(duration: 0.28, extraBounce: 0), value: scopes.map(\.id))
+        .animation(.snappy(duration: 0.24, extraBounce: 0), value: scopesExpanded)
         .navigationTitle("Scopes")
         .alert("Delete Scope?", isPresented: deleteAlertPresented) {
             Button("Cancel", role: .cancel) {
@@ -372,7 +389,9 @@ private struct ScopeSidebarView: View {
     @ViewBuilder
     private func scopeRow(for scope: JobScope) -> some View {
         Button {
-            selectedScopeID = scope.id
+            withAnimation(.snappy(duration: 0.26, extraBounce: 0)) {
+                selectedScopeID = scope.id
+            }
         } label: {
             HStack {
                 VStack(alignment: .leading, spacing: 4) {
@@ -389,6 +408,7 @@ private struct ScopeSidebarView: View {
                 if selectedScopeID == scope.id {
                     Image(systemName: "checkmark.circle.fill")
                         .foregroundStyle(.tint)
+                        .transition(.scale.combined(with: .opacity))
                 }
             }
             .frame(minHeight: 44)
@@ -774,6 +794,9 @@ struct SectionEditorView: View {
     @State private var shareURL: URL?
     @State private var showingShareSheet = false
     @State private var errorMessage: String?
+    @State private var previewActionToken = 0
+    @State private var exportActionToken = 0
+    @State private var photoActionToken = 0
 
     var body: some View {
         ScrollView {
@@ -783,9 +806,11 @@ struct SectionEditorView: View {
                         Text(scope.displayName)
                             .font(.title3)
                             .foregroundStyle(.primary)
+                            .contentTransition(.opacity)
                         Text(section.rawValue)
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
+                            .contentTransition(.opacity)
                     }
 
                     Spacer()
@@ -826,29 +851,38 @@ struct SectionEditorView: View {
             .frame(maxWidth: .infinity, alignment: .top)
         }
         .background(Color(uiColor: .systemGroupedBackground))
+        .animation(.snappy(duration: 0.24, extraBounce: 0), value: scope.displayName)
+        .animation(.snappy(duration: 0.24, extraBounce: 0), value: scope.status)
+        .animation(.snappy(duration: 0.24, extraBounce: 0), value: section)
         .navigationTitle(section.rawValue)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItemGroup(placement: .topBarTrailing) {
                 Button {
+                    previewActionToken += 1
                     showingPreview = true
                 } label: {
                     Image(systemName: "doc.text.magnifyingglass")
                 }
+                .symbolEffect(.bounce, value: previewActionToken)
                 .accessibilityLabel("Preview")
 
                 Button {
+                    exportActionToken += 1
                     exportPDF()
                 } label: {
                     Image(systemName: "square.and.arrow.up")
                 }
+                .symbolEffect(.bounce, value: exportActionToken)
                 .accessibilityLabel("Export")
 
                 Button {
+                    photoActionToken += 1
                     showingPhotos = true
                 } label: {
                     Image(systemName: "photo.on.rectangle")
                 }
+                .symbolEffect(.bounce, value: photoActionToken)
                 .accessibilityLabel("Photos")
 
                 Button {

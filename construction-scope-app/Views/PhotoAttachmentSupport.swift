@@ -49,6 +49,10 @@ struct ScopePhotosSheet: View {
                                         .frame(minHeight: 44)
                                     }
                                 }
+                                .transition(.asymmetric(
+                                    insertion: .move(edge: .bottom).combined(with: .opacity),
+                                    removal: .scale(scale: 0.94).combined(with: .opacity)
+                                ))
                             }
                         }
                     } else {
@@ -62,6 +66,7 @@ struct ScopePhotosSheet: View {
                 .padding(16)
             }
             .background(Color(uiColor: .systemGroupedBackground))
+            .animation(.snappy(duration: 0.28, extraBounce: 0), value: scope.photos?.map(\.id) ?? [])
             .navigationTitle("Photos")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -134,8 +139,10 @@ struct ScopePhotosSheet: View {
                     let savedPhoto = try PhotoAssetStore.savePhoto(data: data, scopeID: scope.id)
 
                     await MainActor.run {
-                        updatePhotos { photos in
-                            photos.append(savedPhoto)
+                        withAnimation(.snappy(duration: 0.28, extraBounce: 0)) {
+                            updatePhotos { photos in
+                                photos.append(savedPhoto)
+                            }
                         }
                     }
                 }
@@ -156,8 +163,10 @@ struct ScopePhotosSheet: View {
 
     private func deletePhoto(_ photo: PhotoAttachment) {
         PhotoAssetStore.removePhoto(at: photo.imagePath)
-        updatePhotos { photos in
-            photos.removeAll { $0.id == photo.id }
+        withAnimation(.snappy(duration: 0.28, extraBounce: 0)) {
+            updatePhotos { photos in
+                photos.removeAll { $0.id == photo.id }
+            }
         }
     }
 

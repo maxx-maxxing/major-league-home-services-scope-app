@@ -141,6 +141,14 @@ struct RootNavigationView: View {
     }
 
     private func cancelSidebarRename() {
+        if sidebarRenameMode == .newScope, let sidebarRenameScope {
+            deleteScope(sidebarRenameScope)
+        }
+
+        dismissSidebarRename()
+    }
+
+    private func dismissSidebarRename() {
         sidebarRenameScope = nil
         sidebarRenameDraft = ""
         sidebarRenameDepositing = false
@@ -154,7 +162,7 @@ struct RootNavigationView: View {
         renameScope(scope, newName: trimmedName)
 
         guard sidebarRenameMode == .newScope else {
-            cancelSidebarRename()
+            dismissSidebarRename()
             return
         }
 
@@ -167,7 +175,7 @@ struct RootNavigationView: View {
             }
 
             try? await Task.sleep(for: .milliseconds(360))
-            cancelSidebarRename()
+            dismissSidebarRename()
         }
     }
 
@@ -426,6 +434,7 @@ private struct PhoneScopesListView: View {
     let deleteScope: (JobScope) -> Void
 
     @State private var scopePendingRename: JobScope?
+    @State private var renamePromptMode: SidebarRenamePromptMode = .existingScope
     @State private var renameDraft = ""
     @State private var scopePendingDelete: JobScope?
 
@@ -460,6 +469,7 @@ private struct PhoneScopesListView: View {
                                 Button("Rename") {
                                     scopePendingRename = scope
                                     renameDraft = scope.displayName
+                                    renamePromptMode = .existingScope
                                 }
                                 .tint(.blue)
                             }
@@ -517,11 +527,17 @@ private struct PhoneScopesListView: View {
         let newScope = createNewScope()
         scopePendingRename = newScope
         renameDraft = ""
+        renamePromptMode = .newScope
     }
 
     private func cancelRenamePrompt() {
+        if renamePromptMode == .newScope, let scopePendingRename {
+            deleteScope(scopePendingRename)
+        }
+
         scopePendingRename = nil
         renameDraft = ""
+        renamePromptMode = .existingScope
     }
 
     private func saveRenamePrompt() {
@@ -532,6 +548,7 @@ private struct PhoneScopesListView: View {
         renameScope(scope, trimmedName)
         scopePendingRename = nil
         renameDraft = ""
+        renamePromptMode = .existingScope
     }
 }
 

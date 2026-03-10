@@ -43,7 +43,6 @@ private enum SidebarRenamePromptMode {
 }
 
 private let rootNavigationCoordinateSpace = "RootNavigationCoordinateSpace"
-
 struct RootNavigationView: View {
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @Environment(\.modelContext) private var modelContext
@@ -170,7 +169,7 @@ struct RootNavigationView: View {
 
         Task { @MainActor in
             try? await Task.sleep(for: .milliseconds(170))
-            if scopes.count > 1 {
+            if !scopes.isEmpty {
                 sidebarFolderPulseToken += 1
             }
 
@@ -252,7 +251,6 @@ private struct ScopeSidebarView: View {
     @Binding var newScopeTapPoint: CGPoint
 
     @State private var scopesExpanded = false
-    @State private var animateScopesFolder = false
     @State private var scopePendingDelete: JobScope?
     @State private var newScopeRowFrame: CGRect = .zero
 
@@ -301,7 +299,7 @@ private struct ScopeSidebarView: View {
             }
 
             Section {
-                if scopes.count > 1 {
+                if !scopes.isEmpty {
                     DisclosureGroup(isExpanded: $scopesExpanded) {
                         ForEach(scopes) { scope in
                             scopeRow(for: scope)
@@ -309,13 +307,7 @@ private struct ScopeSidebarView: View {
                     } label: {
                         Label("Scopes", systemImage: "folder")
                             .font(.headline)
-                            .scaleEffect(animateScopesFolder ? 1.08 : 1)
-                            .symbolEffect(.bounce.byLayer, value: animateScopesFolder)
-                            .animation(.spring(response: 0.32, dampingFraction: 0.58), value: animateScopesFolder)
-                    }
-                } else {
-                    ForEach(scopes) { scope in
-                        scopeRow(for: scope)
+                            .symbolEffect(.bounce.byLayer, value: folderPulseToken)
                     }
                 }
             }
@@ -349,20 +341,6 @@ private struct ScopeSidebarView: View {
         }
         .listStyle(.sidebar)
         .navigationTitle("Scopes")
-        .onChange(of: folderPulseToken) { _, _ in
-            guard scopes.count > 1 else { return }
-
-            withAnimation(.spring(response: 0.32, dampingFraction: 0.58)) {
-                animateScopesFolder = true
-            }
-
-            Task { @MainActor in
-                try? await Task.sleep(for: .milliseconds(420))
-                withAnimation(.spring(response: 0.28, dampingFraction: 0.72)) {
-                    animateScopesFolder = false
-                }
-            }
-        }
         .alert("Delete Scope?", isPresented: deleteAlertPresented) {
             Button("Cancel", role: .cancel) {
                 scopePendingDelete = nil
@@ -562,6 +540,7 @@ private struct SidebarRenameOverlay: View {
 
     @FocusState private var nameFieldFocused: Bool
     @State private var hasExpandedFromButton = false
+    @State private var cardSize: CGSize = CGSize(width: 380, height: 280)
 
     var body: some View {
         GeometryReader { proxy in
@@ -572,14 +551,16 @@ private struct SidebarRenameOverlay: View {
 
                 renameCard
                     .frame(width: 380)
-                    .position(cardCenter(in: proxy.size))
-                    .scaleEffect(cardScale)
+                    .scaleEffect(cardScale, anchor: .center)
+                    .offset(cardDepositOffset)
                     .opacity(cardOpacity)
+                    .position(cardCenter(in: proxy.size))
                     .animation(.spring(response: 0.42, dampingFraction: 0.8), value: hasExpandedFromButton)
-                    .animation(.spring(response: 0.38, dampingFraction: 0.78), value: isDepositing)
+                    .animation(.easeIn(duration: 0.2), value: isDepositing)
             }
         }
         .ignoresSafeArea()
+        .ignoresSafeArea(.keyboard)
         .onAppear {
             hasExpandedFromButton = false
             withAnimation(.spring(response: 0.42, dampingFraction: 0.82)) {
@@ -612,7 +593,7 @@ private struct SidebarRenameOverlay: View {
                 .submitLabel(.done)
                 .onSubmit {
                     if !saveDisabled {
-                        onSave()
+                        handleSave()
                     }
                 }
 
@@ -621,7 +602,7 @@ private struct SidebarRenameOverlay: View {
                     .buttonStyle(.bordered)
                     .frame(maxWidth: .infinity, minHeight: 44)
 
-                Button("Save", action: onSave)
+                Button("Save", action: handleSave)
                     .buttonStyle(.borderedProminent)
                     .frame(maxWidth: .infinity, minHeight: 44)
                     .disabled(saveDisabled)
@@ -630,31 +611,62 @@ private struct SidebarRenameOverlay: View {
         .padding(24)
         .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 28, style: .continuous))
         .shadow(color: .black.opacity(0.12), radius: 24, y: 18)
+        .background(
+            GeometryReader { proxy in
+                Color.clear
+                    .onAppear {
+                        cardSize = proxy.size
+                    }
+                    .onChange(of: proxy.size) { _, newSize in
+                        cardSize = newSize
+                    }
+            }
+        )
     }
 
     private func cardCenter(in containerSize: CGSize) -> CGPoint {
-        if isDepositing {
-            return CGPoint(x: 118, y: 150)
-        }
+        let expandedCenter = CGPoint(
+            x: min(max(220, 224), containerSize.width - 210),
+            y: min(max(240, 272), containerSize.height - 180)
+        )
 
         if hasExpandedFromButton {
-            return CGPoint(
-                x: min(max(220, 224), containerSize.width - 210),
-                y: min(max(240, 272), containerSize.height - 180)
-            )
+            return expandedCenter
         }
 
         return origin
     }
 
     private var cardScale: CGFloat {
-        if isDepositing { return 0.14 }
+        if isDepositing { return 0.02 }
         return hasExpandedFromButton ? 1 : 0.06
     }
 
     private var cardOpacity: Double {
-        if isDepositing { return 0.1 }
+        if isDepositing { return 0 }
         return hasExpandedFromButton ? 1 : 0.2
+    }
+
+    private var cardDepositOffset: CGSize {
+        guard isDepositing else { return .zero }
+
+        let scale = cardScale
+        let targetPoint = CGPoint(x: 42, y: 52)
+        let center = CGPoint(x: cardSize.width / 2, y: cardSize.height / 2)
+        let vectorToTarget = CGSize(
+            width: targetPoint.x - center.x,
+            height: targetPoint.y - center.y
+        )
+
+        return CGSize(
+            width: vectorToTarget.width * (1 - scale),
+            height: vectorToTarget.height * (1 - scale)
+        )
+    }
+
+    private func handleSave() {
+        nameFieldFocused = false
+        onSave()
     }
 }
 

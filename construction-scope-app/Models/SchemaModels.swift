@@ -1,4 +1,5 @@
 ﻿import Foundation
+import Observation
 import SwiftData
 
 protocol SchemaEnumDisplayable: RawRepresentable where RawValue == String {}

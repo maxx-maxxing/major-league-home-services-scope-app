@@ -37,6 +37,13 @@ enum ScopeSection: String, CaseIterable, Identifiable {
     }
 }
 
+private enum SidebarRenamePromptMode {
+    case newScope
+    case existingScope
+}
+
+private let rootNavigationCoordinateSpace = "RootNavigationCoordinateSpace"
+
 struct RootNavigationView: View {
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @Environment(\.modelContext) private var modelContext
@@ -44,6 +51,12 @@ struct RootNavigationView: View {
 
     @State private var selectedScopeID: UUID?
     @State private var selectedSection: ScopeSection = .projectInfo
+    @State private var sidebarRenameScope: JobScope?
+    @State private var sidebarRenameDraft = ""
+    @State private var sidebarRenameMode: SidebarRenamePromptMode = .existingScope
+    @State private var sidebarRenameDepositing = false
+    @State private var sidebarFolderPulseToken = 0
+    @State private var sidebarRenameOrigin = CGPoint(x: 28, y: 28)
     @StateObject private var autosave = DebouncedAutosave()
 
     private var selectedScope: JobScope? {
@@ -55,40 +68,57 @@ struct RootNavigationView: View {
     }
 
     var body: some View {
-        Group {
-            if useCompactNavigation {
-                PhoneScopesListView(
-                    scopes: scopes,
-                    createNewScope: createNewScope,
-                    autosave: autosave,
-                    renameScope: renameScope,
-                    deleteScope: deleteScope
-                )
-            } else {
-                NavigationSplitView {
-                    ScopeSidebarView(
+        ZStack {
+            Group {
+                if useCompactNavigation {
+                    PhoneScopesListView(
                         scopes: scopes,
-                        selectedScopeID: $selectedScopeID,
-                        selectedSection: $selectedSection,
                         createNewScope: createNewScope,
+                        autosave: autosave,
                         renameScope: renameScope,
                         deleteScope: deleteScope
                     )
-                } detail: {
-                    if let scope = selectedScope {
-                        SectionEditorView(scope: scope, section: selectedSection, autosave: autosave)
-                    } else {
-                        ContentUnavailableView(
-                            "No Scope Selected",
-                            systemImage: "doc.badge.plus",
-                            description: Text("Create a new scope to begin.")
+                } else {
+                    NavigationSplitView {
+                        ScopeSidebarView(
+                            scopes: scopes,
+                            selectedScopeID: $selectedScopeID,
+                            selectedSection: $selectedSection,
+                            createNewScope: handleSidebarCreateScope,
+                            requestRename: { beginSidebarRename(for: $0, mode: .existingScope) },
+                            deleteScope: deleteScope,
+                            folderPulseToken: sidebarFolderPulseToken,
+                            newScopeTapPoint: $sidebarRenameOrigin
                         )
+                    } detail: {
+                        if let scope = selectedScope {
+                            SectionEditorView(scope: scope, section: selectedSection, autosave: autosave)
+                        } else {
+                            ContentUnavailableView(
+                                "No Scope Selected",
+                                systemImage: "doc.badge.plus",
+                                description: Text("Create a new scope to begin.")
+                            )
+                        }
                     }
+                    .navigationSplitViewStyle(.balanced)
                 }
-                .navigationSplitViewStyle(.balanced)
+            }
+            .background(Color(uiColor: .systemGroupedBackground))
+
+            if !useCompactNavigation, let sidebarRenameScope {
+                SidebarRenameOverlay(
+                    text: $sidebarRenameDraft,
+                    isDepositing: sidebarRenameDepositing,
+                    saveDisabled: sidebarRenameDraft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+                    origin: sidebarRenameOrigin,
+                    onCancel: cancelSidebarRename,
+                    onSave: { saveSidebarRename(sidebarRenameScope) }
+                )
+                .zIndex(10)
             }
         }
-        .background(Color(uiColor: .systemGroupedBackground))
+        .coordinateSpace(name: rootNavigationCoordinateSpace)
         .onAppear {
             autosave.configure(with: modelContext)
             selectFirstScopeIfNeeded()
@@ -98,7 +128,51 @@ struct RootNavigationView: View {
         }
     }
 
-    private func createNewScope() {
+    private func handleSidebarCreateScope() {
+        let newScope = createNewScope()
+        beginSidebarRename(for: newScope, mode: .newScope)
+    }
+
+    private func beginSidebarRename(for scope: JobScope, mode: SidebarRenamePromptMode) {
+        sidebarRenameScope = scope
+        sidebarRenameDraft = mode == .newScope ? "" : scope.displayName
+        sidebarRenameMode = mode
+        sidebarRenameDepositing = false
+    }
+
+    private func cancelSidebarRename() {
+        sidebarRenameScope = nil
+        sidebarRenameDraft = ""
+        sidebarRenameDepositing = false
+        sidebarRenameMode = .existingScope
+    }
+
+    private func saveSidebarRename(_ scope: JobScope) {
+        let trimmedName = sidebarRenameDraft.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedName.isEmpty else { return }
+
+        renameScope(scope, newName: trimmedName)
+
+        guard sidebarRenameMode == .newScope else {
+            cancelSidebarRename()
+            return
+        }
+
+        sidebarRenameDepositing = true
+
+        Task { @MainActor in
+            try? await Task.sleep(for: .milliseconds(170))
+            if scopes.count > 1 {
+                sidebarFolderPulseToken += 1
+            }
+
+            try? await Task.sleep(for: .milliseconds(360))
+            cancelSidebarRename()
+        }
+    }
+
+    @discardableResult
+    private func createNewScope() -> JobScope {
         let newScope = ScopeTemplate.makeNewScope()
         modelContext.insert(newScope)
 
@@ -110,6 +184,7 @@ struct RootNavigationView: View {
 
         selectedScopeID = newScope.id
         selectedSection = .projectInfo
+        return newScope
     }
 
     private func renameScope(_ scope: JobScope, newName: String) {
@@ -163,12 +238,15 @@ private struct ScopeSidebarView: View {
     @Binding var selectedScopeID: UUID?
     @Binding var selectedSection: ScopeSection
     let createNewScope: () -> Void
-    let renameScope: (JobScope, String) -> Void
+    let requestRename: (JobScope) -> Void
     let deleteScope: (JobScope) -> Void
+    let folderPulseToken: Int
+    @Binding var newScopeTapPoint: CGPoint
 
-    @State private var scopePendingRename: JobScope?
-    @State private var renameDraft = ""
+    @State private var scopesExpanded = false
+    @State private var animateScopesFolder = false
     @State private var scopePendingDelete: JobScope?
+    @State private var newScopeRowFrame: CGRect = .zero
 
     private var selectedScope: JobScope? {
         scopes.first(where: { $0.id == selectedScopeID })
@@ -177,49 +255,59 @@ private struct ScopeSidebarView: View {
     var body: some View {
         List {
             Section {
-                Button(action: createNewScope) {
-                    Label("New Scope", systemImage: "plus.circle.fill")
-                        .font(.body)
-                        .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
-                }
-                .buttonStyle(.plain)
+                Label("New Scope", systemImage: "plus.circle.fill")
+                    .font(.body)
+                    .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+                    .contentShape(Rectangle())
+                    .highPriorityGesture(
+                        SpatialTapGesture()
+                            .onEnded { value in
+                                newScopeTapPoint = CGPoint(
+                                    x: newScopeRowFrame.minX + value.location.x,
+                                    y: newScopeRowFrame.minY + value.location.y
+                                )
+                                scopesExpanded = false
+                                createNewScope()
+                            }
+                    )
+                    .accessibilityAddTraits(.isButton)
+                    .accessibilityAction {
+                        newScopeTapPoint = CGPoint(
+                            x: newScopeRowFrame.minX + 28,
+                            y: newScopeRowFrame.midY
+                        )
+                        scopesExpanded = false
+                        createNewScope()
+                    }
+                    .background(
+                        GeometryReader { proxy in
+                            Color.clear
+                                .onAppear {
+                                    newScopeRowFrame = proxy.frame(in: .named(rootNavigationCoordinateSpace))
+                                }
+                                .onChange(of: proxy.frame(in: .named(rootNavigationCoordinateSpace))) { _, frame in
+                                    newScopeRowFrame = frame
+                                }
+                        }
+                    )
             }
 
-            Section("Scopes") {
-                ForEach(scopes) { scope in
-                    Button {
-                        selectedScopeID = scope.id
+            Section {
+                if scopes.count > 1 {
+                    DisclosureGroup(isExpanded: $scopesExpanded) {
+                        ForEach(scopes) { scope in
+                            scopeRow(for: scope)
+                        }
                     } label: {
-                        HStack {
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text(scope.displayName)
-                                    .font(.body)
-                                    .foregroundStyle(.primary)
-                                Text(scope.projectInfo.address.isEmpty ? "No address" : scope.projectInfo.address)
-                                    .font(.footnote)
-                                    .foregroundStyle(.secondary)
-                            }
-
-                            Spacer()
-
-                            if selectedScopeID == scope.id {
-                                Image(systemName: "checkmark.circle.fill")
-                                    .foregroundStyle(.tint)
-                            }
-                        }
-                        .frame(minHeight: 44)
-                        .contentShape(Rectangle())
+                        Label("Scopes", systemImage: "folder")
+                            .font(.headline)
+                            .scaleEffect(animateScopesFolder ? 1.08 : 1)
+                            .symbolEffect(.bounce.byLayer, value: animateScopesFolder)
+                            .animation(.spring(response: 0.32, dampingFraction: 0.58), value: animateScopesFolder)
                     }
-                    .buttonStyle(.plain)
-                    .contextMenu {
-                        Button("Rename Scope") {
-                            scopePendingRename = scope
-                            renameDraft = scope.displayName
-                        }
-
-                        Button("Delete Scope", role: .destructive) {
-                            scopePendingDelete = scope
-                        }
+                } else {
+                    ForEach(scopes) { scope in
+                        scopeRow(for: scope)
                     }
                 }
             }
@@ -253,20 +341,19 @@ private struct ScopeSidebarView: View {
         }
         .listStyle(.sidebar)
         .navigationTitle("Scopes")
-        .alert("Rename Scope", isPresented: renameAlertPresented) {
-            TextField("Scope Name", text: $renameDraft)
-            Button("Cancel", role: .cancel) {
-                scopePendingRename = nil
-                renameDraft = ""
+        .onChange(of: folderPulseToken) { _, _ in
+            guard scopes.count > 1 else { return }
+
+            withAnimation(.spring(response: 0.32, dampingFraction: 0.58)) {
+                animateScopesFolder = true
             }
-            Button("Save") {
-                guard let scope = scopePendingRename else { return }
-                renameScope(scope, renameDraft)
-                scopePendingRename = nil
-                renameDraft = ""
+
+            Task { @MainActor in
+                try? await Task.sleep(for: .milliseconds(420))
+                withAnimation(.spring(response: 0.28, dampingFraction: 0.72)) {
+                    animateScopesFolder = false
+                }
             }
-        } message: {
-            Text("Update the project name shown in your scope list.")
         }
         .alert("Delete Scope?", isPresented: deleteAlertPresented) {
             Button("Cancel", role: .cancel) {
@@ -282,18 +369,6 @@ private struct ScopeSidebarView: View {
         }
     }
 
-    private var renameAlertPresented: Binding<Bool> {
-        Binding(
-            get: { scopePendingRename != nil },
-            set: { isPresented in
-                if !isPresented {
-                    scopePendingRename = nil
-                    renameDraft = ""
-                }
-            }
-        )
-    }
-
     private var deleteAlertPresented: Binding<Bool> {
         Binding(
             get: { scopePendingDelete != nil },
@@ -304,11 +379,48 @@ private struct ScopeSidebarView: View {
             }
         )
     }
+
+    @ViewBuilder
+    private func scopeRow(for scope: JobScope) -> some View {
+        Button {
+            selectedScopeID = scope.id
+        } label: {
+            HStack {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(scope.displayName)
+                        .font(.body)
+                        .foregroundStyle(.primary)
+                    Text(scope.projectInfo.address.isEmpty ? "No address" : scope.projectInfo.address)
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                }
+
+                Spacer()
+
+                if selectedScopeID == scope.id {
+                    Image(systemName: "checkmark.circle.fill")
+                        .foregroundStyle(.tint)
+                }
+            }
+            .frame(minHeight: 44)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .contextMenu {
+            Button("Rename Scope") {
+                requestRename(scope)
+            }
+
+            Button("Delete Scope", role: .destructive) {
+                scopePendingDelete = scope
+            }
+        }
+    }
 }
 
 private struct PhoneScopesListView: View {
     let scopes: [JobScope]
-    let createNewScope: () -> Void
+    let createNewScope: () -> JobScope
     @ObservedObject var autosave: DebouncedAutosave
     let renameScope: (JobScope, String) -> Void
     let deleteScope: (JobScope) -> Void
@@ -318,64 +430,63 @@ private struct PhoneScopesListView: View {
     @State private var scopePendingDelete: JobScope?
 
     var body: some View {
-        NavigationStack {
-            List {
-                Section {
-                    ForEach(scopes) { scope in
-                        NavigationLink {
-                            PhoneSectionListView(scope: scope, autosave: autosave)
-                        } label: {
-                            HStack {
-                                VStack(alignment: .leading, spacing: 4) {
-                                    Text(scope.displayName)
-                                        .font(.body)
-                                    Text(scope.projectInfo.address.isEmpty ? "No address" : scope.projectInfo.address)
-                                        .font(.footnote)
-                                        .foregroundStyle(.secondary)
+        ZStack {
+            NavigationStack {
+                List {
+                    Section {
+                        ForEach(scopes) { scope in
+                            NavigationLink {
+                                PhoneSectionListView(scope: scope, autosave: autosave)
+                            } label: {
+                                HStack {
+                                    VStack(alignment: .leading, spacing: 4) {
+                                        Text(scope.displayName)
+                                            .font(.body)
+                                        Text(scope.projectInfo.address.isEmpty ? "No address" : scope.projectInfo.address)
+                                            .font(.footnote)
+                                            .foregroundStyle(.secondary)
+                                    }
+
+                                    Spacer()
+                                    StatusPill(status: scope.status)
+                                }
+                                .frame(minHeight: 44)
+                            }
+                            .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                                Button("Delete", role: .destructive) {
+                                    scopePendingDelete = scope
                                 }
 
-                                Spacer()
-                                StatusPill(status: scope.status)
+                                Button("Rename") {
+                                    scopePendingRename = scope
+                                    renameDraft = scope.displayName
+                                }
+                                .tint(.blue)
                             }
-                            .frame(minHeight: 44)
                         }
-                        .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-                            Button("Delete", role: .destructive) {
-                                scopePendingDelete = scope
-                            }
+                    }
+                }
+                .navigationTitle("Scopes")
+                .toolbar {
+                    ToolbarItem(placement: .topBarTrailing) {
+                        Button(action: handleCreateScope) {
+                            Label("New Scope", systemImage: "plus")
+                        }
+                    }
+                }
+            }
 
-                            Button("Rename") {
-                                scopePendingRename = scope
-                                renameDraft = scope.displayName
-                            }
-                            .tint(.blue)
-                        }
-                    }
-                }
+            if scopePendingRename != nil {
+                ScopeRenameOverlay(
+                    title: "Rename Scope",
+                    message: "Update the project name shown in your scope list.",
+                    text: $renameDraft,
+                    isSaving: false,
+                    saveDisabled: renameDraft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+                    onCancel: cancelRenamePrompt,
+                    onSave: saveRenamePrompt
+                )
             }
-            .navigationTitle("Scopes")
-            .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button(action: createNewScope) {
-                        Label("New Scope", systemImage: "plus")
-                    }
-                }
-            }
-        }
-        .alert("Rename Scope", isPresented: renameAlertPresented) {
-            TextField("Scope Name", text: $renameDraft)
-            Button("Cancel", role: .cancel) {
-                scopePendingRename = nil
-                renameDraft = ""
-            }
-            Button("Save") {
-                guard let scope = scopePendingRename else { return }
-                renameScope(scope, renameDraft)
-                scopePendingRename = nil
-                renameDraft = ""
-            }
-        } message: {
-            Text("Update the project name shown in your scope list.")
         }
         .alert("Delete Scope?", isPresented: deleteAlertPresented) {
             Button("Cancel", role: .cancel) {
@@ -391,18 +502,6 @@ private struct PhoneScopesListView: View {
         }
     }
 
-    private var renameAlertPresented: Binding<Bool> {
-        Binding(
-            get: { scopePendingRename != nil },
-            set: { isPresented in
-                if !isPresented {
-                    scopePendingRename = nil
-                    renameDraft = ""
-                }
-            }
-        )
-    }
-
     private var deleteAlertPresented: Binding<Bool> {
         Binding(
             get: { scopePendingDelete != nil },
@@ -412,6 +511,199 @@ private struct PhoneScopesListView: View {
                 }
             }
         )
+    }
+
+    private func handleCreateScope() {
+        let newScope = createNewScope()
+        scopePendingRename = newScope
+        renameDraft = ""
+    }
+
+    private func cancelRenamePrompt() {
+        scopePendingRename = nil
+        renameDraft = ""
+    }
+
+    private func saveRenamePrompt() {
+        guard let scope = scopePendingRename else { return }
+        let trimmedName = renameDraft.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedName.isEmpty else { return }
+
+        renameScope(scope, trimmedName)
+        scopePendingRename = nil
+        renameDraft = ""
+    }
+}
+
+private struct SidebarRenameOverlay: View {
+    @Binding var text: String
+    let isDepositing: Bool
+    let saveDisabled: Bool
+    let origin: CGPoint
+    let onCancel: () -> Void
+    let onSave: () -> Void
+
+    @FocusState private var nameFieldFocused: Bool
+    @State private var hasExpandedFromButton = false
+
+    var body: some View {
+        GeometryReader { proxy in
+            ZStack(alignment: .topLeading) {
+                Color.black.opacity(0.16)
+                    .ignoresSafeArea()
+                    .transition(.opacity)
+
+                renameCard
+                    .frame(width: 380)
+                    .position(cardCenter(in: proxy.size))
+                    .scaleEffect(cardScale)
+                    .opacity(cardOpacity)
+                    .animation(.spring(response: 0.42, dampingFraction: 0.8), value: hasExpandedFromButton)
+                    .animation(.spring(response: 0.38, dampingFraction: 0.78), value: isDepositing)
+            }
+        }
+        .ignoresSafeArea()
+        .onAppear {
+            hasExpandedFromButton = false
+            withAnimation(.spring(response: 0.42, dampingFraction: 0.82)) {
+                hasExpandedFromButton = true
+            }
+
+            Task { @MainActor in
+                try? await Task.sleep(for: .milliseconds(40))
+                nameFieldFocused = true
+            }
+        }
+        .transition(.opacity)
+    }
+
+    private var renameCard: some View {
+        VStack(alignment: .leading, spacing: 18) {
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Name New Scope")
+                    .font(.title3.weight(.semibold))
+                    .foregroundStyle(.primary)
+                Text("This scope will be saved inside the Scopes folder.")
+                    .font(.body)
+                    .foregroundStyle(.secondary)
+            }
+
+            TextField("Scope Name", text: $text)
+                .textFieldStyle(.roundedBorder)
+                .frame(minHeight: 44)
+                .focused($nameFieldFocused)
+                .submitLabel(.done)
+                .onSubmit {
+                    if !saveDisabled {
+                        onSave()
+                    }
+                }
+
+            HStack(spacing: 12) {
+                Button("Cancel", action: onCancel)
+                    .buttonStyle(.bordered)
+                    .frame(maxWidth: .infinity, minHeight: 44)
+
+                Button("Save", action: onSave)
+                    .buttonStyle(.borderedProminent)
+                    .frame(maxWidth: .infinity, minHeight: 44)
+                    .disabled(saveDisabled)
+            }
+        }
+        .padding(24)
+        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 28, style: .continuous))
+        .shadow(color: .black.opacity(0.12), radius: 24, y: 18)
+    }
+
+    private func cardCenter(in containerSize: CGSize) -> CGPoint {
+        if isDepositing {
+            return CGPoint(x: 118, y: 150)
+        }
+
+        if hasExpandedFromButton {
+            return CGPoint(
+                x: min(max(220, 224), containerSize.width - 210),
+                y: min(max(240, 272), containerSize.height - 180)
+            )
+        }
+
+        return origin
+    }
+
+    private var cardScale: CGFloat {
+        if isDepositing { return 0.14 }
+        return hasExpandedFromButton ? 1 : 0.06
+    }
+
+    private var cardOpacity: Double {
+        if isDepositing { return 0.1 }
+        return hasExpandedFromButton ? 1 : 0.2
+    }
+}
+
+private struct ScopeRenameOverlay: View {
+    let title: String
+    let message: String
+    @Binding var text: String
+    let isSaving: Bool
+    let saveDisabled: Bool
+    let onCancel: () -> Void
+    let onSave: () -> Void
+
+    @FocusState private var nameFieldFocused: Bool
+
+    var body: some View {
+        ZStack {
+            Color.black.opacity(0.18)
+                .ignoresSafeArea()
+                .transition(.opacity)
+
+            VStack(alignment: .leading, spacing: 18) {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text(title)
+                        .font(.title3.weight(.semibold))
+                        .foregroundStyle(.primary)
+                    Text(message)
+                        .font(.body)
+                        .foregroundStyle(.secondary)
+                }
+
+                TextField("Scope Name", text: $text)
+                    .textFieldStyle(.roundedBorder)
+                    .frame(minHeight: 44)
+                    .focused($nameFieldFocused)
+                    .submitLabel(.done)
+                    .onSubmit {
+                        if !saveDisabled {
+                            onSave()
+                        }
+                    }
+
+                HStack(spacing: 12) {
+                    Button("Cancel", action: onCancel)
+                        .buttonStyle(.bordered)
+                        .frame(maxWidth: .infinity, minHeight: 44)
+
+                    Button("Save", action: onSave)
+                        .buttonStyle(.borderedProminent)
+                        .frame(maxWidth: .infinity, minHeight: 44)
+                        .disabled(saveDisabled)
+                }
+            }
+            .padding(24)
+            .frame(maxWidth: 420)
+            .padding(.horizontal, 24)
+            .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 28, style: .continuous))
+            .shadow(color: .black.opacity(0.12), radius: 24, y: 18)
+            .scaleEffect(isSaving ? 0.24 : 1)
+            .offset(x: isSaving ? -170 : 0, y: isSaving ? -210 : 0)
+            .opacity(isSaving ? 0.04 : 1)
+            .animation(.spring(response: 0.34, dampingFraction: 0.72), value: isSaving)
+        }
+        .onAppear {
+            nameFieldFocused = true
+        }
+        .transition(.opacity.combined(with: .scale(scale: 0.96)))
     }
 }
 

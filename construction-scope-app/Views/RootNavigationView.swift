@@ -211,18 +211,20 @@ struct RootNavigationView: View {
     }
 
     private func deleteScope(_ scope: JobScope) {
-        if selectedScopeID == scope.id {
-            selectedScopeID = nil
-        }
+        withAnimation(.snappy(duration: 0.28, extraBounce: 0)) {
+            if selectedScopeID == scope.id {
+                selectedScopeID = nil
+            }
 
-        modelContext.delete(scope)
-        do {
-            try modelContext.save()
-        } catch {
-            assertionFailure("Failed to delete scope: \(error)")
-        }
+            modelContext.delete(scope)
+            do {
+                try modelContext.save()
+            } catch {
+                assertionFailure("Failed to delete scope: \(error)")
+            }
 
-        selectFirstScopeIfNeeded()
+            selectFirstScopeIfNeeded()
+        }
     }
 
     private func selectFirstScopeIfNeeded() {
@@ -340,6 +342,7 @@ private struct ScopeSidebarView: View {
             }
         }
         .listStyle(.sidebar)
+        .animation(.snappy(duration: 0.28, extraBounce: 0), value: scopes.map(\.id))
         .navigationTitle("Scopes")
         .alert("Delete Scope?", isPresented: deleteAlertPresented) {
             Button("Cancel", role: .cancel) {
@@ -392,6 +395,7 @@ private struct ScopeSidebarView: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .transition(.asymmetric(insertion: .opacity, removal: .move(edge: .trailing).combined(with: .opacity)))
         .contextMenu {
             Button("Rename Scope") {
                 requestRename(scope)
@@ -401,6 +405,7 @@ private struct ScopeSidebarView: View {
                 scopePendingDelete = scope
             }
         }
+        .id(scope.id)
     }
 }
 
@@ -476,6 +481,7 @@ private struct PhoneScopesListView: View {
                 )
             }
         }
+        .animation(.snappy(duration: 0.28, extraBounce: 0), value: scopes.map(\.id))
         .alert("Delete Scope?", isPresented: deleteAlertPresented) {
             Button("Cancel", role: .cancel) {
                 scopePendingDelete = nil
@@ -578,15 +584,15 @@ private struct SidebarRenameOverlay: View {
     private var renameCard: some View {
         VStack(alignment: .leading, spacing: 18) {
             VStack(alignment: .leading, spacing: 8) {
-                Text("Name New Scope")
+                Text("New Scope")
                     .font(.title3.weight(.semibold))
                     .foregroundStyle(.primary)
-                Text("This scope will be saved inside the Scopes folder.")
+                Text("This scope will be saved in Scopes.")
                     .font(.body)
                     .foregroundStyle(.secondary)
             }
 
-            TextField("Scope Name", text: $text)
+            TextField("Name", text: $text)
                 .textFieldStyle(.roundedBorder)
                 .frame(minHeight: 44)
                 .focused($nameFieldFocused)
@@ -602,7 +608,7 @@ private struct SidebarRenameOverlay: View {
                     .buttonStyle(.bordered)
                     .frame(maxWidth: .infinity, minHeight: 44)
 
-                Button("Save", action: handleSave)
+                Button("Create", action: handleSave)
                     .buttonStyle(.borderedProminent)
                     .frame(maxWidth: .infinity, minHeight: 44)
                     .disabled(saveDisabled)

@@ -443,6 +443,7 @@ struct SectionEditorView: View {
     let section: ScopeSection
     @ObservedObject var autosave: DebouncedAutosave
     @State private var showingPreview = false
+    @State private var showingPhotos = false
     @State private var shareURL: URL?
     @State private var showingShareSheet = false
     @State private var errorMessage: String?
@@ -467,18 +468,30 @@ struct SectionEditorView: View {
                 switch section {
                 case .projectInfo:
                     ProjectInfoEditorView(scope: scope, autosave: autosave)
+                case .existingConditions:
+                    ExistingConditionsEditorView(scope: scope, autosave: autosave)
+                case .dimensions:
+                    DimensionsEditorView(scope: scope, autosave: autosave)
+                case .structuralSystem:
+                    StructuralSystemEditorView(scope: scope, autosave: autosave)
                 case .enclosure:
                     EnclosureEditorView(scope: scope, autosave: autosave)
                 case .windowsAndGlass:
                     WindowsAndGlassEditorView(scope: scope, autosave: autosave)
+                case .electrical:
+                    ElectricalEditorView(scope: scope, autosave: autosave)
+                case .drainage:
+                    DrainageEditorView(scope: scope, autosave: autosave)
                 case .attachmentConditions:
                     AttachmentConditionsEditorView(scope: scope, autosave: autosave)
+                case .finishes:
+                    FinishesEditorView(scope: scope, autosave: autosave)
+                case .permitsHOA:
+                    PermitsHOAEditorView(scope: scope, autosave: autosave)
                 case .productionNotes:
                     ProductionNotesEditorView(scope: scope, autosave: autosave)
                 case .signatureAndExport:
                     SignatureAndSketchEditorView(scope: scope, autosave: autosave)
-                default:
-                    PlaceholderSectionView(section: section)
                 }
             }
             .padding(16)
@@ -505,6 +518,7 @@ struct SectionEditorView: View {
                 .accessibilityLabel("Export")
 
                 Button {
+                    showingPhotos = true
                 } label: {
                     Image(systemName: "photo.on.rectangle")
                 }
@@ -521,6 +535,9 @@ struct SectionEditorView: View {
             NavigationStack {
                 ScopePDFPreviewSheet(scope: scope)
             }
+        }
+        .sheet(isPresented: $showingPhotos) {
+            ScopePhotosSheet(scope: scope, autosave: autosave)
         }
         .sheet(isPresented: $showingShareSheet) {
             if let shareURL {
@@ -554,18 +571,6 @@ struct SectionEditorView: View {
             showingShareSheet = true
         } catch {
             errorMessage = error.localizedDescription
-        }
-    }
-}
-
-private struct PlaceholderSectionView: View {
-    let section: ScopeSection
-
-    var body: some View {
-        CardGroup(title: section.rawValue) {
-            Label("Section editor is scaffolded for a later milestone.", systemImage: "hammer")
-                .font(.body)
-                .foregroundStyle(.secondary)
         }
     }
 }

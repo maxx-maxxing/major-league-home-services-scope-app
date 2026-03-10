@@ -190,6 +190,375 @@ struct ProjectInfoEditorView: View {
     }
 }
 
+struct ExistingConditionsEditorView: View {
+    @Bindable var scope: JobScope
+    @ObservedObject var autosave: DebouncedAutosave
+
+    var body: some View {
+        VStack(spacing: 16) {
+            CardGroup(title: "Site Snapshot") {
+                VStack(spacing: 12) {
+                    FieldHeader("House Stories")
+                    Picker("House Stories", selection: houseStoriesBinding) {
+                        Text("Not Set").tag(nil as HouseStories?)
+                        ForEach(HouseStories.allCases, id: \.self) { value in
+                            Text(value.displayName).tag(Optional(value))
+                        }
+                    }
+                    .pickerStyle(.menu)
+                    .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+
+                    FieldHeader("Exterior Finish")
+                    Picker("Exterior Finish", selection: exteriorFinishBinding) {
+                        Text("Not Set").tag(nil as ExteriorFinish?)
+                        ForEach(ExteriorFinish.allCases, id: \.self) { value in
+                            Text(value.displayName).tag(Optional(value))
+                        }
+                    }
+                    .pickerStyle(.menu)
+                    .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+
+                    FieldHeader("Existing Structure")
+                    Picker("Existing Structure", selection: existingStructureBinding) {
+                        Text("Not Set").tag(nil as ExistingStructure?)
+                        ForEach(ExistingStructure.allCases, id: \.self) { value in
+                            Text(value.displayName).tag(Optional(value))
+                        }
+                    }
+                    .pickerStyle(.menu)
+                    .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+                }
+            }
+
+            CardGroup(title: "Field Notes") {
+                VStack(spacing: 12) {
+                    NotesField(title: "Obstacles", text: obstaclesNotesBinding, minHeight: 100)
+                    NotesField(title: "Utilities", text: utilitiesNotesBinding, minHeight: 100)
+                    NotesField(title: "HOA Notes", text: hoaNotesBinding, minHeight: 100)
+                }
+            }
+
+            CardGroup(title: "Photo Checklist") {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Mark the reference photos that should be captured on site.")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+
+                    OptionalBoolPicker(title: "Front of House", selection: photoChecklistBinding(\.frontOfHouse))
+                    OptionalBoolPicker(title: "Rear Elevation", selection: photoChecklistBinding(\.rearElevation))
+                    OptionalBoolPicker(title: "Roof Line", selection: photoChecklistBinding(\.roofLine))
+                    OptionalBoolPicker(title: "Electrical Panel", selection: photoChecklistBinding(\.electricalPanel))
+                    OptionalBoolPicker(title: "Work Area", selection: photoChecklistBinding(\.workArea))
+                }
+            }
+        }
+    }
+
+    private var houseStoriesBinding: Binding<HouseStories?> {
+        Binding(
+            get: { scope.existingConditions?.houseStories },
+            set: { newValue in
+                updateExistingConditions { $0.houseStories = newValue }
+            }
+        )
+    }
+
+    private var exteriorFinishBinding: Binding<ExteriorFinish?> {
+        Binding(
+            get: { scope.existingConditions?.exteriorFinish },
+            set: { newValue in
+                updateExistingConditions { $0.exteriorFinish = newValue }
+            }
+        )
+    }
+
+    private var existingStructureBinding: Binding<ExistingStructure?> {
+        Binding(
+            get: { scope.existingConditions?.existingStructure },
+            set: { newValue in
+                updateExistingConditions { $0.existingStructure = newValue }
+            }
+        )
+    }
+
+    private var obstaclesNotesBinding: Binding<String> {
+        Binding(
+            get: { scope.existingConditions?.obstaclesNotes ?? "" },
+            set: { newValue in
+                updateExistingConditions { $0.obstaclesNotes = newValue.nilIfBlank }
+            }
+        )
+    }
+
+    private var utilitiesNotesBinding: Binding<String> {
+        Binding(
+            get: { scope.existingConditions?.utilitiesNotes ?? "" },
+            set: { newValue in
+                updateExistingConditions { $0.utilitiesNotes = newValue.nilIfBlank }
+            }
+        )
+    }
+
+    private var hoaNotesBinding: Binding<String> {
+        Binding(
+            get: { scope.existingConditions?.hoaNotes ?? "" },
+            set: { newValue in
+                updateExistingConditions { $0.hoaNotes = newValue.nilIfBlank }
+            }
+        )
+    }
+
+    private func photoChecklistBinding(_ keyPath: WritableKeyPath<PhotoChecklist, Bool?>) -> Binding<Bool?> {
+        Binding(
+            get: { scope.existingConditions?.photoChecklist.map { $0[keyPath: keyPath] } ?? nil },
+            set: { newValue in
+                updateExistingConditions { conditions in
+                    var checklist = conditions.photoChecklist ?? emptyPhotoChecklist()
+                    checklist[keyPath: keyPath] = newValue
+                    conditions.photoChecklist = checklist.isEffectivelyEmpty ? nil : checklist
+                }
+            }
+        )
+    }
+
+    private func updateExistingConditions(_ update: (inout ExistingConditions) -> Void) {
+        var conditions = scope.existingConditions ?? emptyExistingConditions()
+        update(&conditions)
+        scope.existingConditions = conditions.isEffectivelyEmpty ? nil : conditions
+        autosave.scheduleSave(for: scope)
+    }
+}
+
+struct DimensionsEditorView: View {
+    @Bindable var scope: JobScope
+    @ObservedObject var autosave: DebouncedAutosave
+
+    var body: some View {
+        VStack(spacing: 16) {
+            CardGroup(title: "Measurements") {
+                VStack(spacing: 12) {
+                    MeasurementTextField(title: "Width", text: widthBinding)
+                    MeasurementTextField(title: "Projection", text: projectionBinding)
+                    MeasurementTextField(title: "Fascia Height", text: fasciaHeightBinding)
+                    MeasurementTextField(title: "Beam Height", text: beamHeightBinding)
+                }
+            }
+
+            CardGroup(title: "Configuration") {
+                VStack(spacing: 12) {
+                    FieldHeader("Roof Style")
+                    Picker("Roof Style", selection: roofStyleBinding) {
+                        Text("Not Set").tag(nil as RoofStyle?)
+                        ForEach(RoofStyle.allCases, id: \.self) { value in
+                            Text(value.displayName).tag(Optional(value))
+                        }
+                    }
+                    .pickerStyle(.menu)
+                    .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+
+                    FieldHeader("Attachment Type")
+                    Picker("Attachment Type", selection: attachmentTypeBinding) {
+                        Text("Not Set").tag(nil as DimensionsAttachmentType?)
+                        ForEach(DimensionsAttachmentType.allCases, id: \.self) { value in
+                            Text(value.displayName).tag(Optional(value))
+                        }
+                    }
+                    .pickerStyle(.menu)
+                    .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+                }
+            }
+
+            CardGroup(title: "Elevation Notes") {
+                NotesField(title: "Elevation Notes", text: elevationNotesBinding, minHeight: 140, showInlineTitle: false)
+            }
+        }
+    }
+
+    private var widthBinding: Binding<String> {
+        Binding(
+            get: { formatOptionalDouble(scope.dimensions?.width) },
+            set: { newValue in
+                updateDimensions { $0.width = parseOptionalDouble(newValue) }
+            }
+        )
+    }
+
+    private var projectionBinding: Binding<String> {
+        Binding(
+            get: { formatOptionalDouble(scope.dimensions?.projection) },
+            set: { newValue in
+                updateDimensions { $0.projection = parseOptionalDouble(newValue) }
+            }
+        )
+    }
+
+    private var fasciaHeightBinding: Binding<String> {
+        Binding(
+            get: { formatOptionalDouble(scope.dimensions?.fasciaHeight) },
+            set: { newValue in
+                updateDimensions { $0.fasciaHeight = parseOptionalDouble(newValue) }
+            }
+        )
+    }
+
+    private var beamHeightBinding: Binding<String> {
+        Binding(
+            get: { formatOptionalDouble(scope.dimensions?.beamHeight) },
+            set: { newValue in
+                updateDimensions { $0.beamHeight = parseOptionalDouble(newValue) }
+            }
+        )
+    }
+
+    private var roofStyleBinding: Binding<RoofStyle?> {
+        Binding(
+            get: { scope.dimensions?.roofStyle },
+            set: { newValue in
+                updateDimensions { $0.roofStyle = newValue }
+            }
+        )
+    }
+
+    private var attachmentTypeBinding: Binding<DimensionsAttachmentType?> {
+        Binding(
+            get: { scope.dimensions?.attachmentType },
+            set: { newValue in
+                updateDimensions { $0.attachmentType = newValue }
+            }
+        )
+    }
+
+    private var elevationNotesBinding: Binding<String> {
+        Binding(
+            get: { scope.dimensions?.elevationNotes ?? "" },
+            set: { newValue in
+                updateDimensions { $0.elevationNotes = newValue.nilIfBlank }
+            }
+        )
+    }
+
+    private func updateDimensions(_ update: (inout Dimensions) -> Void) {
+        var dimensions = scope.dimensions ?? emptyDimensions()
+        update(&dimensions)
+        scope.dimensions = dimensions.isEffectivelyEmpty ? nil : dimensions
+        autosave.scheduleSave(for: scope)
+    }
+}
+
+struct StructuralSystemEditorView: View {
+    @Bindable var scope: JobScope
+    @ObservedObject var autosave: DebouncedAutosave
+
+    var body: some View {
+        VStack(spacing: 16) {
+            CardGroup(title: "Structure") {
+                VStack(spacing: 12) {
+                    FieldHeader("Frame Material")
+                    Picker("Frame Material", selection: frameMaterialBinding) {
+                        Text("Not Set").tag(nil as FrameMaterial?)
+                        ForEach(FrameMaterial.allCases, id: \.self) { value in
+                            Text(value.displayName).tag(Optional(value))
+                        }
+                    }
+                    .pickerStyle(.menu)
+                    .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+
+                    TextField("Post size", text: postSizeBinding)
+                        .textFieldStyle(.roundedBorder)
+                        .frame(minHeight: 44)
+
+                    TextField("Beam type", text: beamTypeBinding)
+                        .textFieldStyle(.roundedBorder)
+                        .frame(minHeight: 44)
+                }
+            }
+
+            CardGroup(title: "Roof + Finish") {
+                VStack(spacing: 12) {
+                    FieldHeader("Roof System")
+                    Picker("Roof System", selection: roofSystemBinding) {
+                        Text("Not Set").tag(nil as RoofSystem?)
+                        ForEach(RoofSystem.allCases, id: \.self) { value in
+                            Text(value.displayName).tag(Optional(value))
+                        }
+                    }
+                    .pickerStyle(.menu)
+                    .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+
+                    TextField("Roof color", text: roofColorBinding)
+                        .textFieldStyle(.roundedBorder)
+                        .frame(minHeight: 44)
+
+                    TextField("Frame color", text: frameColorBinding)
+                        .textFieldStyle(.roundedBorder)
+                        .frame(minHeight: 44)
+                }
+            }
+        }
+    }
+
+    private var frameMaterialBinding: Binding<FrameMaterial?> {
+        Binding(
+            get: { scope.structuralSystem?.frameMaterial },
+            set: { newValue in
+                updateStructuralSystem { $0.frameMaterial = newValue }
+            }
+        )
+    }
+
+    private var postSizeBinding: Binding<String> {
+        Binding(
+            get: { scope.structuralSystem?.postSize ?? "" },
+            set: { newValue in
+                updateStructuralSystem { $0.postSize = newValue.nilIfBlank }
+            }
+        )
+    }
+
+    private var beamTypeBinding: Binding<String> {
+        Binding(
+            get: { scope.structuralSystem?.beamType ?? "" },
+            set: { newValue in
+                updateStructuralSystem { $0.beamType = newValue.nilIfBlank }
+            }
+        )
+    }
+
+    private var roofSystemBinding: Binding<RoofSystem?> {
+        Binding(
+            get: { scope.structuralSystem?.roofSystem },
+            set: { newValue in
+                updateStructuralSystem { $0.roofSystem = newValue }
+            }
+        )
+    }
+
+    private var roofColorBinding: Binding<String> {
+        Binding(
+            get: { scope.structuralSystem?.roofColor ?? "" },
+            set: { newValue in
+                updateStructuralSystem { $0.roofColor = newValue.nilIfBlank }
+            }
+        )
+    }
+
+    private var frameColorBinding: Binding<String> {
+        Binding(
+            get: { scope.structuralSystem?.frameColor ?? "" },
+            set: { newValue in
+                updateStructuralSystem { $0.frameColor = newValue.nilIfBlank }
+            }
+        )
+    }
+
+    private func updateStructuralSystem(_ update: (inout StructuralSystem) -> Void) {
+        var structuralSystem = scope.structuralSystem ?? emptyStructuralSystem()
+        update(&structuralSystem)
+        scope.structuralSystem = structuralSystem.isEffectivelyEmpty ? nil : structuralSystem
+        autosave.scheduleSave(for: scope)
+    }
+}
+
 struct EnclosureEditorView: View {
     @Bindable var scope: JobScope
     @ObservedObject var autosave: DebouncedAutosave
@@ -254,7 +623,7 @@ struct EnclosureEditorView: View {
                         .pickerStyle(.menu)
                         .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
 
-                        if scope.enclosure?.kneeWall?.option != .none {
+                        if scope.enclosure?.kneeWall?.option != KneeWallOption.none {
                             TextField("Panel height", text: kneeWallPanelHeightBinding)
                                 .textFieldStyle(.roundedBorder)
                                 .keyboardType(.decimalPad)
@@ -755,6 +1124,193 @@ struct WindowsAndGlassEditorView: View {
     }
 }
 
+struct ElectricalEditorView: View {
+    @Bindable var scope: JobScope
+    @ObservedObject var autosave: DebouncedAutosave
+
+    var body: some View {
+        VStack(spacing: 16) {
+            CardGroup(title: "Power Plan") {
+                VStack(spacing: 12) {
+                    MeasurementTextField(title: "Outlet Count", text: outletCountBinding)
+
+                    FieldHeader("Lighting")
+                    Picker("Lighting", selection: lightingBinding) {
+                        Text("Not Set").tag(nil as LightingOption?)
+                        ForEach(LightingOption.allCases, id: \.self) { value in
+                            Text(value.displayName).tag(Optional(value))
+                        }
+                    }
+                    .pickerStyle(.menu)
+                    .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+
+                    OptionalBoolPicker(title: "Fan Install", selection: fanInstallBinding)
+
+                    TextField("Switch locations", text: switchLocationsBinding)
+                        .textFieldStyle(.roundedBorder)
+                        .frame(minHeight: 44)
+                }
+            }
+
+            CardGroup(title: "Dedicated Circuits") {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Select all that apply.")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+
+                    ForEach(DedicatedCircuitType.allCases, id: \.self) { circuit in
+                        Toggle(circuit.displayName, isOn: dedicatedCircuitBinding(for: circuit))
+                            .frame(minHeight: 44)
+                    }
+                }
+            }
+
+            CardGroup(title: "Electrical Notes") {
+                NotesField(title: "Electrical Notes", text: notesBinding, minHeight: 140, showInlineTitle: false)
+            }
+        }
+    }
+
+    private var outletCountBinding: Binding<String> {
+        Binding(
+            get: { formatOptionalDouble(scope.electrical?.outletCount) },
+            set: { newValue in
+                updateElectrical { $0.outletCount = parseOptionalDouble(newValue) }
+            }
+        )
+    }
+
+    private var lightingBinding: Binding<LightingOption?> {
+        Binding(
+            get: { scope.electrical?.lighting },
+            set: { newValue in
+                updateElectrical { $0.lighting = newValue }
+            }
+        )
+    }
+
+    private var fanInstallBinding: Binding<Bool?> {
+        Binding(
+            get: { scope.electrical?.fanInstall },
+            set: { newValue in
+                updateElectrical { $0.fanInstall = newValue }
+            }
+        )
+    }
+
+    private var switchLocationsBinding: Binding<String> {
+        Binding(
+            get: { scope.electrical?.switchLocations ?? "" },
+            set: { newValue in
+                updateElectrical { $0.switchLocations = newValue.nilIfBlank }
+            }
+        )
+    }
+
+    private var notesBinding: Binding<String> {
+        Binding(
+            get: { scope.electrical?.notes ?? "" },
+            set: { newValue in
+                updateElectrical { $0.notes = newValue.nilIfBlank }
+            }
+        )
+    }
+
+    private func dedicatedCircuitBinding(for circuit: DedicatedCircuitType) -> Binding<Bool> {
+        Binding(
+            get: { scope.electrical?.dedicatedCircuits?.contains(circuit) ?? false },
+            set: { isEnabled in
+                updateElectrical { electrical in
+                    var values = electrical.dedicatedCircuits ?? []
+                    if isEnabled {
+                        if !values.contains(circuit) {
+                            values.append(circuit)
+                        }
+                    } else {
+                        values.removeAll { $0 == circuit }
+                    }
+                    electrical.dedicatedCircuits = values.isEmpty ? nil : values
+                }
+            }
+        )
+    }
+
+    private func updateElectrical(_ update: (inout Electrical) -> Void) {
+        var electrical = scope.electrical ?? emptyElectrical()
+        update(&electrical)
+        scope.electrical = electrical.isEffectivelyEmpty ? nil : electrical
+        autosave.scheduleSave(for: scope)
+    }
+}
+
+struct DrainageEditorView: View {
+    @Bindable var scope: JobScope
+    @ObservedObject var autosave: DebouncedAutosave
+
+    var body: some View {
+        VStack(spacing: 16) {
+            CardGroup(title: "Drainage Setup") {
+                VStack(spacing: 12) {
+                    OptionalBoolPicker(title: "Include Gutters", selection: guttersBinding)
+
+                    TextField("Downspout locations", text: downspoutLocationsBinding)
+                        .textFieldStyle(.roundedBorder)
+                        .frame(minHeight: 44)
+
+                    OptionalBoolPicker(title: "Drain Tie-In", selection: drainTieInBinding)
+                }
+            }
+
+            CardGroup(title: "Slope Notes") {
+                NotesField(title: "Slope Notes", text: slopeNotesBinding, minHeight: 140, showInlineTitle: false)
+            }
+        }
+    }
+
+    private var guttersBinding: Binding<Bool?> {
+        Binding(
+            get: { scope.drainage?.gutters },
+            set: { newValue in
+                updateDrainage { $0.gutters = newValue }
+            }
+        )
+    }
+
+    private var downspoutLocationsBinding: Binding<String> {
+        Binding(
+            get: { scope.drainage?.downspoutLocations ?? "" },
+            set: { newValue in
+                updateDrainage { $0.downspoutLocations = newValue.nilIfBlank }
+            }
+        )
+    }
+
+    private var drainTieInBinding: Binding<Bool?> {
+        Binding(
+            get: { scope.drainage?.drainTieIn },
+            set: { newValue in
+                updateDrainage { $0.drainTieIn = newValue }
+            }
+        )
+    }
+
+    private var slopeNotesBinding: Binding<String> {
+        Binding(
+            get: { scope.drainage?.slopeNotes ?? "" },
+            set: { newValue in
+                updateDrainage { $0.slopeNotes = newValue.nilIfBlank }
+            }
+        )
+    }
+
+    private func updateDrainage(_ update: (inout Drainage) -> Void) {
+        var drainage = scope.drainage ?? emptyDrainage()
+        update(&drainage)
+        scope.drainage = drainage.isEffectivelyEmpty ? nil : drainage
+        autosave.scheduleSave(for: scope)
+    }
+}
+
 struct AttachmentConditionsEditorView: View {
     @Bindable var scope: JobScope
     @ObservedObject var autosave: DebouncedAutosave
@@ -1066,6 +1622,153 @@ struct AttachmentConditionsEditorView: View {
         var attachment = scope.attachment ?? emptyAttachmentConditions()
         update(&attachment)
         scope.attachment = attachment
+        autosave.scheduleSave(for: scope)
+    }
+}
+
+struct FinishesEditorView: View {
+    @Bindable var scope: JobScope
+    @ObservedObject var autosave: DebouncedAutosave
+
+    var body: some View {
+        VStack(spacing: 16) {
+            CardGroup(title: "Trim + Color") {
+                VStack(spacing: 12) {
+                    TextField("Trim type", text: trimTypeBinding)
+                        .textFieldStyle(.roundedBorder)
+                        .frame(minHeight: 44)
+
+                    TextField("Paint or powder color", text: paintOrPowderColorBinding)
+                        .textFieldStyle(.roundedBorder)
+                        .frame(minHeight: 44)
+
+                    OptionalBoolPicker(title: "Siding Replacement Required", selection: sidingReplacementRequiredBinding)
+                }
+            }
+
+            CardGroup(title: "Sealant Notes") {
+                NotesField(title: "Caulking and Sealing Notes", text: caulkingSealingNotesBinding, minHeight: 140, showInlineTitle: false)
+            }
+        }
+    }
+
+    private var trimTypeBinding: Binding<String> {
+        Binding(
+            get: { scope.finishes?.trimType ?? "" },
+            set: { newValue in
+                updateFinishes { $0.trimType = newValue.nilIfBlank }
+            }
+        )
+    }
+
+    private var paintOrPowderColorBinding: Binding<String> {
+        Binding(
+            get: { scope.finishes?.paintOrPowderColor ?? "" },
+            set: { newValue in
+                updateFinishes { $0.paintOrPowderColor = newValue.nilIfBlank }
+            }
+        )
+    }
+
+    private var sidingReplacementRequiredBinding: Binding<Bool?> {
+        Binding(
+            get: { scope.finishes?.sidingReplacementRequired },
+            set: { newValue in
+                updateFinishes { $0.sidingReplacementRequired = newValue }
+            }
+        )
+    }
+
+    private var caulkingSealingNotesBinding: Binding<String> {
+        Binding(
+            get: { scope.finishes?.caulkingSealingNotes ?? "" },
+            set: { newValue in
+                updateFinishes { $0.caulkingSealingNotes = newValue.nilIfBlank }
+            }
+        )
+    }
+
+    private func updateFinishes(_ update: (inout Finishes) -> Void) {
+        var finishes = scope.finishes ?? emptyFinishes()
+        update(&finishes)
+        scope.finishes = finishes.isEffectivelyEmpty ? nil : finishes
+        autosave.scheduleSave(for: scope)
+    }
+}
+
+struct PermitsHOAEditorView: View {
+    @Bindable var scope: JobScope
+    @ObservedObject var autosave: DebouncedAutosave
+
+    var body: some View {
+        VStack(spacing: 16) {
+            CardGroup(title: "Approvals") {
+                VStack(spacing: 12) {
+                    OptionalBoolPicker(title: "Permit Required", selection: permitRequiredBinding)
+                    OptionalBoolPicker(title: "HOA Approval Required", selection: hoaApprovalRequiredBinding)
+                    OptionalBoolPicker(title: "Engineering Required", selection: engineeringRequiredBinding)
+
+                    TextField("Jurisdiction", text: jurisdictionBinding)
+                        .textFieldStyle(.roundedBorder)
+                        .frame(minHeight: 44)
+                }
+            }
+
+            CardGroup(title: "Status Notes") {
+                NotesField(title: "Status Notes", text: statusNotesBinding, minHeight: 140, showInlineTitle: false)
+            }
+        }
+    }
+
+    private var permitRequiredBinding: Binding<Bool?> {
+        Binding(
+            get: { scope.permitsHOA?.permitRequired },
+            set: { newValue in
+                updatePermitsHOA { $0.permitRequired = newValue }
+            }
+        )
+    }
+
+    private var jurisdictionBinding: Binding<String> {
+        Binding(
+            get: { scope.permitsHOA?.jurisdiction ?? "" },
+            set: { newValue in
+                updatePermitsHOA { $0.jurisdiction = newValue.nilIfBlank }
+            }
+        )
+    }
+
+    private var hoaApprovalRequiredBinding: Binding<Bool?> {
+        Binding(
+            get: { scope.permitsHOA?.hoaApprovalRequired },
+            set: { newValue in
+                updatePermitsHOA { $0.hoaApprovalRequired = newValue }
+            }
+        )
+    }
+
+    private var engineeringRequiredBinding: Binding<Bool?> {
+        Binding(
+            get: { scope.permitsHOA?.engineeringRequired },
+            set: { newValue in
+                updatePermitsHOA { $0.engineeringRequired = newValue }
+            }
+        )
+    }
+
+    private var statusNotesBinding: Binding<String> {
+        Binding(
+            get: { scope.permitsHOA?.statusNotes ?? "" },
+            set: { newValue in
+                updatePermitsHOA { $0.statusNotes = newValue.nilIfBlank }
+            }
+        )
+    }
+
+    private func updatePermitsHOA(_ update: (inout PermitsHOA) -> Void) {
+        var permits = scope.permitsHOA ?? emptyPermitsHOA()
+        update(&permits)
+        scope.permitsHOA = permits.isEffectivelyEmpty ? nil : permits
         autosave.scheduleSave(for: scope)
     }
 }
@@ -1548,6 +2251,69 @@ private struct FieldHeader: View {
     }
 }
 
+private struct MeasurementTextField: View {
+    let title: String
+    @Binding var text: String
+
+    var body: some View {
+        TextField(title, text: $text)
+            .textFieldStyle(.roundedBorder)
+            .keyboardType(.decimalPad)
+            .frame(minHeight: 44)
+    }
+}
+
+private struct NotesField: View {
+    let title: String
+    @Binding var text: String
+    let minHeight: CGFloat
+    let showInlineTitle: Bool
+
+    init(title: String, text: Binding<String>, minHeight: CGFloat, showInlineTitle: Bool = true) {
+        self.title = title
+        self._text = text
+        self.minHeight = minHeight
+        self.showInlineTitle = showInlineTitle
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            if showInlineTitle {
+                Text(title)
+                    .font(.body)
+            }
+
+            TextEditor(text: $text)
+                .frame(minHeight: minHeight)
+                .padding(8)
+                .background(
+                    Color(uiColor: .secondarySystemGroupedBackground),
+                    in: RoundedRectangle(cornerRadius: 10, style: .continuous)
+                )
+        }
+    }
+}
+
+private struct OptionalBoolPicker: View {
+    let title: String
+    @Binding var selection: Bool?
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(title)
+                .font(.body)
+
+            Picker(title, selection: $selection) {
+                Text("Not Set").tag(nil as Bool?)
+                Text("Yes").tag(Optional(true))
+                Text("No").tag(Optional(false))
+            }
+            .pickerStyle(.segmented)
+            .frame(minHeight: 44)
+        }
+    }
+}
+
 private extension String {
     var nilIfBlank: String? {
         trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : self
@@ -1580,6 +2346,51 @@ private func emptyEnclosure() -> Enclosure {
     )
 }
 
+private func emptyExistingConditions() -> ExistingConditions {
+    ExistingConditions(
+        houseStories: nil,
+        exteriorFinish: nil,
+        existingStructure: nil,
+        obstaclesNotes: nil,
+        utilitiesNotes: nil,
+        hoaNotes: nil,
+        photoChecklist: nil
+    )
+}
+
+private func emptyPhotoChecklist() -> PhotoChecklist {
+    PhotoChecklist(
+        frontOfHouse: nil,
+        rearElevation: nil,
+        roofLine: nil,
+        electricalPanel: nil,
+        workArea: nil
+    )
+}
+
+private func emptyDimensions() -> Dimensions {
+    Dimensions(
+        width: nil,
+        projection: nil,
+        fasciaHeight: nil,
+        beamHeight: nil,
+        roofStyle: nil,
+        attachmentType: nil,
+        elevationNotes: nil
+    )
+}
+
+private func emptyStructuralSystem() -> StructuralSystem {
+    StructuralSystem(
+        frameMaterial: nil,
+        postSize: nil,
+        beamType: nil,
+        roofSystem: nil,
+        roofColor: nil,
+        frameColor: nil
+    )
+}
+
 private func emptyWindowSystem() -> WindowSystem {
     WindowSystem(
         windowType: nil,
@@ -1596,6 +2407,26 @@ private func emptyWindowSystem() -> WindowSystem {
     )
 }
 
+private func emptyElectrical() -> Electrical {
+    Electrical(
+        outletCount: nil,
+        lighting: nil,
+        fanInstall: nil,
+        switchLocations: nil,
+        dedicatedCircuits: nil,
+        notes: nil
+    )
+}
+
+private func emptyDrainage() -> Drainage {
+    Drainage(
+        gutters: nil,
+        downspoutLocations: nil,
+        drainTieIn: nil,
+        slopeNotes: nil
+    )
+}
+
 private extension Enclosure {
     var isEffectivelyEmpty: Bool {
         enclosureType == nil &&
@@ -1605,6 +2436,51 @@ private extension Enclosure {
         windowSystem == nil &&
         kneeWall == nil &&
         doors == nil
+    }
+}
+
+private extension ExistingConditions {
+    var isEffectivelyEmpty: Bool {
+        houseStories == nil &&
+        exteriorFinish == nil &&
+        existingStructure == nil &&
+        (obstaclesNotes ?? "").nilIfBlank == nil &&
+        (utilitiesNotes ?? "").nilIfBlank == nil &&
+        (hoaNotes ?? "").nilIfBlank == nil &&
+        photoChecklist == nil
+    }
+}
+
+private extension PhotoChecklist {
+    var isEffectivelyEmpty: Bool {
+        frontOfHouse == nil &&
+        rearElevation == nil &&
+        roofLine == nil &&
+        electricalPanel == nil &&
+        workArea == nil
+    }
+}
+
+private extension Dimensions {
+    var isEffectivelyEmpty: Bool {
+        width == nil &&
+        projection == nil &&
+        fasciaHeight == nil &&
+        beamHeight == nil &&
+        roofStyle == nil &&
+        attachmentType == nil &&
+        (elevationNotes ?? "").nilIfBlank == nil
+    }
+}
+
+private extension StructuralSystem {
+    var isEffectivelyEmpty: Bool {
+        frameMaterial == nil &&
+        (postSize ?? "").nilIfBlank == nil &&
+        (beamType ?? "").nilIfBlank == nil &&
+        roofSystem == nil &&
+        (roofColor ?? "").nilIfBlank == nil &&
+        (frameColor ?? "").nilIfBlank == nil
     }
 }
 
@@ -1642,6 +2518,25 @@ private func emptyAttachmentConditions() -> AttachmentConditions {
     )
 }
 
+private func emptyFinishes() -> Finishes {
+    Finishes(
+        trimType: nil,
+        paintOrPowderColor: nil,
+        sidingReplacementRequired: nil,
+        caulkingSealingNotes: nil
+    )
+}
+
+private func emptyPermitsHOA() -> PermitsHOA {
+    PermitsHOA(
+        permitRequired: nil,
+        jurisdiction: nil,
+        hoaApprovalRequired: nil,
+        engineeringRequired: nil,
+        statusNotes: nil
+    )
+}
+
 private func emptyProductionOrderMeta() -> ProductionOrderMeta {
     ProductionOrderMeta(
         startDate: nil,
@@ -1650,6 +2545,45 @@ private func emptyProductionOrderMeta() -> ProductionOrderMeta {
         materialOrderStatus: nil,
         permitStatus: nil
     )
+}
+
+private extension Electrical {
+    var isEffectivelyEmpty: Bool {
+        outletCount == nil &&
+        lighting == nil &&
+        fanInstall == nil &&
+        (switchLocations ?? "").nilIfBlank == nil &&
+        (dedicatedCircuits ?? []).isEmpty &&
+        (notes ?? "").nilIfBlank == nil
+    }
+}
+
+private extension Drainage {
+    var isEffectivelyEmpty: Bool {
+        gutters == nil &&
+        (downspoutLocations ?? "").nilIfBlank == nil &&
+        drainTieIn == nil &&
+        (slopeNotes ?? "").nilIfBlank == nil
+    }
+}
+
+private extension Finishes {
+    var isEffectivelyEmpty: Bool {
+        (trimType ?? "").nilIfBlank == nil &&
+        (paintOrPowderColor ?? "").nilIfBlank == nil &&
+        sidingReplacementRequired == nil &&
+        (caulkingSealingNotes ?? "").nilIfBlank == nil
+    }
+}
+
+private extension PermitsHOA {
+    var isEffectivelyEmpty: Bool {
+        permitRequired == nil &&
+        (jurisdiction ?? "").nilIfBlank == nil &&
+        hoaApprovalRequired == nil &&
+        engineeringRequired == nil &&
+        (statusNotes ?? "").nilIfBlank == nil
+    }
 }
 
 private func emptyCustomerApproval() -> CustomerApproval {

@@ -15,6 +15,7 @@
 		AA0000010000000000000006 /* PDFPreviewStubView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000010000000000000016 /* PDFPreviewStubView.swift */; };
 		AA0000010000000000000007 /* SectionEditors.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000010000000000000018 /* SectionEditors.swift */; };
 		AA0000010000000000000008 /* PencilDrawingSupport.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000010000000000000019 /* PencilDrawingSupport.swift */; };
+		AA0000010000000000000009 /* PhotoAttachmentSupport.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000010000000000000020 /* PhotoAttachmentSupport.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -27,6 +28,7 @@
 		AA0000010000000000000017 /* ConstructionScopeApp.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ConstructionScopeApp.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		AA0000010000000000000018 /* SectionEditors.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SectionEditors.swift; sourceTree = "<group>"; };
 		AA0000010000000000000019 /* PencilDrawingSupport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PencilDrawingSupport.swift; sourceTree = "<group>"; };
+		AA0000010000000000000020 /* PhotoAttachmentSupport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhotoAttachmentSupport.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -85,6 +87,7 @@
 				AA0000010000000000000014 /* RootNavigationView.swift */,
 				AA0000010000000000000018 /* SectionEditors.swift */,
 				AA0000010000000000000019 /* PencilDrawingSupport.swift */,
+				AA0000010000000000000020 /* PhotoAttachmentSupport.swift */,
 			);
 			path = Views;
 			sourceTree = "<group>";
@@ -202,6 +205,7 @@
 				AA0000010000000000000006 /* PDFPreviewStubView.swift in Sources */,
 				AA0000010000000000000007 /* SectionEditors.swift in Sources */,
 				AA0000010000000000000008 /* PencilDrawingSupport.swift in Sources */,
+				AA0000010000000000000009 /* PhotoAttachmentSupport.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -267,7 +271,7 @@
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
-				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -297,7 +301,7 @@
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
-				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",

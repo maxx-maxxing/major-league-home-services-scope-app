@@ -196,9 +196,12 @@ enum ScopePDFExporter {
                 PDFSection(title: "Project Information", rows: [
                     .init(label: "Client", value: project.clientName.nilIfBlank ?? "Not set"),
                     .init(label: "Address", value: project.address.nilIfBlank ?? "Not set"),
+                    .init(label: "City / ZIP", value: combinedValue(project.city, project.zip)),
                     .init(label: "Phone", value: project.phone?.nilIfBlank ?? "Not set"),
                     .init(label: "Email", value: project.email?.nilIfBlank ?? "Not set"),
                     .init(label: "Salesperson", value: project.salesperson?.nilIfBlank ?? "Not set"),
+                    .init(label: "Estimator", value: project.estimator?.nilIfBlank ?? "Not set"),
+                    .init(label: "Site Visit", value: formattedDate(project.siteVisitDate)),
                     .init(label: "Project Type", value: project.projectType.displayName),
                     .init(label: "Notes", value: project.notes?.nilIfBlank ?? "None")
                 ]),
@@ -207,7 +210,9 @@ enum ScopePDFExporter {
                     .init(label: "Projection", value: formatNumber(dims?.projection, suffix: "ft")),
                     .init(label: "Fascia Height", value: formatNumber(dims?.fasciaHeight, suffix: "ft")),
                     .init(label: "Beam Height", value: formatNumber(dims?.beamHeight, suffix: "ft")),
-                    .init(label: "Roof Style", value: dims?.roofStyle?.displayName ?? "Not set")
+                    .init(label: "Roof Style", value: dims?.roofStyle?.displayName ?? "Not set"),
+                    .init(label: "Attachment Type", value: dims?.attachmentType?.displayName ?? "Not set"),
+                    .init(label: "Elevation Notes", value: dims?.elevationNotes?.nilIfBlank ?? "None")
                 ])
             ]
         )
@@ -225,13 +230,19 @@ enum ScopePDFExporter {
                     .init(label: "Exterior Finish", value: existing?.exteriorFinish?.displayName ?? "Not set"),
                     .init(label: "Existing Structure", value: existing?.existingStructure?.displayName ?? "Not set"),
                     .init(label: "Obstacles", value: existing?.obstaclesNotes?.nilIfBlank ?? "None"),
-                    .init(label: "Utilities", value: existing?.utilitiesNotes?.nilIfBlank ?? "None")
+                    .init(label: "Utilities", value: existing?.utilitiesNotes?.nilIfBlank ?? "None"),
+                    .init(label: "HOA Notes", value: existing?.hoaNotes?.nilIfBlank ?? "None"),
+                    .init(label: "Photo Checklist", value: photoChecklistSummary(existing?.photoChecklist))
                 ]),
                 PDFSection(title: "Attachment Conditions", rows: [
-                    .init(label: "House Material", value: attachment?.houseWallMaterial?.displayName ?? "Not set"),
+                    .init(label: "House Material", value: resolvedHouseWallMaterial(attachment)),
                     .init(label: "Mounting Type", value: attachment?.houseMountingType?.displayName ?? "Not set"),
-                    .init(label: "Post Material", value: attachment?.postColumnMaterial?.displayName ?? "Not set"),
+                    .init(label: "Mount Condition", value: attachment?.mountCondition?.displayName ?? "Not set"),
+                    .init(label: "Post Material", value: resolvedPostMaterial(attachment)),
+                    .init(label: "Post Size / Spacing", value: combinedValue(attachment?.postSize, attachment?.postSpacing)),
                     .init(label: "Trim Present", value: boolString(attachment?.trimPresent)),
+                    .init(label: "Trim Material", value: resolvedTrimMaterial(attachment)),
+                    .init(label: "Trim Thickness", value: resolvedTrimThickness(attachment)),
                     .init(label: "Fastener Plan", value: attachment?.fastenerPlan?.map(\.displayName).joined(separator: ", ") ?? "Not set"),
                     .init(label: "Notes", value: attachment?.notes?.nilIfBlank ?? "None")
                 ])
@@ -257,9 +268,11 @@ enum ScopePDFExporter {
                 PDFSection(title: "Enclosure", rows: [
                     .init(label: "Type", value: enclosure?.enclosureType?.displayName ?? "Not set"),
                     .init(label: "Screen Type", value: enclosure?.screenWallType?.displayName ?? "Not set"),
-                    .init(label: "Frame Color", value: enclosure?.screenFrameColor?.displayName ?? "Not set"),
+                    .init(label: "Frame Color", value: resolvedStandardColor(enclosure?.screenFrameColor, custom: enclosure?.screenFrameColorCustom)),
                     .init(label: "Knee Wall", value: enclosure?.kneeWall?.option?.displayName ?? "Not set"),
-                    .init(label: "Door Type", value: enclosure?.doors?.doorType?.displayName ?? "Not set")
+                    .init(label: "Knee Wall Details", value: kneeWallSummary(enclosure?.kneeWall)),
+                    .init(label: "Door Type", value: enclosure?.doors?.doorType?.displayName ?? "Not set"),
+                    .init(label: "Door Notes", value: enclosure?.doors?.notes?.nilIfBlank ?? "None")
                 ])
             ]
         )
@@ -278,13 +291,23 @@ enum ScopePDFExporter {
                     .init(label: "Frame System", value: window?.frameSystem?.displayName ?? "Not set"),
                     .init(label: "Glass Type", value: window?.glassType?.displayName ?? "Not set"),
                     .init(label: "Safety", value: window?.glassSafety?.displayName ?? "Not set"),
+                    .init(label: "Grid", value: window?.gridOption?.displayName ?? "Not set"),
+                    .init(label: "Operation", value: window?.operation?.displayName ?? "Not set"),
+                    .init(label: "Frame Color", value: resolvedStandardColor(window?.color, custom: window?.colorCustom)),
+                    .init(label: "Height / Bays", value: combinedValue(formatOptionalPDFNumber(window?.windowHeight, suffix: "ft"), formatOptionalPDFNumber(window?.numBays, suffix: "bays"))),
                     .init(label: "Configuration", value: window?.configuration?.displayName ?? "Not set")
                 ]),
-                PDFSection(title: "Electrical + Drainage", rows: [
+                PDFSection(title: "Electrical", rows: [
                     .init(label: "Outlets", value: formatNumber(electrical?.outletCount, suffix: "")),
                     .init(label: "Lighting", value: electrical?.lighting?.displayName ?? "Not set"),
                     .init(label: "Fan Install", value: boolString(electrical?.fanInstall)),
+                    .init(label: "Switch Locations", value: electrical?.switchLocations?.nilIfBlank ?? "Not set"),
+                    .init(label: "Dedicated Circuits", value: electrical?.dedicatedCircuits?.map(\.displayName).joined(separator: ", ") ?? "Not set"),
+                    .init(label: "Notes", value: electrical?.notes?.nilIfBlank ?? "None")
+                ]),
+                PDFSection(title: "Drainage", rows: [
                     .init(label: "Gutters", value: boolString(drainage?.gutters)),
+                    .init(label: "Downspouts", value: drainage?.downspoutLocations?.nilIfBlank ?? "Not set"),
                     .init(label: "Drain Tie-In", value: boolString(drainage?.drainTieIn)),
                     .init(label: "Drain Notes", value: drainage?.slopeNotes?.nilIfBlank ?? "None")
                 ])
@@ -293,6 +316,7 @@ enum ScopePDFExporter {
     }
 
     private static func pageFive(_ scope: JobScope) -> (String, [PDFSection]) {
+        let finishes = scope.finishes
         let permits = scope.permitsHOA
         let production = scope.production
 
@@ -307,16 +331,25 @@ enum ScopePDFExporter {
             return (
                 "Page 5: Permits/HOA + Production Notes + Customer Signature",
                 [
+                    PDFSection(title: "Finishes", rows: [
+                        .init(label: "Trim Type", value: finishes?.trimType?.nilIfBlank ?? "Not set"),
+                        .init(label: "Paint / Powder", value: finishes?.paintOrPowderColor?.nilIfBlank ?? "Not set"),
+                        .init(label: "Siding Replacement", value: boolString(finishes?.sidingReplacementRequired)),
+                        .init(label: "Caulking / Sealing", value: finishes?.caulkingSealingNotes?.nilIfBlank ?? "None")
+                    ]),
                     PDFSection(title: "Permits / HOA", rows: [
                         .init(label: "Permit Required", value: boolString(permits?.permitRequired)),
                         .init(label: "HOA Required", value: boolString(permits?.hoaApprovalRequired)),
                         .init(label: "Engineering Required", value: boolString(permits?.engineeringRequired)),
-                        .init(label: "Jurisdiction", value: permits?.jurisdiction?.nilIfBlank ?? "Not set")
+                        .init(label: "Jurisdiction", value: permits?.jurisdiction?.nilIfBlank ?? "Not set"),
+                        .init(label: "Status Notes", value: permits?.statusNotes?.nilIfBlank ?? "None")
                     ]),
                     PDFSection(title: "Production", rows: [
                         .init(label: "Crew Lead", value: production?.crewLead?.nilIfBlank ?? "Not set"),
                         .init(label: "Start Date", value: production?.startDate?.formatted(date: .abbreviated, time: .omitted) ?? "Not set"),
                         .init(label: "Duration", value: production?.durationEstimate?.nilIfBlank ?? "Not set"),
+                        .init(label: "Material Status", value: production?.materialOrderStatus?.displayName ?? "Not set"),
+                        .init(label: "Permit Status", value: production?.permitStatus?.displayName ?? "Not set"),
                         .init(label: "Notes", value: scope.customerApproval?.optionsConfirmedText?.nilIfBlank ?? "None")
                     ]),
                     PDFSection(title: "Customer Signature", rows: signatureRows, image: image)
@@ -328,16 +361,25 @@ enum ScopePDFExporter {
         return (
             "Page 5: Permits/HOA + Production Notes + Customer Signature",
             [
+                PDFSection(title: "Finishes", rows: [
+                    .init(label: "Trim Type", value: finishes?.trimType?.nilIfBlank ?? "Not set"),
+                    .init(label: "Paint / Powder", value: finishes?.paintOrPowderColor?.nilIfBlank ?? "Not set"),
+                    .init(label: "Siding Replacement", value: boolString(finishes?.sidingReplacementRequired)),
+                    .init(label: "Caulking / Sealing", value: finishes?.caulkingSealingNotes?.nilIfBlank ?? "None")
+                ]),
                 PDFSection(title: "Permits / HOA", rows: [
                     .init(label: "Permit Required", value: boolString(permits?.permitRequired)),
                     .init(label: "HOA Required", value: boolString(permits?.hoaApprovalRequired)),
                     .init(label: "Engineering Required", value: boolString(permits?.engineeringRequired)),
-                    .init(label: "Jurisdiction", value: permits?.jurisdiction?.nilIfBlank ?? "Not set")
+                    .init(label: "Jurisdiction", value: permits?.jurisdiction?.nilIfBlank ?? "Not set"),
+                    .init(label: "Status Notes", value: permits?.statusNotes?.nilIfBlank ?? "None")
                 ]),
                 PDFSection(title: "Production", rows: [
                     .init(label: "Crew Lead", value: production?.crewLead?.nilIfBlank ?? "Not set"),
                     .init(label: "Start Date", value: production?.startDate?.formatted(date: .abbreviated, time: .omitted) ?? "Not set"),
                     .init(label: "Duration", value: production?.durationEstimate?.nilIfBlank ?? "Not set"),
+                    .init(label: "Material Status", value: production?.materialOrderStatus?.displayName ?? "Not set"),
+                    .init(label: "Permit Status", value: production?.permitStatus?.displayName ?? "Not set"),
                     .init(label: "Notes", value: scope.customerApproval?.optionsConfirmedText?.nilIfBlank ?? "None")
                 ]),
                 PDFSection(title: "Customer Signature", rows: signatureRows)
@@ -346,19 +388,37 @@ enum ScopePDFExporter {
     }
 
     private static func appendixPages(_ scope: JobScope) -> [(String, [PDFSection])] {
-        guard let diagram = scope.sketches?.first(where: { $0.title == "Site Diagram" }),
-              let image = UIImage(contentsOfFile: diagram.previewPNGPath) else {
-            return []
+        var pages: [(String, [PDFSection])] = []
+
+        if let photos = scope.photos, !photos.isEmpty {
+            for (index, photo) in photos.enumerated() {
+                guard let image = UIImage(contentsOfFile: photo.imagePath) else { continue }
+
+                pages.append(
+                    (
+                        "Appendix: Photo \(index + 1)",
+                        [PDFSection(title: photo.caption?.nilIfBlank ?? "Scope Photo \(index + 1)", rows: [
+                            .init(label: "Captured", value: photo.createdAt.formatted(date: .abbreviated, time: .shortened)),
+                            .init(label: "Caption", value: photo.caption?.nilIfBlank ?? "None")
+                        ], image: image)]
+                    )
+                )
+            }
         }
 
-        return [
-            (
-                "Appendix: Site Diagram",
-                [PDFSection(title: "Site Diagram", rows: [
-                    .init(label: "Captured", value: diagram.createdAt.formatted(date: .abbreviated, time: .shortened))
-                ], image: image)]
+        if let diagram = scope.sketches?.first(where: { $0.title == "Site Diagram" }),
+           let image = UIImage(contentsOfFile: diagram.previewPNGPath) {
+            pages.append(
+                (
+                    "Appendix: Site Diagram",
+                    [PDFSection(title: "Site Diagram", rows: [
+                        .init(label: "Captured", value: diagram.createdAt.formatted(date: .abbreviated, time: .shortened))
+                    ], image: image)]
+                )
             )
-        ]
+        }
+
+        return pages
     }
 
     private static func missingRequiredFields(for scope: JobScope) -> [String] {
@@ -427,6 +487,91 @@ enum ScopePDFExporter {
             rendered = String(format: "%.2f", value)
         }
         return suffix.isEmpty ? rendered : "\(rendered) \(suffix)"
+    }
+
+    private static func formatOptionalPDFNumber(_ value: Double?, suffix: String) -> String? {
+        guard let value else { return nil }
+        return formatNumber(value, suffix: suffix)
+    }
+
+    private static func formattedDate(_ value: Date?) -> String {
+        value?.formatted(date: .abbreviated, time: .omitted) ?? "Not set"
+    }
+
+    private static func combinedValue(_ left: String?, _ right: String?) -> String {
+        let values = [left?.nilIfBlank, right?.nilIfBlank].compactMap { $0 }
+        return values.isEmpty ? "Not set" : values.joined(separator: " / ")
+    }
+
+    private static func resolvedStandardColor(_ color: StandardColorOption?, custom: String?) -> String {
+        guard let color else { return "Not set" }
+        if color == .custom {
+            return custom?.nilIfBlank ?? color.displayName
+        }
+        return color.displayName
+    }
+
+    private static func resolvedHouseWallMaterial(_ attachment: AttachmentConditions?) -> String {
+        guard let material = attachment?.houseWallMaterial else { return "Not set" }
+        if material == .other {
+            return attachment?.houseWallOther?.nilIfBlank ?? material.displayName
+        }
+        return material.displayName
+    }
+
+    private static func resolvedPostMaterial(_ attachment: AttachmentConditions?) -> String {
+        guard let material = attachment?.postColumnMaterial else { return "Not set" }
+        if material == .other {
+            return attachment?.postColumnOther?.nilIfBlank ?? material.displayName
+        }
+        return material.displayName
+    }
+
+    private static func resolvedTrimMaterial(_ attachment: AttachmentConditions?) -> String {
+        guard attachment?.trimPresent == true else { return "Not applicable" }
+        guard let material = attachment?.trimMaterial else { return "Not set" }
+        if material == .other {
+            return attachment?.trimMaterialOther?.nilIfBlank ?? material.displayName
+        }
+        return material.displayName
+    }
+
+    private static func resolvedTrimThickness(_ attachment: AttachmentConditions?) -> String {
+        guard attachment?.trimPresent == true else { return "Not applicable" }
+        guard let thickness = attachment?.trimThickness else { return "Not set" }
+        if thickness == .custom {
+            return formatNumber(attachment?.trimThicknessCustom, suffix: "in")
+        }
+        return thickness.displayName
+    }
+
+    private static func kneeWallSummary(_ kneeWall: KneeWall?) -> String {
+        guard let kneeWall else { return "Not set" }
+        var parts: [String] = []
+        if let height = kneeWall.panelHeight {
+            parts.append(formatNumber(height, suffix: "ft"))
+        }
+        if let color = kneeWall.panelColor?.nilIfBlank {
+            parts.append(color)
+        }
+        if let trimColor = kneeWall.trimColor?.nilIfBlank {
+            parts.append("Trim \(trimColor)")
+        }
+        if let finish = kneeWall.interiorFinish?.nilIfBlank {
+            parts.append(finish)
+        }
+        return parts.isEmpty ? "No additional details" : parts.joined(separator: ", ")
+    }
+
+    private static func photoChecklistSummary(_ checklist: PhotoChecklist?) -> String {
+        guard let checklist else { return "Not set" }
+        var selected: [String] = []
+        if checklist.frontOfHouse == true { selected.append("Front") }
+        if checklist.rearElevation == true { selected.append("Rear") }
+        if checklist.roofLine == true { selected.append("Roof") }
+        if checklist.electricalPanel == true { selected.append("Panel") }
+        if checklist.workArea == true { selected.append("Work Area") }
+        return selected.isEmpty ? "No items selected" : selected.joined(separator: ", ")
     }
 }
 

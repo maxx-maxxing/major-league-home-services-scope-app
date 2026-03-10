@@ -33,6 +33,19 @@ Keep milestones small, testable, and reviewable.
   - Production Notes
 - Apply UI_SYSTEM.md rules: cards, materials, semantic type, progressive disclosure
 
+## Milestone 2.2 – Remaining Section Editors
+- Implement the remaining schema-backed editors for:
+  - Existing Conditions
+  - Dimensions
+  - Structural System
+  - Electrical
+  - Drainage
+  - Finishes
+  - Permits / HOA
+- Replace placeholder section states in navigation/editor routing
+- Keep controls native and Scribble-friendly where notes are required
+- Validate autosave + relaunch behavior for each newly added section
+
 ## Milestone 3 – Pencil Support
 - Ensure TextEditor note fields support Scribble
 - PencilKit signature capture page
@@ -72,6 +85,11 @@ Keep milestones small, testable, and reviewable.
 - Milestone 4.5 – Validation + Docs
   - Validate generated PDF opens and contains expected sections
   - Update `DOCUMENTATION.md` with implementation notes and follow-ups
+- Milestone 4.6 – Expanded PDF Coverage
+  - Extend the five-page PDF mapping to reflect the newly implemented section editors
+  - Add richer summaries for existing conditions, dimensions, structural, electrical, drainage, finishes, and permits/production notes
+  - Preserve flattened rendering and current export flow
+  - Validate that preview/export still builds and opens successfully
 
 ## Milestone 5 – JobTread Integration
 - Milestone 5.1 – Integration Readiness Freeze
@@ -98,6 +116,17 @@ Keep milestones small, testable, and reviewable.
 ## Milestone 6 – Photos Appendix (Optional)
 - Photo capture per checklist
 - Store locally, add appendix pages in PDF export
+- Milestone 6.1 – Photo Attachment Flow
+  - Add a native photo management sheet from the toolbar
+  - Support selecting photos from the photo library
+  - Persist photos locally under the scope asset directory with captions
+- Milestone 6.2 – PDF Photo Appendix
+  - Append stored scope photos to the exported PDF
+  - Include captions/created timestamps with each photo page
+- Milestone 6.3 – Validation + Docs
+  - Verify added photos relaunch correctly
+  - Verify the PDF includes photo appendix pages when photos exist
+  - Update `DOCUMENTATION.md` with implementation details and follow-ups
 
 ## Milestone 7 – Acceptance + Polish
 - Run through ACCEPTANCE.md checklist

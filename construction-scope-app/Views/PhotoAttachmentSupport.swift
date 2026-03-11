@@ -20,10 +20,14 @@ struct ScopePhotosSheet: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
                     if let checklist = scope.existingConditions?.photoChecklist {
-                        CardGroup(title: "Requested Photos") {
-                            Text(photoChecklistSummary(checklist))
-                                .font(.body)
-                                .foregroundStyle(.secondary)
+                        GlassChromePanel(cornerRadius: 24) {
+                            VStack(alignment: .leading, spacing: 10) {
+                                Text("Requested Photos")
+                                    .font(.headline)
+                                Text(photoChecklistSummary(checklist))
+                                    .font(.body)
+                                    .foregroundStyle(.secondary)
+                            }
                         }
                     }
 
@@ -65,7 +69,16 @@ struct ScopePhotosSheet: View {
                 }
                 .padding(16)
             }
-            .background(Color(uiColor: .systemGroupedBackground))
+            .background(
+                LinearGradient(
+                    colors: [
+                        Color(uiColor: .systemGroupedBackground),
+                        Color(uiColor: .secondarySystemGroupedBackground)
+                    ],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+            )
             .animation(.snappy(duration: 0.28, extraBounce: 0), value: scope.photos?.map(\.id) ?? [])
             .navigationTitle("Photos")
             .navigationBarTitleDisplayMode(.inline)

@@ -134,6 +134,29 @@ Keep milestones small, testable, and reviewable.
 - Dynamic Type verification
 - Tap target verification
 - Light performance polish and accessibility labels
+- Milestone 7.2 – Acceptance Closeout
+  - Audit current UI against `ACCEPTANCE.md` and log concrete failures
+  - Fix high-signal issues in:
+    - Dynamic Type clipping / truncation
+    - tap target sizing below 44x44
+    - missing accessibility labels in toolbar and custom controls
+    - iPad split-view/editor presentation regressions
+  - Re-verify offline persistence, signature/sketch restore, and PDF preview/export flows
+  - Update `DOCUMENTATION.md` with validated behaviors, remaining gaps, and test dates
+- Milestone 7.3 – Liquid-Glass Chrome Pass
+  - Keep data-entry surfaces practical and high-contrast; do not restyle core form fields into heavy glass
+  - Apply a restrained glass treatment only to high-level chrome and transient surfaces:
+    - overlays / rename modals
+    - sidebar header / current-scope summary chrome
+    - top action areas and selected toolbar treatments
+    - preview / photo-management shell surfaces where appropriate
+  - Prefer subtle depth cues:
+    - richer material layers
+    - soft highlight strokes
+    - restrained shadows
+    - small motion/state emphasis only where it helps hierarchy
+  - Preserve `UI_SYSTEM.md` first-party Apple productivity feel and readability in Light/Dark mode
+  - Validate that polish does not reduce scanability, tap-target size, or Pencil/form usability
 
 ## Milestone 7.1 – Interaction Animation Polish
 - Add motion to key UI state changes so content changes are visually legible

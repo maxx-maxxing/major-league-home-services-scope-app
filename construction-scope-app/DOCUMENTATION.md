@@ -12,6 +12,8 @@
 - Milestone 5: Not started
 - Milestone 6: Implemented (photo attachment flow + PDF photo appendix)
 - Milestone 7.1: In progress (interaction animation polish)
+- Milestone 7.2: In progress (acceptance closeout)
+- Milestone 7.3: In progress (liquid-glass chrome pass)
 
 ## Decisions
 - SwiftData remains the persistence layer (`JobScope` model + Codable value types).
@@ -123,6 +125,29 @@
   - Added animated photo import/delete transitions inside the photo-management sheet.
   - Added animated clear-state feedback for signature and site-diagram reset actions.
   - Native sheet presentations for preview/photos/share remain system-driven; additional custom presentation polish can be layered on if needed after runtime review.
+- Milestone 7.2 acceptance closeout pass:
+  - The toolbar `Sketch` action is no longer a dead control:
+    - on iPad split view it now routes to the `Signature & Export` section
+    - on compact navigation it opens a dedicated `Sketch Tools` sheet
+  - Added accessibility improvements for custom navigation controls:
+    - `New Scope` row now exposes an explicit label + hint
+    - selected scope rows now expose combined labels/selection state
+    - section rows now expose selection state to VoiceOver
+    - toolbar preview/export/photos/sketch buttons now expose clearer hints
+- Milestone 7.3 liquid-glass chrome pass:
+  - Work is isolated on branch:
+    - `feature/liquid-glass-chrome-pass`
+  - Added a restrained chrome-specific material style for:
+    - top summary/header surfaces
+    - overlay/modal cards
+    - toolbar action icons
+    - preview/photo shell surfaces
+  - Core form cards and field entry surfaces remain on the existing practical styling to preserve scanability and form usability
+  - Updated status-pill treatment to feel more layered without changing underlying information density
+  - Follow-up refinement pass:
+    - removed the redundant sidebar `Current Scope` section heading above the floating summary card
+    - strengthened section-group separation by adding more distinct highlight/stroke/shadow treatment to `CardGroup`
+    - reduced material heaviness slightly so chrome and section cards read more translucent
 - Production notes are stored in `customerApproval.optionsConfirmedText` (schema-consistent text field already available).
 - `schema.json` was not changed.
 
@@ -158,7 +183,21 @@
 - PDF rendering currently uses deterministic text blocks rather than full visual chips/checkmark treatments from design aspirational notes.
 - Full interactive walkthroughs are still needed for every newly added editor and the PDF preview/export flow on simulator/device.
 - Full manual runtime verification is still needed for actual photo-library import on device/simulator UI interaction.
+- Full acceptance verification is still pending for:
+  - Dynamic Type clipping across all section editors
+  - Light/Dark mode visual review on device/simulator
+  - VoiceOver behavior for the newly adjusted toolbar/sidebar controls
+- Liquid-glass visual review is still pending for:
+  - actual feel on iPad split view versus compact navigation
+  - whether toolbar chrome reads as polished or too decorative in dense editing contexts
+  - whether preview/photo shell treatments feel cohesive with the rest of the app
 - Unsandboxed `xcodebuild` validation succeeded on March 10, 2026 using:
+  - `xcodebuild -project ConstructionScopeApp.xcodeproj -scheme ConstructionScopeApp -destination 'generic/platform=iOS' -derivedDataPath /tmp/ConstructionScopeAppDerived CODE_SIGNING_ALLOWED=NO build`
+- Unsandboxed `xcodebuild` validation succeeded again on March 11, 2026 after Milestone 7.2 acceptance fixes using:
+  - `xcodebuild -project ConstructionScopeApp.xcodeproj -scheme ConstructionScopeApp -destination 'generic/platform=iOS' -derivedDataPath /tmp/ConstructionScopeAppDerived CODE_SIGNING_ALLOWED=NO build`
+- Unsandboxed `xcodebuild` validation succeeded again on March 11, 2026 after the Milestone 7.3 chrome pass using:
+  - `xcodebuild -project ConstructionScopeApp.xcodeproj -scheme ConstructionScopeApp -destination 'generic/platform=iOS' -derivedDataPath /tmp/ConstructionScopeAppDerived CODE_SIGNING_ALLOWED=NO build`
+- Unsandboxed `xcodebuild` validation succeeded again on March 11, 2026 after the Milestone 7.3 refinement pass using:
   - `xcodebuild -project ConstructionScopeApp.xcodeproj -scheme ConstructionScopeApp -destination 'generic/platform=iOS' -derivedDataPath /tmp/ConstructionScopeAppDerived CODE_SIGNING_ALLOWED=NO build`
 - Simulator runtime validation on March 10, 2026:
   - built for `iPad Pro 11-inch (M5)` simulator

@@ -96,7 +96,16 @@ struct RootNavigationView: View {
                     } detail: {
                         ZStack {
                             if let scope = selectedScope {
-                                SectionEditorView(scope: scope, section: selectedSection, autosave: autosave)
+                                SectionEditorView(
+                                    scope: scope,
+                                    section: selectedSection,
+                                    autosave: autosave,
+                                    sketchAction: {
+                                        withAnimation(.snappy(duration: 0.26, extraBounce: 0)) {
+                                            selectedSection = .signatureAndExport
+                                        }
+                                    }
+                                )
                                     .id(detailTransitionKey)
                                     .transition(.asymmetric(
                                         insertion: .move(edge: .trailing).combined(with: .opacity),
@@ -292,6 +301,8 @@ private struct ScopeSidebarView: View {
                                 createNewScope()
                             }
                     )
+                    .accessibilityLabel("New Scope")
+                    .accessibilityHint("Creates a new scope from the template.")
                     .accessibilityAddTraits(.isButton)
                     .accessibilityAction {
                         newScopeTapPoint = CGPoint(
@@ -329,14 +340,23 @@ private struct ScopeSidebarView: View {
             }
 
             if let selectedScope {
-                Section("Current Scope") {
-                    VStack(alignment: .leading, spacing: 6) {
-                        Text(selectedScope.displayName)
-                            .font(.headline)
-                        StatusPill(status: selectedScope.status)
+                Section {
+                    GlassChromePanel(cornerRadius: 20) {
+                        VStack(alignment: .leading, spacing: 10) {
+                            Text("Current Scope")
+                                .font(.footnote.weight(.semibold))
+                                .foregroundStyle(.secondary)
+                                .textCase(.uppercase)
+
+                            Text(selectedScope.displayName)
+                                .font(.headline)
+
+                            StatusPill(status: selectedScope.status)
+                        }
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.vertical, 4)
+                    .accessibilityElement(children: .combine)
+                    .listRowInsets(EdgeInsets(top: 6, leading: 0, bottom: 6, trailing: 0))
                 }
 
                 Section("Sections") {
@@ -353,6 +373,8 @@ private struct ScopeSidebarView: View {
                         }
                         .buttonStyle(.plain)
                         .listRowBackground(selectedSection == section ? Color.secondary.opacity(0.14) : Color.clear)
+                        .accessibilityLabel(section.rawValue)
+                        .accessibilityValue(selectedSection == section ? "Selected" : "")
                     }
                 }
             }
@@ -416,6 +438,10 @@ private struct ScopeSidebarView: View {
         }
         .buttonStyle(.plain)
         .transition(.asymmetric(insertion: .opacity, removal: .move(edge: .trailing).combined(with: .opacity)))
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(scope.displayName)
+        .accessibilityValue(selectedScopeID == scope.id ? "Selected" : "")
+        .accessibilityHint("Opens this scope.")
         .contextMenu {
             Button("Rename Scope") {
                 requestRename(scope)
@@ -602,41 +628,40 @@ private struct SidebarRenameOverlay: View {
     }
 
     private var renameCard: some View {
-        VStack(alignment: .leading, spacing: 18) {
-            VStack(alignment: .leading, spacing: 8) {
-                Text("New Scope")
-                    .font(.title3.weight(.semibold))
-                    .foregroundStyle(.primary)
-                Text("This scope will be saved in Scopes.")
-                    .font(.body)
-                    .foregroundStyle(.secondary)
-            }
-
-            TextField("Name", text: $text)
-                .textFieldStyle(.roundedBorder)
-                .frame(minHeight: 44)
-                .focused($nameFieldFocused)
-                .submitLabel(.done)
-                .onSubmit {
-                    if !saveDisabled {
-                        handleSave()
-                    }
+        GlassChromePanel(cornerRadius: 28) {
+            VStack(alignment: .leading, spacing: 18) {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("New Scope")
+                        .font(.title3.weight(.semibold))
+                        .foregroundStyle(.primary)
+                    Text("This scope will be saved in Scopes.")
+                        .font(.body)
+                        .foregroundStyle(.secondary)
                 }
 
-            HStack(spacing: 12) {
-                Button("Cancel", action: onCancel)
-                    .buttonStyle(.bordered)
-                    .frame(maxWidth: .infinity, minHeight: 44)
+                TextField("Name", text: $text)
+                    .textFieldStyle(.roundedBorder)
+                    .frame(minHeight: 44)
+                    .focused($nameFieldFocused)
+                    .submitLabel(.done)
+                    .onSubmit {
+                        if !saveDisabled {
+                            handleSave()
+                        }
+                    }
 
-                Button("Create", action: handleSave)
-                    .buttonStyle(.borderedProminent)
-                    .frame(maxWidth: .infinity, minHeight: 44)
-                    .disabled(saveDisabled)
+                HStack(spacing: 12) {
+                    Button("Cancel", action: onCancel)
+                        .buttonStyle(.bordered)
+                        .frame(maxWidth: .infinity, minHeight: 44)
+
+                    Button("Create", action: handleSave)
+                        .buttonStyle(.borderedProminent)
+                        .frame(maxWidth: .infinity, minHeight: 44)
+                        .disabled(saveDisabled)
+                }
             }
         }
-        .padding(24)
-        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 28, style: .continuous))
-        .shadow(color: .black.opacity(0.12), radius: 24, y: 18)
         .background(
             GeometryReader { proxy in
                 Color.clear
@@ -709,47 +734,53 @@ private struct ScopeRenameOverlay: View {
 
     var body: some View {
         ZStack {
-            Color.black.opacity(0.18)
+            LinearGradient(
+                colors: [
+                    Color.black.opacity(0.22),
+                    Color.black.opacity(0.12)
+                ],
+                startPoint: .top,
+                endPoint: .bottom
+            )
                 .ignoresSafeArea()
                 .transition(.opacity)
 
-            VStack(alignment: .leading, spacing: 18) {
-                VStack(alignment: .leading, spacing: 8) {
-                    Text(title)
-                        .font(.title3.weight(.semibold))
-                        .foregroundStyle(.primary)
-                    Text(message)
-                        .font(.body)
-                        .foregroundStyle(.secondary)
-                }
-
-                TextField("Scope Name", text: $text)
-                    .textFieldStyle(.roundedBorder)
-                    .frame(minHeight: 44)
-                    .focused($nameFieldFocused)
-                    .submitLabel(.done)
-                    .onSubmit {
-                        if !saveDisabled {
-                            onSave()
-                        }
+            GlassChromePanel(cornerRadius: 28) {
+                VStack(alignment: .leading, spacing: 18) {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text(title)
+                            .font(.title3.weight(.semibold))
+                            .foregroundStyle(.primary)
+                        Text(message)
+                            .font(.body)
+                            .foregroundStyle(.secondary)
                     }
 
-                HStack(spacing: 12) {
-                    Button("Cancel", action: onCancel)
-                        .buttonStyle(.bordered)
-                        .frame(maxWidth: .infinity, minHeight: 44)
+                    TextField("Scope Name", text: $text)
+                        .textFieldStyle(.roundedBorder)
+                        .frame(minHeight: 44)
+                        .focused($nameFieldFocused)
+                        .submitLabel(.done)
+                        .onSubmit {
+                            if !saveDisabled {
+                                onSave()
+                            }
+                        }
 
-                    Button("Save", action: onSave)
-                        .buttonStyle(.borderedProminent)
-                        .frame(maxWidth: .infinity, minHeight: 44)
-                        .disabled(saveDisabled)
+                    HStack(spacing: 12) {
+                        Button("Cancel", action: onCancel)
+                            .buttonStyle(.bordered)
+                            .frame(maxWidth: .infinity, minHeight: 44)
+
+                        Button("Save", action: onSave)
+                            .buttonStyle(.borderedProminent)
+                            .frame(maxWidth: .infinity, minHeight: 44)
+                            .disabled(saveDisabled)
+                    }
                 }
             }
-            .padding(24)
             .frame(maxWidth: 420)
             .padding(.horizontal, 24)
-            .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 28, style: .continuous))
-            .shadow(color: .black.opacity(0.12), radius: 24, y: 18)
             .scaleEffect(isSaving ? 0.24 : 1)
             .offset(x: isSaving ? -170 : 0, y: isSaving ? -210 : 0)
             .opacity(isSaving ? 0.04 : 1)
@@ -771,7 +802,7 @@ private struct PhoneSectionListView: View {
             Section {
                 ForEach(ScopeSection.allCases) { section in
                     NavigationLink {
-                        SectionEditorView(scope: scope, section: section, autosave: autosave)
+                        SectionEditorView(scope: scope, section: section, autosave: autosave, sketchAction: nil)
                     } label: {
                         Label(section.rawValue, systemImage: section.symbol)
                             .font(.body)
@@ -789,8 +820,10 @@ struct SectionEditorView: View {
     @Bindable var scope: JobScope
     let section: ScopeSection
     @ObservedObject var autosave: DebouncedAutosave
+    let sketchAction: (() -> Void)?
     @State private var showingPreview = false
     @State private var showingPhotos = false
+    @State private var showingSketchSheet = false
     @State private var shareURL: URL?
     @State private var showingShareSheet = false
     @State private var errorMessage: String?
@@ -802,19 +835,23 @@ struct SectionEditorView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
                 HStack(spacing: 10) {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(scope.displayName)
-                            .font(.title3)
-                            .foregroundStyle(.primary)
-                            .contentTransition(.opacity)
-                        Text(section.rawValue)
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
-                            .contentTransition(.opacity)
-                    }
+                    GlassChromePanel(cornerRadius: 24) {
+                        HStack(spacing: 10) {
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text(scope.displayName)
+                                    .font(.title3)
+                                    .foregroundStyle(.primary)
+                                    .contentTransition(.opacity)
+                                Text(section.rawValue)
+                                    .font(.subheadline)
+                                    .foregroundStyle(.secondary)
+                                    .contentTransition(.opacity)
+                            }
 
-                    Spacer()
-                    StatusPill(status: scope.status)
+                            Spacer()
+                            StatusPill(status: scope.status)
+                        }
+                    }
                 }
 
                 switch section {
@@ -862,34 +899,39 @@ struct SectionEditorView: View {
                     previewActionToken += 1
                     showingPreview = true
                 } label: {
-                    Image(systemName: "doc.text.magnifyingglass")
+                    ChromeActionIcon(systemName: "doc.text.magnifyingglass")
                 }
                 .symbolEffect(.bounce, value: previewActionToken)
                 .accessibilityLabel("Preview")
+                .accessibilityHint("Shows a PDF preview and missing required fields.")
 
                 Button {
                     exportActionToken += 1
                     exportPDF()
                 } label: {
-                    Image(systemName: "square.and.arrow.up")
+                    ChromeActionIcon(systemName: "square.and.arrow.up")
                 }
                 .symbolEffect(.bounce, value: exportActionToken)
                 .accessibilityLabel("Export")
+                .accessibilityHint("Generates a flattened PDF and opens the share sheet.")
 
                 Button {
                     photoActionToken += 1
                     showingPhotos = true
                 } label: {
-                    Image(systemName: "photo.on.rectangle")
+                    ChromeActionIcon(systemName: "photo.on.rectangle")
                 }
                 .symbolEffect(.bounce, value: photoActionToken)
                 .accessibilityLabel("Photos")
+                .accessibilityHint("Manage photo attachments for this scope.")
 
                 Button {
+                    openSketchWorkspace()
                 } label: {
-                    Image(systemName: "pencil.and.scribble")
+                    ChromeActionIcon(systemName: "pencil.and.scribble")
                 }
-                .accessibilityLabel("Sketch")
+                .accessibilityLabel(section == .signatureAndExport ? "Sketch tools" : "Open sketch tools")
+                .accessibilityHint("Opens signature and site diagram tools.")
             }
         }
         .sheet(isPresented: $showingPreview) {
@@ -899,6 +941,11 @@ struct SectionEditorView: View {
         }
         .sheet(isPresented: $showingPhotos) {
             ScopePhotosSheet(scope: scope, autosave: autosave)
+        }
+        .sheet(isPresented: $showingSketchSheet) {
+            NavigationStack {
+                SignatureAndSketchSheet(scope: scope, autosave: autosave)
+            }
         }
         .sheet(isPresented: $showingShareSheet) {
             if let shareURL {
@@ -911,6 +958,18 @@ struct SectionEditorView: View {
             }
         } message: {
             Text(errorMessage ?? "An unknown export error occurred.")
+        }
+    }
+
+    private func openSketchWorkspace() {
+        if section == .signatureAndExport {
+            return
+        }
+
+        if let sketchAction {
+            sketchAction()
+        } else {
+            showingSketchSheet = true
         }
     }
 
@@ -932,6 +991,30 @@ struct SectionEditorView: View {
             showingShareSheet = true
         } catch {
             errorMessage = error.localizedDescription
+        }
+    }
+}
+
+private struct SignatureAndSketchSheet: View {
+    @Bindable var scope: JobScope
+    @ObservedObject var autosave: DebouncedAutosave
+
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        ScrollView {
+            SignatureAndSketchEditorView(scope: scope, autosave: autosave)
+                .padding(16)
+        }
+        .background(Color(uiColor: .systemGroupedBackground))
+        .navigationTitle("Sketch Tools")
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .topBarLeading) {
+                Button("Done") {
+                    dismiss()
+                }
+            }
         }
     }
 }

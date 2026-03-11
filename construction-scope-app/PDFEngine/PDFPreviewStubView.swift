@@ -15,8 +15,11 @@ struct ScopePDFPreviewSheet: View {
             if let pdfData {
                 VStack(spacing: 12) {
                     if !missingFields.isEmpty {
-                        CardGroup(title: "Missing Required Fields") {
-                            VStack(alignment: .leading, spacing: 6) {
+                        GlassChromePanel(cornerRadius: 24) {
+                            VStack(alignment: .leading, spacing: 10) {
+                                Text("Missing Required Fields")
+                                    .font(.headline)
+
                                 ForEach(missingFields, id: \.self) { field in
                                     Text("• \(field)")
                                         .font(.subheadline)
@@ -41,6 +44,16 @@ struct ScopePDFPreviewSheet: View {
                 ProgressView("Generating Preview")
             }
         }
+        .background(
+            LinearGradient(
+                colors: [
+                    Color(uiColor: .systemGroupedBackground),
+                    Color(uiColor: .secondarySystemGroupedBackground)
+                ],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+        )
         .navigationTitle("PDF Preview")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {

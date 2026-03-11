@@ -173,6 +173,15 @@
     - regrouped editor toolbar actions as a cohesive system-host control group without reintroducing a custom floating top-bar capsule
     - upgraded rename overlays, compact navigation shells, photo/PDF sheets, and drawing/image utility surfaces to use the same glass language and calmer sheet hierarchy
     - refined helper controls such as segmented optional pickers and note surfaces so they no longer fall back to generic blur tiles
+  - Apple-correctness refinement pass:
+    - softened sidebar and scope selection so navigation emphasis feels more native to the sidebar layer and less like separate floating cards
+    - differentiated chrome panels from routine content cards and inputs so not every surface carries the same visual weight
+    - reduced shadow dependence across shared surfaces and let the material/highlight system carry more of the hierarchy
+    - kept the monochrome palette, spacing rhythm, semantic pills, and system-toolbar-host top chrome intact
+  - Narrow refinement pass:
+    - replaced chip-like sidebar selection with integrated row emphasis using a slim accent rail, softer pooled material, and no floating checkmark treatment
+    - increased separation between the editor header chrome and the card stack below by calming `CardGroup` while giving the header a clearer chrome identity
+    - restored a restrained Liquid Glass read to inputs and utility containers through light tint/highlight layering instead of thicker borders or stronger shadows
 - Production notes are stored in `customerApproval.optionsConfirmedText` (schema-consistent text field already available).
 - `schema.json` was not changed.
 
@@ -235,6 +244,8 @@
 - Unsandboxed `xcodebuild` validation succeeded again on March 11, 2026 after the utility-surface consistency sweep using:
   - `xcodebuild -project ConstructionScopeApp.xcodeproj -scheme ConstructionScopeApp -destination 'generic/platform=iOS' -derivedDataPath /tmp/ConstructionScopeAppDerived CODE_SIGNING_ALLOWED=NO build`
 - Unsandboxed `xcodebuild` validation succeeded again on March 11, 2026 after the full Liquid Glass compliance sweep using:
+  - `xcodebuild -project ConstructionScopeApp.xcodeproj -scheme ConstructionScopeApp -destination 'generic/platform=iOS' -derivedDataPath /tmp/ConstructionScopeAppDerived CODE_SIGNING_ALLOWED=NO build`
+- Unsandboxed `xcodebuild` validation succeeded again on March 11, 2026 after the Apple-correctness refinement pass using:
   - `xcodebuild -project ConstructionScopeApp.xcodeproj -scheme ConstructionScopeApp -destination 'generic/platform=iOS' -derivedDataPath /tmp/ConstructionScopeAppDerived CODE_SIGNING_ALLOWED=NO build`
 - Simulator runtime validation on March 10, 2026:
   - built for `iPad Pro 11-inch (M5)` simulator

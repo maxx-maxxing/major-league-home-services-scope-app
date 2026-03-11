@@ -190,6 +190,18 @@ Keep milestones small, testable, and reviewable.
       - photo/PDF shells
       - drawing and empty-state utility surfaces
     - Keep edits surgical inside the shared component layer and the shell views that own these surfaces
+  - Milestone 7.4.2 – Apple-Correctness Refinement Pass
+    - Soften sidebar selection so it reads as integrated navigation emphasis rather than nested glass cards
+    - Reduce visual uniformity between:
+      - chrome panels
+      - grouped content cards
+      - routine input and utility surfaces
+    - Shift hierarchy away from explicit shadow dependence and toward calmer material separation
+    - Preserve the existing system-toolbar-host approach and avoid adding new top-level chrome wrappers
+    - Narrow refinement pass:
+      - make selected sidebar rows feel pooled into the list layer rather than floating chips
+      - increase separation between editor header chrome and routine form cards beneath it
+      - restore a restrained Liquid Glass identity to inputs, photo/drawing surfaces, and PDF preview containers without reintroducing heavy borders or stacked effects
 
 ## Milestone 7.1 – Interaction Animation Polish
 - Add motion to key UI state changes so content changes are visually legible

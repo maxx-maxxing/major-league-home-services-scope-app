@@ -60,19 +60,21 @@ struct CardGroup<Content: View>: View {
         .background(
             ZStack {
                 RoundedRectangle(cornerRadius: 22, style: .continuous)
-                    .fill(.ultraThinMaterial)
+                    .fill(.regularMaterial)
                 RoundedRectangle(cornerRadius: 22, style: .continuous)
                     .fill(
                         LinearGradient(
                             colors: [
-                                Color.white.opacity(0.18),
-                                Color.white.opacity(0.05),
+                                Color.white.opacity(0.08),
+                                Color.white.opacity(0.025),
                                 Color.black.opacity(0.015)
                             ],
                             startPoint: .topLeading,
                             endPoint: .bottomTrailing
                         )
                     )
+                RoundedRectangle(cornerRadius: 22, style: .continuous)
+                    .fill(Color(uiColor: .secondarySystemGroupedBackground).opacity(0.3))
             }
         )
         .overlay {
@@ -80,8 +82,8 @@ struct CardGroup<Content: View>: View {
                 .strokeBorder(
                     LinearGradient(
                         colors: [
-                            Color.white.opacity(0.34),
-                            Color.white.opacity(0.08),
+                            Color.white.opacity(0.14),
+                            Color.white.opacity(0.04),
                             Color.clear
                         ],
                         startPoint: .topLeading,
@@ -96,16 +98,15 @@ struct CardGroup<Content: View>: View {
                     LinearGradient(
                         colors: [
                             Color.clear,
-                            Color.white.opacity(0.12)
+                            Color.white.opacity(0.05)
                         ],
                         startPoint: .top,
                         endPoint: .bottom
                     ),
-                    lineWidth: 5
+                    lineWidth: 2
                 )
         }
-        .shadow(color: Color.white.opacity(0.14), radius: 8, y: -1)
-        .shadow(color: Color.black.opacity(0.1), radius: 18, y: 12)
+        .shadow(color: Color.black.opacity(0.03), radius: 6, y: 3)
     }
 }
 
@@ -129,8 +130,8 @@ struct GlassChromePanel<Content: View>: View {
                         .fill(
                             LinearGradient(
                                 colors: [
-                                    Color.white.opacity(0.22),
-                                    Color.white.opacity(0.06),
+                                    Color.white.opacity(0.24),
+                                    Color.white.opacity(0.08),
                                     Color.black.opacity(0.015)
                                 ],
                                 startPoint: .topLeading,
@@ -156,15 +157,15 @@ struct GlassChromePanel<Content: View>: View {
             }
             .overlay(alignment: .top) {
                 RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                    .strokeBorder(Color.white.opacity(0.18), lineWidth: 5)
-                    .blur(radius: 10)
+                    .strokeBorder(Color.white.opacity(0.16), lineWidth: 4)
+                    .blur(radius: 8)
                     .mask(alignment: .top) {
                         Rectangle()
-                            .frame(height: 46)
+                            .frame(height: 42)
                     }
             }
-            .shadow(color: Color.white.opacity(0.18), radius: 10, y: -2)
-            .shadow(color: Color.black.opacity(0.12), radius: 22, y: 12)
+            .shadow(color: Color.white.opacity(0.08), radius: 4, y: -1)
+            .shadow(color: Color.black.opacity(0.08), radius: 12, y: 7)
     }
 }
 
@@ -221,14 +222,14 @@ struct GlassToolbarCluster<Content: View>: View {
         }
         .overlay(alignment: .top) {
             Capsule()
-                .strokeBorder(Color.white.opacity(0.18), lineWidth: 4)
-                .blur(radius: 8)
+                .strokeBorder(Color.white.opacity(0.14), lineWidth: 3)
+                .blur(radius: 6)
                 .mask {
                     Rectangle()
                         .frame(height: 18)
                 }
         }
-        .shadow(color: Color.black.opacity(0.1), radius: 12, y: 7)
+        .shadow(color: Color.black.opacity(0.06), radius: 8, y: 5)
     }
 }
 
@@ -247,7 +248,7 @@ struct StatusPill: View {
                     Capsule()
                         .fill(.ultraThinMaterial)
                     Capsule()
-                        .fill(Color.white.opacity(0.07))
+                        .fill(Color.white.opacity(0.05))
                 }
             )
             .overlay {
@@ -256,7 +257,7 @@ struct StatusPill: View {
                         LinearGradient(
                             colors: [
                                 Color.white.opacity(0.28),
-                                Color.white.opacity(0.08)
+                                Color.white.opacity(0.06)
                             ],
                             startPoint: .topLeading,
                             endPoint: .bottomTrailing
@@ -266,15 +267,15 @@ struct StatusPill: View {
             }
             .overlay(alignment: .top) {
                 Capsule()
-                    .strokeBorder(Color.white.opacity(0.18), lineWidth: 4)
-                    .blur(radius: 8)
+                    .strokeBorder(Color.white.opacity(0.14), lineWidth: 3)
+                    .blur(radius: 6)
                     .mask {
                         Rectangle()
                             .frame(height: 18)
                     }
             }
-            .shadow(color: Color.white.opacity(0.08), radius: 4, y: -1)
-            .shadow(color: Color.black.opacity(0.08), radius: 8, y: 5)
+            .shadow(color: Color.white.opacity(0.04), radius: 2, y: -1)
+            .shadow(color: Color.black.opacity(0.05), radius: 5, y: 3)
             .accessibilityLabel("Status \(status.displayName)")
     }
 }
@@ -306,7 +307,9 @@ extension View {
                     RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
                         .fill(.ultraThinMaterial)
                     RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                        .fill(Color.white.opacity(0.05))
+                        .fill(Color.white.opacity(0.04))
+                    RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                        .fill(Color.accentColor.opacity(0.035))
                 }
             )
             .overlay {
@@ -314,8 +317,8 @@ extension View {
                     .strokeBorder(
                         LinearGradient(
                             colors: [
-                                Color.white.opacity(0.28),
-                                Color.white.opacity(0.08),
+                                Color.white.opacity(0.18),
+                                Color.white.opacity(0.05),
                                 Color.clear
                             ],
                             startPoint: .topLeading,
@@ -326,15 +329,13 @@ extension View {
             }
             .overlay(alignment: .top) {
                 RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                    .strokeBorder(Color.white.opacity(0.16), lineWidth: 4)
-                    .blur(radius: 8)
+                    .strokeBorder(Color.white.opacity(0.11), lineWidth: 2)
+                    .blur(radius: 4)
                     .mask {
                         Rectangle()
-                            .frame(height: 20)
+                            .frame(height: 16)
                     }
             }
-            .shadow(color: Color.white.opacity(0.08), radius: 4, y: -1)
-            .shadow(color: Color.black.opacity(0.08), radius: 8, y: 5)
     }
 
     func liquidGlassInputBackground(cornerRadius: CGFloat = 14) -> some View {
@@ -344,7 +345,9 @@ extension View {
                     RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
                         .fill(.ultraThinMaterial)
                     RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                        .fill(Color.white.opacity(0.05))
+                        .fill(Color.white.opacity(0.04))
+                    RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                        .fill(Color.accentColor.opacity(0.03))
                 }
             )
             .overlay {
@@ -352,8 +355,8 @@ extension View {
                     .strokeBorder(
                         LinearGradient(
                             colors: [
-                                Color.white.opacity(0.28),
-                                Color.white.opacity(0.08),
+                                Color.white.opacity(0.18),
+                                Color.white.opacity(0.05),
                                 Color.clear
                             ],
                             startPoint: .topLeading,
@@ -364,15 +367,13 @@ extension View {
             }
             .overlay(alignment: .top) {
                 RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                    .strokeBorder(Color.white.opacity(0.16), lineWidth: 4)
-                    .blur(radius: 8)
+                    .strokeBorder(Color.white.opacity(0.11), lineWidth: 2)
+                    .blur(radius: 4)
                     .mask {
                         Rectangle()
-                            .frame(height: 20)
+                            .frame(height: 16)
                     }
             }
-            .shadow(color: Color.white.opacity(0.08), radius: 4, y: -1)
-            .shadow(color: Color.black.opacity(0.08), radius: 8, y: 5)
     }
 
     func liquidGlassSurface(cornerRadius: CGFloat = 14) -> some View {
@@ -381,7 +382,9 @@ extension View {
                 RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
                     .fill(.ultraThinMaterial)
                 RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                    .fill(Color.white.opacity(0.05))
+                    .fill(Color.white.opacity(0.038))
+                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                    .fill(Color.accentColor.opacity(0.028))
             }
         )
         .overlay {
@@ -389,8 +392,8 @@ extension View {
                 .strokeBorder(
                     LinearGradient(
                         colors: [
-                            Color.white.opacity(0.28),
-                            Color.white.opacity(0.08),
+                            Color.white.opacity(0.18),
+                            Color.white.opacity(0.05),
                             Color.clear
                         ],
                         startPoint: .topLeading,
@@ -401,14 +404,12 @@ extension View {
         }
         .overlay(alignment: .top) {
             RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                .strokeBorder(Color.white.opacity(0.16), lineWidth: 4)
-                .blur(radius: 8)
+                .strokeBorder(Color.white.opacity(0.1), lineWidth: 2)
+                .blur(radius: 4)
                 .mask {
                     Rectangle()
-                        .frame(height: 20)
+                        .frame(height: 16)
                 }
         }
-        .shadow(color: Color.white.opacity(0.08), radius: 4, y: -1)
-        .shadow(color: Color.black.opacity(0.08), radius: 8, y: 5)
     }
 }

@@ -34,11 +34,9 @@ struct ScopePDFPreviewSheet: View {
                     }
 
                     PDFDocumentView(data: pdfData)
-                        .clipShape(RoundedRectangle(cornerRadius: 26, style: .continuous))
-                        .overlay {
-                            RoundedRectangle(cornerRadius: 26, style: .continuous)
-                                .strokeBorder(Color.white.opacity(0.18), lineWidth: 1)
-                        }
+                        .padding(8)
+                        .liquidGlassSurface(cornerRadius: 28)
+                        .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
                         .padding(.horizontal, 16)
                         .padding(.bottom, 16)
                 }

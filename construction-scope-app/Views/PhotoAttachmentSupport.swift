@@ -20,10 +20,8 @@ struct ScopePhotosSheet: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
                     if let checklist = scope.existingConditions?.photoChecklist {
-                        GlassChromePanel(cornerRadius: 24) {
+                        CardGroup(title: "Requested Photos") {
                             VStack(alignment: .leading, spacing: 10) {
-                                Text("Requested Photos")
-                                    .font(.headline)
                                 Text(photoChecklistSummary(checklist))
                                     .font(.body)
                                     .foregroundStyle(.secondary)
@@ -191,10 +189,10 @@ private struct PhotoPreviewImage: View {
                 Image(uiImage: image)
                     .resizable()
                     .scaledToFit()
-                    .padding(8)
+                    .padding(10)
                     .frame(maxWidth: .infinity)
-                    .liquidGlassSurface(cornerRadius: 18)
-                    .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+                    .liquidGlassSurface(cornerRadius: 20)
+                    .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
             } else {
                 placeholder
             }
@@ -205,10 +203,10 @@ private struct PhotoPreviewImage: View {
     }
 
     private var placeholder: some View {
-        RoundedRectangle(cornerRadius: 12, style: .continuous)
+        RoundedRectangle(cornerRadius: 20, style: .continuous)
             .fill(Color.clear)
             .frame(height: 180)
-            .liquidGlassSurface(cornerRadius: 18)
+            .liquidGlassSurface(cornerRadius: 20)
             .overlay {
                 Image(systemName: "photo")
                     .font(.title2)

@@ -356,6 +356,7 @@ private struct ScopeSidebarView: View {
                         }
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, 2)
                     .accessibilityElement(children: .combine)
                     .listRowInsets(EdgeInsets(top: 6, leading: 0, bottom: 6, trailing: 0))
                 }
@@ -402,44 +403,40 @@ private struct ScopeSidebarView: View {
 
         // Keep selection pooled into the sidebar row itself so it reads like
         // integrated system chrome rather than a floating sticker.
-        Label(section.rawValue, systemImage: section.symbol)
-            .font(.body.weight(isSelected ? .medium : .regular))
-            .foregroundStyle(.primary)
-            .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
-            .padding(.horizontal, isSelected ? 14 : 10)
-            .padding(.vertical, isSelected ? 10 : 6)
-            .background {
-                if isSelected {
-                    RoundedRectangle(cornerRadius: 18, style: .continuous)
-                        .fill(.ultraThinMaterial)
-                        .overlay {
-                            RoundedRectangle(cornerRadius: 18, style: .continuous)
-                                .strokeBorder(
-                                    LinearGradient(
-                                        colors: [
-                                            Color.white.opacity(0.26),
-                                            Color.white.opacity(0.08),
-                                            Color.clear
-                                        ],
-                                        startPoint: .topLeading,
-                                        endPoint: .bottomTrailing
-                                    ),
-                                    lineWidth: 1
-                                )
-                        }
-                        .overlay(alignment: .top) {
-                            RoundedRectangle(cornerRadius: 18, style: .continuous)
-                                .strokeBorder(Color.white.opacity(0.16), lineWidth: 4)
-                                .blur(radius: 8)
-                                .mask {
-                                    Rectangle()
-                                        .frame(height: 18)
-                                }
-                        }
-                }
+        HStack(spacing: 10) {
+            RoundedRectangle(cornerRadius: 2, style: .continuous)
+                .fill(isSelected ? Color.accentColor.opacity(0.8) : .clear)
+                .frame(width: 3, height: 26)
+
+            Label(section.rawValue, systemImage: section.symbol)
+                .font(.body.weight(isSelected ? .medium : .regular))
+                .foregroundStyle(isSelected ? AnyShapeStyle(.primary) : AnyShapeStyle(.secondary))
+
+            Spacer(minLength: 0)
+        }
+        .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+        .padding(.horizontal, 8)
+        .padding(.vertical, 3)
+        .background {
+            if isSelected {
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    .fill(.thinMaterial)
+                    .opacity(0.5)
+                    .overlay {
+                        RoundedRectangle(cornerRadius: 14, style: .continuous)
+                            .fill(Color.accentColor.opacity(0.05))
+                    }
+                    .overlay(alignment: .top) {
+                        RoundedRectangle(cornerRadius: 14, style: .continuous)
+                            .strokeBorder(Color.white.opacity(0.08), lineWidth: 1)
+                            .blur(radius: 3)
+                            .mask {
+                                Rectangle()
+                                    .frame(height: 10)
+                            }
+                    }
             }
-            .shadow(color: isSelected ? Color.white.opacity(0.05) : .clear, radius: 3, y: -1)
-            .shadow(color: isSelected ? Color.black.opacity(0.07) : .clear, radius: 8, y: 5)
+        }
         .animation(.easeInOut(duration: 0.18), value: selectedSection)
     }
 
@@ -463,7 +460,11 @@ private struct ScopeSidebarView: View {
                 selectedScopeID = scope.id
             }
         } label: {
-            HStack {
+            HStack(spacing: 10) {
+                RoundedRectangle(cornerRadius: 2, style: .continuous)
+                    .fill(isSelected ? Color.accentColor.opacity(0.78) : .clear)
+                    .frame(width: 3, height: 30)
+
                 VStack(alignment: .leading, spacing: 4) {
                     Text(scope.displayName)
                         .font(.body.weight(isSelected ? .medium : .regular))
@@ -474,34 +475,27 @@ private struct ScopeSidebarView: View {
                 }
 
                 Spacer()
-
-                if isSelected {
-                    Image(systemName: "checkmark.circle.fill")
-                        .foregroundStyle(.tint)
-                        .transition(.scale.combined(with: .opacity))
-                }
             }
             .frame(minHeight: 44)
-            .padding(.horizontal, isSelected ? 12 : 0)
-            .padding(.vertical, isSelected ? 8 : 2)
+            .padding(.horizontal, 8)
+            .padding(.vertical, 4)
             .background {
                 if isSelected {
-                    RoundedRectangle(cornerRadius: 18, style: .continuous)
-                        .fill(.ultraThinMaterial)
+                    RoundedRectangle(cornerRadius: 14, style: .continuous)
+                        .fill(.thinMaterial)
+                        .opacity(0.52)
                         .overlay {
-                            RoundedRectangle(cornerRadius: 18, style: .continuous)
-                                .strokeBorder(
-                                    LinearGradient(
-                                        colors: [
-                                            Color.white.opacity(0.24),
-                                            Color.white.opacity(0.08),
-                                            Color.clear
-                                        ],
-                                        startPoint: .topLeading,
-                                        endPoint: .bottomTrailing
-                                    ),
-                                    lineWidth: 1
-                                )
+                            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                                .fill(Color.accentColor.opacity(0.05))
+                        }
+                        .overlay(alignment: .top) {
+                            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                                .strokeBorder(Color.white.opacity(0.08), lineWidth: 1)
+                                .blur(radius: 3)
+                                .mask {
+                                    Rectangle()
+                                        .frame(height: 10)
+                                }
                         }
                 }
             }
@@ -909,25 +903,31 @@ struct SectionEditorView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
-                HStack(spacing: 10) {
-                    GlassChromePanel(cornerRadius: 24) {
-                        HStack(spacing: 10) {
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text(scope.displayName)
-                                    .font(.title3)
-                                    .foregroundStyle(.primary)
-                                    .contentTransition(.opacity)
-                                Text(section.rawValue)
-                                    .font(.subheadline)
-                                    .foregroundStyle(.secondary)
-                                    .contentTransition(.opacity)
-                            }
+                GlassChromePanel(cornerRadius: 24) {
+                    HStack(alignment: .top, spacing: 12) {
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text("Current Scope")
+                                .font(.footnote.weight(.semibold))
+                                .foregroundStyle(.secondary)
+                                .textCase(.uppercase)
 
-                            Spacer()
-                            StatusPill(status: scope.status)
+                            Text(scope.displayName)
+                                .font(.title3)
+                                .foregroundStyle(.primary)
+                                .contentTransition(.opacity)
+
+                            Text(section.rawValue)
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
+                                .contentTransition(.opacity)
                         }
+
+                        Spacer(minLength: 12)
+
+                        StatusPill(status: scope.status)
                     }
                 }
+                .padding(.bottom, 4)
 
                 switch section {
                 case .projectInfo:

@@ -16,6 +16,30 @@ struct LiquidGlassBackdrop: View {
                 endPoint: .bottomTrailing
             )
 
+            // Keep accent color underneath the glass as a faint substrate so
+            // surfaces stay neutral while refraction feels slightly deeper.
+            LinearGradient(
+                colors: [
+                    Color.accentColor.opacity(0.045),
+                    Color.clear,
+                    Color.accentColor.opacity(0.025)
+                ],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+
+            Circle()
+                .fill(Color.accentColor.opacity(0.08))
+                .frame(width: 360, height: 360)
+                .blur(radius: 110)
+                .offset(x: -185, y: -210)
+
+            Circle()
+                .fill(Color.accentColor.opacity(0.045))
+                .frame(width: 260, height: 260)
+                .blur(radius: 96)
+                .offset(x: 220, y: 265)
+
             Circle()
                 .fill(Color.white.opacity(0.46))
                 .frame(width: 340, height: 340)

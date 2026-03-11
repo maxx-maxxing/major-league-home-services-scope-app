@@ -1,4 +1,4 @@
-﻿import SwiftUI
+import SwiftUI
 import SwiftData
 
 enum ScopeSection: String, CaseIterable, Identifiable {
@@ -192,12 +192,12 @@ struct RootNavigationView: View {
         sidebarRenameDepositing = true
 
         Task { @MainActor in
-            try? await Task.sleep(for: .milliseconds(170))
+            try? await Task.sleep(for: .milliseconds(250))
             if !scopes.isEmpty {
                 sidebarFolderPulseToken += 1
             }
 
-            try? await Task.sleep(for: .milliseconds(360))
+            try? await Task.sleep(for: .milliseconds(140))
             dismissSidebarRename()
         }
     }

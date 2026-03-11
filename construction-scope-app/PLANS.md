@@ -175,6 +175,21 @@ Keep milestones small, testable, and reviewable.
   - Preserve readability, hierarchy, and obvious navigation even while pushing the aesthetic aggressively
   - Add code comments around major Liquid Glass decisions so the branch can be scaled back later
   - Follow up with consistency sweeps so utility states (empty previews, drawing surfaces, supporting sheets) do not fall back to older grouped-background styling
+  - Milestone 7.4.1 – Full Liquid-Glass Compliance Sweep
+    - Audit every visible shell and utility surface against `codex_context.md`
+    - Remove anti-patterns called out in the branch spec:
+      - futuristic blue tint bias
+      - heavy white borders
+      - isolated sticker-like glass chips
+      - generic blur tiles in helper controls
+    - Tighten consistency across:
+      - navigation chrome
+      - sidebar selection treatment
+      - toolbar control grouping inside the system host
+      - rename overlays and supporting sheets
+      - photo/PDF shells
+      - drawing and empty-state utility surfaces
+    - Keep edits surgical inside the shared component layer and the shell views that own these surfaces
 
 ## Milestone 7.1 – Interaction Animation Polish
 - Add motion to key UI state changes so content changes are visually legible

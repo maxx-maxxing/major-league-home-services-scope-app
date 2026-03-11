@@ -2050,6 +2050,8 @@ struct SignatureAndSketchEditorView: View {
                             customerSignatureDrawing = PKDrawing()
                         }
                     }
+                    .buttonStyle(.bordered)
+                    .buttonBorderShape(.capsule)
                     .frame(minHeight: 44)
                     .disabled(customerSignatureDrawing.strokes.isEmpty)
                 }
@@ -2069,6 +2071,8 @@ struct SignatureAndSketchEditorView: View {
                             salespersonSignatureDrawing = PKDrawing()
                         }
                     }
+                    .buttonStyle(.bordered)
+                    .buttonBorderShape(.capsule)
                     .frame(minHeight: 44)
                     .disabled(salespersonSignatureDrawing.strokes.isEmpty)
                 }
@@ -2088,6 +2092,8 @@ struct SignatureAndSketchEditorView: View {
                             siteDiagramDrawing = PKDrawing()
                         }
                     }
+                    .buttonStyle(.bordered)
+                    .buttonBorderShape(.capsule)
                     .frame(minHeight: 44)
                     .disabled(siteDiagramDrawing.strokes.isEmpty)
                 }
@@ -2273,6 +2279,7 @@ private struct FieldHeader: View {
             .font(.footnote.weight(.semibold))
             .foregroundStyle(.secondary)
             .textCase(.uppercase)
+            .tracking(0.4)
             .frame(maxWidth: .infinity, alignment: .leading)
     }
 }
@@ -2304,8 +2311,7 @@ private struct NotesField: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             if showInlineTitle {
-                Text(title)
-                    .font(.body)
+                FieldHeader(title)
             }
 
             TextEditor(text: $text)
@@ -2333,14 +2339,7 @@ private struct OptionalBoolPicker: View {
             .pickerStyle(.segmented)
             .frame(minHeight: 44)
             .padding(6)
-            .background(
-                RoundedRectangle(cornerRadius: 16, style: .continuous)
-                    .fill(.ultraThinMaterial)
-            )
-            .overlay {
-                RoundedRectangle(cornerRadius: 16, style: .continuous)
-                    .strokeBorder(Color.white.opacity(0.2), lineWidth: 1)
-            }
+            .liquidGlassSurface(cornerRadius: 16)
         }
     }
 }

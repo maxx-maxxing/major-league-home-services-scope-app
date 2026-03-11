@@ -191,7 +191,10 @@ private struct PhotoPreviewImage: View {
                 Image(uiImage: image)
                     .resizable()
                     .scaledToFit()
-                    .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                    .padding(8)
+                    .frame(maxWidth: .infinity)
+                    .liquidGlassSurface(cornerRadius: 18)
+                    .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
             } else {
                 placeholder
             }
@@ -205,7 +208,7 @@ private struct PhotoPreviewImage: View {
         RoundedRectangle(cornerRadius: 12, style: .continuous)
             .fill(Color.clear)
             .frame(height: 180)
-            .liquidGlassSurface(cornerRadius: 12)
+            .liquidGlassSurface(cornerRadius: 18)
             .overlay {
                 Image(systemName: "photo")
                     .font(.title2)

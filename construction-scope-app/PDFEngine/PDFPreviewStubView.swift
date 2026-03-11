@@ -9,6 +9,8 @@ struct ScopePDFPreviewSheet: View {
     @State private var pdfData: Data?
     @State private var missingFields: [String] = []
     @State private var errorMessage: String?
+    @State private var exportURL: URL?
+    @State private var showingShareSheet = false
 
     var body: some View {
         Group {
@@ -32,7 +34,13 @@ struct ScopePDFPreviewSheet: View {
                     }
 
                     PDFDocumentView(data: pdfData)
-                        .background(LiquidGlassBackdrop())
+                        .clipShape(RoundedRectangle(cornerRadius: 26, style: .continuous))
+                        .overlay {
+                            RoundedRectangle(cornerRadius: 26, style: .continuous)
+                                .strokeBorder(Color.white.opacity(0.18), lineWidth: 1)
+                        }
+                        .padding(.horizontal, 16)
+                        .padding(.bottom, 16)
                 }
             } else if let errorMessage {
                 ContentUnavailableView(
@@ -53,9 +61,23 @@ struct ScopePDFPreviewSheet: View {
                     dismiss()
                 }
             }
+
+            ToolbarItem(placement: .topBarTrailing) {
+                Button {
+                    exportPreviewPDF()
+                } label: {
+                    Label("Share PDF", systemImage: "square.and.arrow.up")
+                }
+                .disabled(pdfData == nil)
+            }
         }
         .onAppear {
             loadPreview()
+        }
+        .sheet(isPresented: $showingShareSheet) {
+            if let exportURL {
+                ActivityShareSheet(items: [exportURL])
+            }
         }
     }
 
@@ -64,6 +86,15 @@ struct ScopePDFPreviewSheet: View {
             let render = try ScopePDFExporter.render(scope: scope)
             pdfData = render.data
             missingFields = render.missingFields
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    private func exportPreviewPDF() {
+        do {
+            exportURL = try ScopePDFExporter.generate(scope: scope).fileURL
+            showingShareSheet = true
         } catch {
             errorMessage = error.localizedDescription
         }

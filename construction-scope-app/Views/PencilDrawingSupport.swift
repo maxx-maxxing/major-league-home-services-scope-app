@@ -14,8 +14,9 @@ struct PencilDrawingCanvas: View {
 
     var body: some View {
         PencilCanvasRepresentable(drawing: $drawing)
-            .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
-            .liquidGlassSurface(cornerRadius: 10)
+            .padding(8)
+            .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+            .liquidGlassSurface(cornerRadius: 18)
     }
 }
 

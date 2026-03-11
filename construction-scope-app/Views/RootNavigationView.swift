@@ -400,44 +400,46 @@ private struct ScopeSidebarView: View {
     private func sidebarSectionLabel(for section: ScopeSection) -> some View {
         let isSelected = selectedSection == section
 
-        Group {
-            if isSelected {
-                // Experimental: selected sections should read like floating glass chips,
-                // not flat list highlights, to make selection state and motion more legible.
-                Label(section.rawValue, systemImage: section.symbol)
-                    .font(.body.weight(.medium))
-                    .foregroundStyle(.primary)
-                    .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
-                    .padding(.horizontal, 14)
-                    .padding(.vertical, 10)
-                    .background(
-                        RoundedRectangle(cornerRadius: 18, style: .continuous)
-                            .fill(.ultraThinMaterial)
-                    )
-                    .overlay {
-                        RoundedRectangle(cornerRadius: 18, style: .continuous)
-                            .strokeBorder(
-                                LinearGradient(
-                                    colors: [
-                                        Color.white.opacity(0.34),
-                                        Color.white.opacity(0.08)
-                                    ],
-                                    startPoint: .topLeading,
-                                    endPoint: .bottomTrailing
-                                ),
-                                lineWidth: 1
-                            )
-                    }
-            } else {
-                Label(section.rawValue, systemImage: section.symbol)
-                    .font(.body)
-                    .foregroundStyle(.primary)
-                    .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
-                    .padding(.horizontal, 10)
+        // Keep selection pooled into the sidebar row itself so it reads like
+        // integrated system chrome rather than a floating sticker.
+        Label(section.rawValue, systemImage: section.symbol)
+            .font(.body.weight(isSelected ? .medium : .regular))
+            .foregroundStyle(.primary)
+            .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+            .padding(.horizontal, isSelected ? 14 : 10)
+            .padding(.vertical, isSelected ? 10 : 6)
+            .background {
+                if isSelected {
+                    RoundedRectangle(cornerRadius: 18, style: .continuous)
+                        .fill(.ultraThinMaterial)
+                        .overlay {
+                            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                                .strokeBorder(
+                                    LinearGradient(
+                                        colors: [
+                                            Color.white.opacity(0.26),
+                                            Color.white.opacity(0.08),
+                                            Color.clear
+                                        ],
+                                        startPoint: .topLeading,
+                                        endPoint: .bottomTrailing
+                                    ),
+                                    lineWidth: 1
+                                )
+                        }
+                        .overlay(alignment: .top) {
+                            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                                .strokeBorder(Color.white.opacity(0.16), lineWidth: 4)
+                                .blur(radius: 8)
+                                .mask {
+                                    Rectangle()
+                                        .frame(height: 18)
+                                }
+                        }
+                }
             }
-        }
-        .shadow(color: isSelected ? Color.white.opacity(0.1) : .clear, radius: 4, y: -1)
-        .shadow(color: isSelected ? Color.black.opacity(0.08) : .clear, radius: 10, y: 6)
+            .shadow(color: isSelected ? Color.white.opacity(0.05) : .clear, radius: 3, y: -1)
+            .shadow(color: isSelected ? Color.black.opacity(0.07) : .clear, radius: 8, y: 5)
         .animation(.easeInOut(duration: 0.18), value: selectedSection)
     }
 
@@ -454,6 +456,8 @@ private struct ScopeSidebarView: View {
 
     @ViewBuilder
     private func scopeRow(for scope: JobScope) -> some View {
+        let isSelected = selectedScopeID == scope.id
+
         Button {
             withAnimation(.snappy(duration: 0.26, extraBounce: 0)) {
                 selectedScopeID = scope.id
@@ -462,7 +466,7 @@ private struct ScopeSidebarView: View {
             HStack {
                 VStack(alignment: .leading, spacing: 4) {
                     Text(scope.displayName)
-                        .font(.body)
+                        .font(.body.weight(isSelected ? .medium : .regular))
                         .foregroundStyle(.primary)
                     Text(scope.projectInfo.address.isEmpty ? "No address" : scope.projectInfo.address)
                         .font(.footnote)
@@ -471,20 +475,44 @@ private struct ScopeSidebarView: View {
 
                 Spacer()
 
-                if selectedScopeID == scope.id {
+                if isSelected {
                     Image(systemName: "checkmark.circle.fill")
                         .foregroundStyle(.tint)
                         .transition(.scale.combined(with: .opacity))
                 }
             }
             .frame(minHeight: 44)
+            .padding(.horizontal, isSelected ? 12 : 0)
+            .padding(.vertical, isSelected ? 8 : 2)
+            .background {
+                if isSelected {
+                    RoundedRectangle(cornerRadius: 18, style: .continuous)
+                        .fill(.ultraThinMaterial)
+                        .overlay {
+                            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                                .strokeBorder(
+                                    LinearGradient(
+                                        colors: [
+                                            Color.white.opacity(0.24),
+                                            Color.white.opacity(0.08),
+                                            Color.clear
+                                        ],
+                                        startPoint: .topLeading,
+                                        endPoint: .bottomTrailing
+                                    ),
+                                    lineWidth: 1
+                                )
+                        }
+                }
+            }
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .listRowBackground(Color.clear)
         .transition(.asymmetric(insertion: .opacity, removal: .move(edge: .trailing).combined(with: .opacity)))
         .accessibilityElement(children: .combine)
         .accessibilityLabel(scope.displayName)
-        .accessibilityValue(selectedScopeID == scope.id ? "Selected" : "")
+        .accessibilityValue(isSelected ? "Selected" : "")
         .accessibilityHint("Opens this scope.")
         .contextMenu {
             Button("Rename Scope") {
@@ -550,6 +578,7 @@ private struct PhoneScopesListView: View {
                     }
                 }
                 .scrollContentBackground(.hidden)
+                .background(LiquidGlassBackdrop())
                 .navigationTitle("Scopes")
                 .toolbar {
                     ToolbarItem(placement: .topBarTrailing) {
@@ -642,7 +671,9 @@ private struct SidebarRenameOverlay: View {
     var body: some View {
         GeometryReader { proxy in
             ZStack(alignment: .topLeading) {
-                Color.black.opacity(0.16)
+                Rectangle()
+                    .fill(.ultraThinMaterial)
+                    .overlay(Color.black.opacity(0.06))
                     .ignoresSafeArea()
                     .transition(.opacity)
 
@@ -697,10 +728,12 @@ private struct SidebarRenameOverlay: View {
                 HStack(spacing: 12) {
                     Button("Cancel", action: onCancel)
                         .buttonStyle(.bordered)
+                        .buttonBorderShape(.capsule)
                         .frame(maxWidth: .infinity, minHeight: 44)
 
                     Button("Create", action: handleSave)
                         .buttonStyle(.borderedProminent)
+                        .buttonBorderShape(.capsule)
                         .frame(maxWidth: .infinity, minHeight: 44)
                         .disabled(saveDisabled)
                 }
@@ -778,14 +811,9 @@ private struct ScopeRenameOverlay: View {
 
     var body: some View {
         ZStack {
-            LinearGradient(
-                colors: [
-                    Color.black.opacity(0.22),
-                    Color.black.opacity(0.12)
-                ],
-                startPoint: .top,
-                endPoint: .bottom
-            )
+            Rectangle()
+                .fill(.ultraThinMaterial)
+                .overlay(Color.black.opacity(0.08))
                 .ignoresSafeArea()
                 .transition(.opacity)
 
@@ -813,10 +841,12 @@ private struct ScopeRenameOverlay: View {
                     HStack(spacing: 12) {
                         Button("Cancel", action: onCancel)
                             .buttonStyle(.bordered)
+                            .buttonBorderShape(.capsule)
                             .frame(maxWidth: .infinity, minHeight: 44)
 
                         Button("Save", action: onSave)
                             .buttonStyle(.borderedProminent)
+                            .buttonBorderShape(.capsule)
                             .frame(maxWidth: .infinity, minHeight: 44)
                             .disabled(saveDisabled)
                     }
@@ -855,6 +885,7 @@ private struct PhoneSectionListView: View {
             }
         }
         .scrollContentBackground(.hidden)
+        .background(LiquidGlassBackdrop())
         .navigationTitle(scope.displayName)
         .navigationBarTitleDisplayMode(.inline)
     }
@@ -939,7 +970,7 @@ struct SectionEditorView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
-                HStack(spacing: 4) {
+                ControlGroup {
                     Button {
                         previewActionToken += 1
                         showingPreview = true
@@ -959,9 +990,6 @@ struct SectionEditorView: View {
                     .symbolEffect(.bounce, value: exportActionToken)
                     .accessibilityLabel("Export")
                     .accessibilityHint("Generates a flattened PDF and opens the share sheet.")
-
-                    GlassToolbarGap()
-                        .accessibilityHidden(true)
 
                     Button {
                         photoActionToken += 1
@@ -987,14 +1015,17 @@ struct SectionEditorView: View {
             NavigationStack {
                 ScopePDFPreviewSheet(scope: scope)
             }
+            .presentationBackground(.clear)
         }
         .sheet(isPresented: $showingPhotos) {
             ScopePhotosSheet(scope: scope, autosave: autosave)
+                .presentationBackground(.clear)
         }
         .sheet(isPresented: $showingSketchSheet) {
             NavigationStack {
                 SignatureAndSketchSheet(scope: scope, autosave: autosave)
             }
+            .presentationBackground(.clear)
         }
         .sheet(isPresented: $showingShareSheet) {
             if let shareURL {

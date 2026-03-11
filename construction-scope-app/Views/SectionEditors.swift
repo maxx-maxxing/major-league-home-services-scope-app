@@ -14,15 +14,13 @@ struct ProjectInfoEditorView: View {
                     VStack(alignment: .leading, spacing: 6) {
                         RequiredLabel(text: "Client Name")
                         TextField("Enter client name", text: requiredStringBinding(\.clientName))
-                            .textFieldStyle(.roundedBorder)
-                            .frame(minHeight: 44)
+                            .liquidGlassInput()
                     }
 
                     VStack(alignment: .leading, spacing: 6) {
                         RequiredLabel(text: "Address")
                         TextField("Street address", text: requiredStringBinding(\.address))
-                            .textFieldStyle(.roundedBorder)
-                            .frame(minHeight: 44)
+                            .liquidGlassInput()
                     }
 
                     HStack(spacing: 12) {
@@ -30,16 +28,14 @@ struct ProjectInfoEditorView: View {
                             Text("City")
                                 .font(.body)
                             TextField("City", text: optionalStringBinding(\.city))
-                                .textFieldStyle(.roundedBorder)
-                                .frame(minHeight: 44)
+                                .liquidGlassInput()
                         }
 
                         VStack(alignment: .leading, spacing: 6) {
                             Text("ZIP")
                                 .font(.body)
                             TextField("ZIP", text: optionalStringBinding(\.zip))
-                                .textFieldStyle(.roundedBorder)
-                                .frame(minHeight: 44)
+                                .liquidGlassInput()
                                 .keyboardType(.numberPad)
                         }
                     }
@@ -52,8 +48,7 @@ struct ProjectInfoEditorView: View {
                         Text("Phone")
                             .font(.body)
                         TextField("Phone", text: optionalStringBinding(\.phone))
-                            .textFieldStyle(.roundedBorder)
-                            .frame(minHeight: 44)
+                            .liquidGlassInput()
                             .keyboardType(.phonePad)
                     }
 
@@ -61,8 +56,7 @@ struct ProjectInfoEditorView: View {
                         Text("Email")
                             .font(.body)
                         TextField("Email", text: optionalStringBinding(\.email))
-                            .textFieldStyle(.roundedBorder)
-                            .frame(minHeight: 44)
+                            .liquidGlassInput()
                             .keyboardType(.emailAddress)
                             .textInputAutocapitalization(.never)
                     }
@@ -71,16 +65,14 @@ struct ProjectInfoEditorView: View {
                         Text("Salesperson")
                             .font(.body)
                         TextField("Salesperson", text: optionalStringBinding(\.salesperson))
-                            .textFieldStyle(.roundedBorder)
-                            .frame(minHeight: 44)
+                            .liquidGlassInput()
                     }
 
                     VStack(alignment: .leading, spacing: 6) {
                         Text("Estimator")
                             .font(.body)
                         TextField("Estimator", text: optionalStringBinding(\.estimator))
-                            .textFieldStyle(.roundedBorder)
-                            .frame(minHeight: 44)
+                            .liquidGlassInput()
                     }
                 }
             }
@@ -120,7 +112,7 @@ struct ProjectInfoEditorView: View {
                         TextEditor(text: notesBinding)
                             .frame(minHeight: 140)
                             .padding(8)
-                            .background(Color(uiColor: .secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+                            .liquidGlassInputBackground(cornerRadius: 14)
                     }
                 }
             }
@@ -466,12 +458,10 @@ struct StructuralSystemEditorView: View {
                     .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
 
                     TextField("Post size", text: postSizeBinding)
-                        .textFieldStyle(.roundedBorder)
-                        .frame(minHeight: 44)
+                        .liquidGlassInput()
 
                     TextField("Beam type", text: beamTypeBinding)
-                        .textFieldStyle(.roundedBorder)
-                        .frame(minHeight: 44)
+                        .liquidGlassInput()
                 }
             }
 
@@ -488,12 +478,10 @@ struct StructuralSystemEditorView: View {
                     .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
 
                     TextField("Roof color", text: roofColorBinding)
-                        .textFieldStyle(.roundedBorder)
-                        .frame(minHeight: 44)
+                        .liquidGlassInput()
 
                     TextField("Frame color", text: frameColorBinding)
-                        .textFieldStyle(.roundedBorder)
-                        .frame(minHeight: 44)
+                        .liquidGlassInput()
                 }
             }
         }
@@ -604,8 +592,7 @@ struct EnclosureEditorView: View {
 
                         if scope.enclosure?.screenFrameColor == .custom {
                             TextField("Custom screen frame color", text: screenFrameColorCustomBinding)
-                                .textFieldStyle(.roundedBorder)
-                                .frame(minHeight: 44)
+                                .liquidGlassInput()
                                 .formRevealTransition()
                         }
                     }
@@ -630,24 +617,21 @@ struct EnclosureEditorView: View {
 
                         if scope.enclosure?.kneeWall?.option != KneeWallOption.none {
                             TextField("Panel height", text: kneeWallPanelHeightBinding)
-                                .textFieldStyle(.roundedBorder)
+                                .liquidGlassInput()
                                 .keyboardType(.decimalPad)
                                 .frame(minHeight: 44)
                                 .formRevealTransition()
 
                             TextField("Panel color", text: kneeWallPanelColorBinding)
-                                .textFieldStyle(.roundedBorder)
-                                .frame(minHeight: 44)
+                                .liquidGlassInput()
                                 .formRevealTransition()
 
                             TextField("Trim color", text: kneeWallTrimColorBinding)
-                                .textFieldStyle(.roundedBorder)
-                                .frame(minHeight: 44)
+                                .liquidGlassInput()
                                 .formRevealTransition()
 
                             TextField("Interior finish", text: kneeWallInteriorFinishBinding)
-                                .textFieldStyle(.roundedBorder)
-                                .frame(minHeight: 44)
+                                .liquidGlassInput()
                                 .formRevealTransition()
                         }
                     }
@@ -673,7 +657,7 @@ struct EnclosureEditorView: View {
                             TextEditor(text: doorNotesBinding)
                                 .frame(minHeight: 100)
                                 .padding(8)
-                                .background(Color(uiColor: .secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+                                .liquidGlassInputBackground(cornerRadius: 14)
                         }
                         .formRevealTransition()
                     }
@@ -978,18 +962,17 @@ struct WindowsAndGlassEditorView: View {
 
                         if scope.enclosure?.windowSystem?.color == .custom {
                             TextField("Custom frame color", text: frameColorCustomBinding)
-                                .textFieldStyle(.roundedBorder)
-                                .frame(minHeight: 44)
+                                .liquidGlassInput()
                                 .formRevealTransition()
                         }
 
                         TextField("Window Height", text: windowHeightBinding)
-                            .textFieldStyle(.roundedBorder)
+                            .liquidGlassInput()
                             .keyboardType(.decimalPad)
                             .frame(minHeight: 44)
 
                         TextField("Number of Bays", text: numBaysBinding)
-                            .textFieldStyle(.roundedBorder)
+                            .liquidGlassInput()
                             .keyboardType(.decimalPad)
                             .frame(minHeight: 44)
 
@@ -1170,8 +1153,7 @@ struct ElectricalEditorView: View {
                     OptionalBoolPicker(title: "Fan Install", selection: fanInstallBinding)
 
                     TextField("Switch locations", text: switchLocationsBinding)
-                        .textFieldStyle(.roundedBorder)
-                        .frame(minHeight: 44)
+                        .liquidGlassInput()
                 }
             }
 
@@ -1277,8 +1259,7 @@ struct DrainageEditorView: View {
                     OptionalBoolPicker(title: "Include Gutters", selection: guttersBinding)
 
                     TextField("Downspout locations", text: downspoutLocationsBinding)
-                        .textFieldStyle(.roundedBorder)
-                        .frame(minHeight: 44)
+                        .liquidGlassInput()
 
                     OptionalBoolPicker(title: "Drain Tie-In", selection: drainTieInBinding)
                 }
@@ -1354,8 +1335,7 @@ struct AttachmentConditionsEditorView: View {
 
                     if scope.attachment?.houseWallMaterial == .other {
                         TextField("Describe wall material", text: houseWallOtherBinding)
-                            .textFieldStyle(.roundedBorder)
-                            .frame(minHeight: 44)
+                            .liquidGlassInput()
                             .formRevealTransition()
                     }
 
@@ -1395,18 +1375,15 @@ struct AttachmentConditionsEditorView: View {
 
                     if scope.attachment?.postColumnMaterial == .other {
                         TextField("Describe post/column material", text: postMaterialOtherBinding)
-                            .textFieldStyle(.roundedBorder)
-                            .frame(minHeight: 44)
+                            .liquidGlassInput()
                             .formRevealTransition()
                     }
 
                     TextField("Post size", text: postSizeBinding)
-                        .textFieldStyle(.roundedBorder)
-                        .frame(minHeight: 44)
+                        .liquidGlassInput()
 
                     TextField("Post spacing", text: postSpacingBinding)
-                        .textFieldStyle(.roundedBorder)
-                        .frame(minHeight: 44)
+                        .liquidGlassInput()
 
                     Toggle("Trim Present", isOn: trimPresentBinding)
                         .frame(minHeight: 44)
@@ -1425,8 +1402,7 @@ struct AttachmentConditionsEditorView: View {
 
                         if scope.attachment?.trimMaterial == .other {
                             TextField("Describe trim material", text: trimMaterialOtherBinding)
-                                .textFieldStyle(.roundedBorder)
-                                .frame(minHeight: 44)
+                                .liquidGlassInput()
                                 .formRevealTransition()
                         }
 
@@ -1443,7 +1419,7 @@ struct AttachmentConditionsEditorView: View {
 
                         if scope.attachment?.trimThickness == .custom {
                             TextField("Custom trim thickness", text: trimThicknessCustomBinding)
-                                .textFieldStyle(.roundedBorder)
+                                .liquidGlassInput()
                                 .keyboardType(.decimalPad)
                                 .frame(minHeight: 44)
                                 .formRevealTransition()
@@ -1469,7 +1445,7 @@ struct AttachmentConditionsEditorView: View {
                 TextEditor(text: attachmentNotesBinding)
                     .frame(minHeight: 120)
                     .padding(8)
-                    .background(Color(uiColor: .secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+                    .liquidGlassInputBackground(cornerRadius: 14)
             }
         }
         .animation(.formReveal, value: scope.attachment?.houseWallMaterial == .other)
@@ -1669,12 +1645,10 @@ struct FinishesEditorView: View {
             CardGroup(title: "Trim + Color") {
                 VStack(spacing: 12) {
                     TextField("Trim type", text: trimTypeBinding)
-                        .textFieldStyle(.roundedBorder)
-                        .frame(minHeight: 44)
+                        .liquidGlassInput()
 
                     TextField("Paint or powder color", text: paintOrPowderColorBinding)
-                        .textFieldStyle(.roundedBorder)
-                        .frame(minHeight: 44)
+                        .liquidGlassInput()
 
                     OptionalBoolPicker(title: "Siding Replacement Required", selection: sidingReplacementRequiredBinding)
                 }
@@ -1743,8 +1717,7 @@ struct PermitsHOAEditorView: View {
                     OptionalBoolPicker(title: "Engineering Required", selection: engineeringRequiredBinding)
 
                     TextField("Jurisdiction", text: jurisdictionBinding)
-                        .textFieldStyle(.roundedBorder)
-                        .frame(minHeight: 44)
+                        .liquidGlassInput()
                 }
             }
 
@@ -1823,8 +1796,7 @@ struct ProductionNotesEditorView: View {
                     .pickerStyle(.segmented)
 
                     TextField("Job number", text: jobNumberBinding)
-                        .textFieldStyle(.roundedBorder)
-                        .frame(minHeight: 44)
+                        .liquidGlassInput()
                 }
             }
 
@@ -1850,13 +1822,11 @@ struct ProductionNotesEditorView: View {
                         }
 
                         TextField("Crew lead", text: crewLeadBinding)
-                            .textFieldStyle(.roundedBorder)
-                            .frame(minHeight: 44)
+                            .liquidGlassInput()
                             .formRevealTransition()
 
                         TextField("Duration estimate", text: durationEstimateBinding)
-                            .textFieldStyle(.roundedBorder)
-                            .frame(minHeight: 44)
+                            .liquidGlassInput()
                             .formRevealTransition()
 
                         Picker("Material Order", selection: materialOrderStatusBinding) {
@@ -1887,7 +1857,7 @@ struct ProductionNotesEditorView: View {
                         TextEditor(text: productionNotesBinding)
                             .frame(minHeight: 140)
                             .padding(8)
-                            .background(Color(uiColor: .secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+                            .liquidGlassInputBackground(cornerRadius: 14)
                             .formRevealTransition()
                     }
                 }
@@ -2300,8 +2270,9 @@ private struct FieldHeader: View {
 
     var body: some View {
         Text(title)
-            .font(.subheadline)
+            .font(.footnote.weight(.semibold))
             .foregroundStyle(.secondary)
+            .textCase(.uppercase)
             .frame(maxWidth: .infinity, alignment: .leading)
     }
 }
@@ -2312,9 +2283,8 @@ private struct MeasurementTextField: View {
 
     var body: some View {
         TextField(title, text: $text)
-            .textFieldStyle(.roundedBorder)
+            .liquidGlassInput()
             .keyboardType(.decimalPad)
-            .frame(minHeight: 44)
     }
 }
 
@@ -2341,10 +2311,7 @@ private struct NotesField: View {
             TextEditor(text: $text)
                 .frame(minHeight: minHeight)
                 .padding(8)
-                .background(
-                    Color(uiColor: .secondarySystemGroupedBackground),
-                    in: RoundedRectangle(cornerRadius: 10, style: .continuous)
-                )
+                .liquidGlassInputBackground(cornerRadius: 14)
         }
     }
 }
@@ -2365,6 +2332,15 @@ private struct OptionalBoolPicker: View {
             }
             .pickerStyle(.segmented)
             .frame(minHeight: 44)
+            .padding(6)
+            .background(
+                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    .fill(.ultraThinMaterial)
+            )
+            .overlay {
+                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    .strokeBorder(Color.white.opacity(0.2), lineWidth: 1)
+            }
         }
     }
 }

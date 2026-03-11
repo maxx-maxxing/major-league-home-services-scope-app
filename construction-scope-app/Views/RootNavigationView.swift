@@ -126,7 +126,8 @@ struct RootNavigationView: View {
                     .navigationSplitViewStyle(.balanced)
                 }
             }
-            .background(Color(uiColor: .systemGroupedBackground))
+            // Experimental: keep the entire shell floating above a luminous glass backdrop.
+            .background(LiquidGlassBackdrop())
 
             if !useCompactNavigation, let sidebarRenameScope {
                 SidebarRenameOverlay(
@@ -362,17 +363,14 @@ private struct ScopeSidebarView: View {
                 Section("Sections") {
                     ForEach(ScopeSection.allCases) { section in
                         Button {
-                            withAnimation(.snappy(duration: 0.26, extraBounce: 0)) {
+                            withAnimation(.spring(response: 0.28, dampingFraction: 0.82)) {
                                 selectedSection = section
                             }
                         } label: {
-                            Label(section.rawValue, systemImage: section.symbol)
-                                .font(.body)
-                                .foregroundStyle(.primary)
-                                .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+                            sidebarSectionLabel(for: section)
                         }
                         .buttonStyle(.plain)
-                        .listRowBackground(selectedSection == section ? Color.secondary.opacity(0.14) : Color.clear)
+                        .listRowBackground(Color.clear)
                         .accessibilityLabel(section.rawValue)
                         .accessibilityValue(selectedSection == section ? "Selected" : "")
                     }
@@ -380,6 +378,7 @@ private struct ScopeSidebarView: View {
             }
         }
         .listStyle(.sidebar)
+        .scrollContentBackground(.hidden)
         .animation(.snappy(duration: 0.28, extraBounce: 0), value: scopes.map(\.id))
         .animation(.snappy(duration: 0.24, extraBounce: 0), value: scopesExpanded)
         .navigationTitle("Scopes")
@@ -395,6 +394,51 @@ private struct ScopeSidebarView: View {
         } message: {
             Text("This permanently removes the scope and its entered details.")
         }
+    }
+
+    @ViewBuilder
+    private func sidebarSectionLabel(for section: ScopeSection) -> some View {
+        let isSelected = selectedSection == section
+
+        Group {
+            if isSelected {
+                // Experimental: selected sections should read like floating glass chips,
+                // not flat list highlights, to make selection state and motion more legible.
+                Label(section.rawValue, systemImage: section.symbol)
+                    .font(.body.weight(.medium))
+                    .foregroundStyle(.primary)
+                    .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 10)
+                    .background(
+                        RoundedRectangle(cornerRadius: 18, style: .continuous)
+                            .fill(.ultraThinMaterial)
+                    )
+                    .overlay {
+                        RoundedRectangle(cornerRadius: 18, style: .continuous)
+                            .strokeBorder(
+                                LinearGradient(
+                                    colors: [
+                                        Color.white.opacity(0.34),
+                                        Color.white.opacity(0.08)
+                                    ],
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                ),
+                                lineWidth: 1
+                            )
+                    }
+            } else {
+                Label(section.rawValue, systemImage: section.symbol)
+                    .font(.body)
+                    .foregroundStyle(.primary)
+                    .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+                    .padding(.horizontal, 10)
+            }
+        }
+        .shadow(color: isSelected ? Color.white.opacity(0.1) : .clear, radius: 4, y: -1)
+        .shadow(color: isSelected ? Color.black.opacity(0.08) : .clear, radius: 10, y: 6)
+        .animation(.easeInOut(duration: 0.18), value: selectedSection)
     }
 
     private var deleteAlertPresented: Binding<Bool> {
@@ -505,6 +549,7 @@ private struct PhoneScopesListView: View {
                         }
                     }
                 }
+                .scrollContentBackground(.hidden)
                 .navigationTitle("Scopes")
                 .toolbar {
                     ToolbarItem(placement: .topBarTrailing) {
@@ -640,8 +685,7 @@ private struct SidebarRenameOverlay: View {
                 }
 
                 TextField("Name", text: $text)
-                    .textFieldStyle(.roundedBorder)
-                    .frame(minHeight: 44)
+                    .liquidGlassInput()
                     .focused($nameFieldFocused)
                     .submitLabel(.done)
                     .onSubmit {
@@ -757,8 +801,7 @@ private struct ScopeRenameOverlay: View {
                     }
 
                     TextField("Scope Name", text: $text)
-                        .textFieldStyle(.roundedBorder)
-                        .frame(minHeight: 44)
+                        .liquidGlassInput()
                         .focused($nameFieldFocused)
                         .submitLabel(.done)
                         .onSubmit {
@@ -811,6 +854,7 @@ private struct PhoneSectionListView: View {
                 }
             }
         }
+        .scrollContentBackground(.hidden)
         .navigationTitle(scope.displayName)
         .navigationBarTitleDisplayMode(.inline)
     }
@@ -887,51 +931,56 @@ struct SectionEditorView: View {
             .frame(maxWidth: 900, alignment: .topLeading)
             .frame(maxWidth: .infinity, alignment: .top)
         }
-        .background(Color(uiColor: .systemGroupedBackground))
+        .background(LiquidGlassBackdrop())
         .animation(.snappy(duration: 0.24, extraBounce: 0), value: scope.displayName)
         .animation(.snappy(duration: 0.24, extraBounce: 0), value: scope.status)
         .animation(.snappy(duration: 0.24, extraBounce: 0), value: section)
         .navigationTitle(section.rawValue)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
-            ToolbarItemGroup(placement: .topBarTrailing) {
-                Button {
-                    previewActionToken += 1
-                    showingPreview = true
-                } label: {
-                    ChromeActionIcon(systemName: "doc.text.magnifyingglass")
-                }
-                .symbolEffect(.bounce, value: previewActionToken)
-                .accessibilityLabel("Preview")
-                .accessibilityHint("Shows a PDF preview and missing required fields.")
+            ToolbarItem(placement: .topBarTrailing) {
+                HStack(spacing: 4) {
+                    Button {
+                        previewActionToken += 1
+                        showingPreview = true
+                    } label: {
+                        ChromeActionIcon(systemName: "doc.text.magnifyingglass")
+                    }
+                    .symbolEffect(.bounce, value: previewActionToken)
+                    .accessibilityLabel("Preview")
+                    .accessibilityHint("Shows a PDF preview and missing required fields.")
 
-                Button {
-                    exportActionToken += 1
-                    exportPDF()
-                } label: {
-                    ChromeActionIcon(systemName: "square.and.arrow.up")
-                }
-                .symbolEffect(.bounce, value: exportActionToken)
-                .accessibilityLabel("Export")
-                .accessibilityHint("Generates a flattened PDF and opens the share sheet.")
+                    Button {
+                        exportActionToken += 1
+                        exportPDF()
+                    } label: {
+                        ChromeActionIcon(systemName: "square.and.arrow.up")
+                    }
+                    .symbolEffect(.bounce, value: exportActionToken)
+                    .accessibilityLabel("Export")
+                    .accessibilityHint("Generates a flattened PDF and opens the share sheet.")
 
-                Button {
-                    photoActionToken += 1
-                    showingPhotos = true
-                } label: {
-                    ChromeActionIcon(systemName: "photo.on.rectangle")
-                }
-                .symbolEffect(.bounce, value: photoActionToken)
-                .accessibilityLabel("Photos")
-                .accessibilityHint("Manage photo attachments for this scope.")
+                    GlassToolbarGap()
+                        .accessibilityHidden(true)
 
-                Button {
-                    openSketchWorkspace()
-                } label: {
-                    ChromeActionIcon(systemName: "pencil.and.scribble")
+                    Button {
+                        photoActionToken += 1
+                        showingPhotos = true
+                    } label: {
+                        ChromeActionIcon(systemName: "photo.on.rectangle")
+                    }
+                    .symbolEffect(.bounce, value: photoActionToken)
+                    .accessibilityLabel("Photos")
+                    .accessibilityHint("Manage photo attachments for this scope.")
+
+                    Button {
+                        openSketchWorkspace()
+                    } label: {
+                        ChromeActionIcon(systemName: "pencil.and.scribble")
+                    }
+                    .accessibilityLabel(section == .signatureAndExport ? "Sketch tools" : "Open sketch tools")
+                    .accessibilityHint("Opens signature and site diagram tools.")
                 }
-                .accessibilityLabel(section == .signatureAndExport ? "Sketch tools" : "Open sketch tools")
-                .accessibilityHint("Opens signature and site diagram tools.")
             }
         }
         .sheet(isPresented: $showingPreview) {
@@ -1006,7 +1055,7 @@ private struct SignatureAndSketchSheet: View {
             SignatureAndSketchEditorView(scope: scope, autosave: autosave)
                 .padding(16)
         }
-        .background(Color(uiColor: .systemGroupedBackground))
+        .background(LiquidGlassBackdrop())
         .navigationTitle("Sketch Tools")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {

@@ -14,12 +14,8 @@ struct PencilDrawingCanvas: View {
 
     var body: some View {
         PencilCanvasRepresentable(drawing: $drawing)
-            .background(Color(uiColor: .secondarySystemGroupedBackground))
             .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
-            .overlay(
-                RoundedRectangle(cornerRadius: 10, style: .continuous)
-                    .stroke(Color.secondary.opacity(0.2), lineWidth: 1)
-            )
+            .liquidGlassSurface(cornerRadius: 10)
     }
 }
 

@@ -14,6 +14,7 @@
 - Milestone 7.1: In progress (interaction animation polish)
 - Milestone 7.2: In progress (acceptance closeout)
 - Milestone 7.3: In progress (liquid-glass chrome pass)
+- Milestone 7.4: In progress (maximalist Liquid Glass exploration)
 
 ## Decisions
 - SwiftData remains the persistence layer (`JobScope` model + Codable value types).
@@ -148,6 +149,24 @@
     - removed the redundant sidebar `Current Scope` section heading above the floating summary card
     - strengthened section-group separation by adding more distinct highlight/stroke/shadow treatment to `CardGroup`
     - reduced material heaviness slightly so chrome and section cards read more translucent
+- Milestone 7.4 maximalist Liquid Glass exploration:
+  - Pushed the design intentionally beyond the restrained pass to establish the upper bound of the aesthetic
+  - Added a stronger full-screen luminous glass backdrop and broader translucency across:
+    - root navigation/editor shells
+    - preview and photo-management screens
+    - section cards
+    - project-info text-entry surfaces
+    - notes areas
+    - segmented yes/no control groups
+    - floating status and toolbar action treatments
+  - Added code comments around the main experimental Liquid Glass decisions so the branch can be scaled back later
+  - Follow-up maximalist pass:
+    - regrouped top action controls into floating glass toolbar clusters instead of isolated buttons
+    - centralized the text-entry glass treatment in shared components so text fields and Scribble-friendly text areas stay visually consistent
+    - applied the unified glass input treatment to overlays, photo captions, and additional section-editor text fields
+  - Consistency sweep:
+    - added a shared non-text `liquidGlassSurface()` modifier for utility surfaces that should match the branch chrome without pretending to be text inputs
+    - applied the shared surface treatment to the PencilKit drawing canvas container and the empty photo preview placeholder
 - Production notes are stored in `customerApproval.optionsConfirmedText` (schema-consistent text field already available).
 - `schema.json` was not changed.
 
@@ -191,6 +210,10 @@
   - actual feel on iPad split view versus compact navigation
   - whether toolbar chrome reads as polished or too decorative in dense editing contexts
   - whether preview/photo shell treatments feel cohesive with the rest of the app
+- Maximalist-pass review is still pending for:
+  - whether the glass treatment now overwhelms dense form-editing contexts
+  - whether the background luminosity is still comfortable in Light/Dark mode for extended use
+  - which parts of the extreme treatment should be kept, reduced, or removed entirely
 - Unsandboxed `xcodebuild` validation succeeded on March 10, 2026 using:
   - `xcodebuild -project ConstructionScopeApp.xcodeproj -scheme ConstructionScopeApp -destination 'generic/platform=iOS' -derivedDataPath /tmp/ConstructionScopeAppDerived CODE_SIGNING_ALLOWED=NO build`
 - Unsandboxed `xcodebuild` validation succeeded again on March 11, 2026 after Milestone 7.2 acceptance fixes using:
@@ -198,6 +221,12 @@
 - Unsandboxed `xcodebuild` validation succeeded again on March 11, 2026 after the Milestone 7.3 chrome pass using:
   - `xcodebuild -project ConstructionScopeApp.xcodeproj -scheme ConstructionScopeApp -destination 'generic/platform=iOS' -derivedDataPath /tmp/ConstructionScopeAppDerived CODE_SIGNING_ALLOWED=NO build`
 - Unsandboxed `xcodebuild` validation succeeded again on March 11, 2026 after the Milestone 7.3 refinement pass using:
+  - `xcodebuild -project ConstructionScopeApp.xcodeproj -scheme ConstructionScopeApp -destination 'generic/platform=iOS' -derivedDataPath /tmp/ConstructionScopeAppDerived CODE_SIGNING_ALLOWED=NO build`
+- Unsandboxed `xcodebuild` validation succeeded again on March 11, 2026 after the Milestone 7.4 maximalist pass using:
+  - `xcodebuild -project ConstructionScopeApp.xcodeproj -scheme ConstructionScopeApp -destination 'generic/platform=iOS' -derivedDataPath /tmp/ConstructionScopeAppDerived CODE_SIGNING_ALLOWED=NO build`
+- Unsandboxed `xcodebuild` validation succeeded again on March 11, 2026 after the grouped-toolbar/input-consistency follow-up using:
+  - `xcodebuild -project ConstructionScopeApp.xcodeproj -scheme ConstructionScopeApp -destination 'generic/platform=iOS' -derivedDataPath /tmp/ConstructionScopeAppDerived CODE_SIGNING_ALLOWED=NO build`
+- Unsandboxed `xcodebuild` validation succeeded again on March 11, 2026 after the utility-surface consistency sweep using:
   - `xcodebuild -project ConstructionScopeApp.xcodeproj -scheme ConstructionScopeApp -destination 'generic/platform=iOS' -derivedDataPath /tmp/ConstructionScopeAppDerived CODE_SIGNING_ALLOWED=NO build`
 - Simulator runtime validation on March 10, 2026:
   - built for `iPad Pro 11-inch (M5)` simulator

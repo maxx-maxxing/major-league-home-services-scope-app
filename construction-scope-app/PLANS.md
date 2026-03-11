@@ -157,6 +157,24 @@ Keep milestones small, testable, and reviewable.
     - small motion/state emphasis only where it helps hierarchy
   - Preserve `UI_SYSTEM.md` first-party Apple productivity feel and readability in Light/Dark mode
   - Validate that polish does not reduce scanability, tap-target size, or Pencil/form usability
+- Milestone 7.4 – Maximalist Liquid-Glass Exploration
+  - Treat this as an upper-bound experimental pass on the feature branch, not the final production styling
+  - Push Apple-style Liquid Glass broadly across:
+    - navigation headers / action areas
+    - cards and grouped surfaces
+    - sidebar and inspector-like regions
+    - sheets / overlays / preview shells
+    - control clusters such as toolbar actions and segmented/filter-like groups
+  - Prefer system-native materials and layered SwiftUI composition before custom effects
+  - Increase:
+    - translucency
+    - foreground/background depth separation
+    - highlight edges and refractive-feeling borders
+    - cohesive floating control groups
+    - motion/state transitions where they reinforce the glass language
+  - Preserve readability, hierarchy, and obvious navigation even while pushing the aesthetic aggressively
+  - Add code comments around major Liquid Glass decisions so the branch can be scaled back later
+  - Follow up with consistency sweeps so utility states (empty previews, drawing surfaces, supporting sheets) do not fall back to older grouped-background styling
 
 ## Milestone 7.1 – Interaction Animation Polish
 - Add motion to key UI state changes so content changes are visually legible

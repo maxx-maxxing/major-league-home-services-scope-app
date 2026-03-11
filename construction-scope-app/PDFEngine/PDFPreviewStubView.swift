@@ -32,7 +32,7 @@ struct ScopePDFPreviewSheet: View {
                     }
 
                     PDFDocumentView(data: pdfData)
-                        .background(Color(uiColor: .systemGroupedBackground))
+                        .background(LiquidGlassBackdrop())
                 }
             } else if let errorMessage {
                 ContentUnavailableView(
@@ -44,16 +44,7 @@ struct ScopePDFPreviewSheet: View {
                 ProgressView("Generating Preview")
             }
         }
-        .background(
-            LinearGradient(
-                colors: [
-                    Color(uiColor: .systemGroupedBackground),
-                    Color(uiColor: .secondarySystemGroupedBackground)
-                ],
-                startPoint: .top,
-                endPoint: .bottom
-            )
-        )
+        .background(LiquidGlassBackdrop())
         .navigationTitle("PDF Preview")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {

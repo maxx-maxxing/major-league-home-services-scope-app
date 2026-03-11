@@ -40,8 +40,7 @@ struct ScopePhotosSheet: View {
                                             .frame(maxWidth: .infinity)
 
                                         TextField("Caption", text: captionBinding(for: photo.id))
-                                            .textFieldStyle(.roundedBorder)
-                                            .frame(minHeight: 44)
+                                            .liquidGlassInput()
 
                                         Text("Added \(photo.createdAt.formatted(date: .abbreviated, time: .shortened))")
                                             .font(.footnote)
@@ -69,16 +68,7 @@ struct ScopePhotosSheet: View {
                 }
                 .padding(16)
             }
-            .background(
-                LinearGradient(
-                    colors: [
-                        Color(uiColor: .systemGroupedBackground),
-                        Color(uiColor: .secondarySystemGroupedBackground)
-                    ],
-                    startPoint: .top,
-                    endPoint: .bottom
-                )
-            )
+            .background(LiquidGlassBackdrop())
             .animation(.snappy(duration: 0.28, extraBounce: 0), value: scope.photos?.map(\.id) ?? [])
             .navigationTitle("Photos")
             .navigationBarTitleDisplayMode(.inline)
@@ -213,8 +203,9 @@ private struct PhotoPreviewImage: View {
 
     private var placeholder: some View {
         RoundedRectangle(cornerRadius: 12, style: .continuous)
-            .fill(Color(uiColor: .secondarySystemGroupedBackground))
+            .fill(Color.clear)
             .frame(height: 180)
+            .liquidGlassSurface(cornerRadius: 12)
             .overlay {
                 Image(systemName: "photo")
                     .font(.title2)

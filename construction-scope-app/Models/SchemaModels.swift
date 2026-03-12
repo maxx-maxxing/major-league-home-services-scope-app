@@ -22,6 +22,7 @@ enum JobStatus: String, Codable, CaseIterable, SchemaEnumDisplayable {
 }
 
 enum ProjectType: String, Codable, CaseIterable, SchemaEnumDisplayable {
+    case notSet = "not_set"
     case patioCover = "patio_cover"
     case screenRoom = "screen_room"
     case sunroom
@@ -29,6 +30,17 @@ enum ProjectType: String, Codable, CaseIterable, SchemaEnumDisplayable {
     case pergola
     case concrete
     case other
+
+    var displayName: String {
+        switch self {
+        case .notSet:
+            return "Not Set"
+        default:
+            return rawValue
+                .replacingOccurrences(of: "_", with: " ")
+                .capitalized
+        }
+    }
 }
 
 enum HouseStories: String, Codable, CaseIterable, SchemaEnumDisplayable {
@@ -454,7 +466,7 @@ struct ProjectInfo: Codable, Hashable {
         salesperson: String? = nil,
         estimator: String? = nil,
         siteVisitDate: Date? = nil,
-        projectType: ProjectType = .patioCover,
+        projectType: ProjectType = .notSet,
         notes: String? = nil
     ) {
         self.clientName = clientName
@@ -881,7 +893,7 @@ enum ScopeTemplate {
         defaultProjectInfo: ProjectInfo(
             clientName: "",
             address: "",
-            projectType: .patioCover,
+            projectType: .notSet,
             notes: ""
         )
     )

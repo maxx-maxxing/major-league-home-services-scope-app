@@ -133,6 +133,7 @@
         "projectType": {
           "type": "enum",
           "values": [
+            "not_set",
             "patio_cover",
             "screen_room",
             "sunroom",

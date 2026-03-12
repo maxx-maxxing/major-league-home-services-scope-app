@@ -192,6 +192,9 @@
     - grouped scopes inside the sidebar `Scopes` folder and the compact scopes list by the selected `Project Type`
     - reused schema-backed `ProjectType` labels so grouping stays aligned with the Project Information picker
     - kept the grouping treatment intentionally soft with lightweight headers instead of nested cards or extra glass chrome
+  - Project type default/state refinement:
+    - added a schema-backed `Not Set` option to the Project Information `Project Type` picker
+    - made `Not Set` the default project type for newly created scopes so fresh jobs do not imply a category before selection
 - Production notes are stored in `customerApproval.optionsConfirmedText` (schema-consistent text field already available).
 - `schema.json` was updated when dropdown options / notes fields changed.
 

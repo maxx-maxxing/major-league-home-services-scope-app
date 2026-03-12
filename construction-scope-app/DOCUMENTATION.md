@@ -195,6 +195,19 @@
   - Project type default/state refinement:
     - added a schema-backed `Not Set` option to the Project Information `Project Type` picker
     - made `Not Set` the default project type for newly created scopes so fresh jobs do not imply a category before selection
+  - Scope sorting controls:
+    - added native sort controls for the scopes list with separate sort-option and direction controls
+    - supported explicit sorting by:
+      - job status
+      - alphabetical name
+      - created date
+      - last opened/edited activity
+    - added a schema-backed `lastOpenedAt` field so recent-open activity is tracked separately from edit timestamps
+    - kept project-type grouping as the default list mode, but flatten the list when an explicit sort is selected for cleaner scanning
+  - Scope grouping toggle:
+    - separated grouping from sorting so `Project Type` sections can remain visible while any sort is applied
+    - added a dedicated grouping control with `No Grouping` and `Project Type`
+    - preserved the selected sort order within each project-type section when grouping is enabled
 - Production notes are stored in `customerApproval.optionsConfirmedText` (schema-consistent text field already available).
 - `schema.json` was updated when dropdown options / notes fields changed.
 

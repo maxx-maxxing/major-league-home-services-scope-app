@@ -212,6 +212,19 @@ Keep milestones small, testable, and reviewable.
     - Organize scopes into soft subcategories inside the `Scopes` folder/list based on the selected `Project Type`
     - Reuse the schema-backed `ProjectType` labels so grouping stays aligned with the Project Information picker
     - Keep the presentation subtle and first-party, without adding nested glass cards or heavy chrome
+  - Milestone 7.4.5 – Scope Folder Sorting Controls
+    - Add native sort controls to the scopes list with a dedicated sort-option button and ascending/descending toggle
+    - Support sorting by:
+      - job status
+      - alphabetical name
+      - created date
+      - last opened/edited activity
+    - Add a schema-backed timestamp for scope-open activity so “last opened/edited” is distinct from edit-only `updatedAt`
+    - When an explicit sort is active, collapse the project-type subcategory presentation into one sorted list for cleaner scanning
+  - Milestone 7.4.6 – Scope Grouping Toggle
+    - Separate grouping from sorting so project-type sections can remain enabled while a sort is applied
+    - Add a lightweight grouping control with `None` and `Project Type`
+    - Preserve sorting within each visible group when project-type grouping is enabled
 
 ## Milestone 7.1 – Interaction Animation Polish
 - Add motion to key UI state changes so content changes are visually legible

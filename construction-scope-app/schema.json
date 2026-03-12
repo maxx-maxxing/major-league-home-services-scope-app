@@ -11,6 +11,10 @@
           "type": "date",
           "required": true
         },
+        "lastOpenedAt": {
+          "type": "date",
+          "required": false
+        },
         "updatedAt": {
           "type": "date",
           "required": true

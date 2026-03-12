@@ -812,6 +812,7 @@ struct SketchAttachment: Codable, Hashable, Identifiable {
 final class JobScope {
     @Attribute(.unique) var id: UUID
     var createdAt: Date
+    var lastOpenedAt: Date?
     var updatedAt: Date
     var status: JobStatus
     var jobNumber: String?
@@ -833,6 +834,7 @@ final class JobScope {
     init(
         id: UUID = UUID(),
         createdAt: Date = .now,
+        lastOpenedAt: Date? = nil,
         updatedAt: Date = .now,
         status: JobStatus = .draft,
         jobNumber: String? = nil,
@@ -853,6 +855,7 @@ final class JobScope {
     ) {
         self.id = id
         self.createdAt = createdAt
+        self.lastOpenedAt = lastOpenedAt
         self.updatedAt = updatedAt
         self.status = status
         self.jobNumber = jobNumber

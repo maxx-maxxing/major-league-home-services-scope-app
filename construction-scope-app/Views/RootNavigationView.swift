@@ -37,6 +37,77 @@ enum ScopeSection: String, CaseIterable, Identifiable {
     }
 }
 
+private enum ScopeSortOption: String, CaseIterable, Identifiable {
+    case alphabetical
+    case jobStatus
+    case createdAt
+    case recentActivity
+
+    var id: String { rawValue }
+
+    var label: String {
+        switch self {
+        case .alphabetical: return "Alphabetical"
+        case .jobStatus: return "Job Status"
+        case .createdAt: return "Created Date"
+        case .recentActivity: return "Last Opened/Edited"
+        }
+    }
+
+    var systemImage: String {
+        switch self {
+        case .alphabetical: return "textformat.abc"
+        case .jobStatus: return "checklist"
+        case .createdAt: return "calendar"
+        case .recentActivity: return "clock.arrow.circlepath"
+        }
+    }
+}
+
+private enum ScopeGroupingOption: String, CaseIterable, Identifiable {
+    case none
+    case projectType
+
+    var id: String { rawValue }
+
+    var label: String {
+        switch self {
+        case .none: return "No Grouping"
+        case .projectType: return "Project Type"
+        }
+    }
+
+    var systemImage: String {
+        switch self {
+        case .none: return "list.bullet"
+        case .projectType: return "square.grid.2x2"
+        }
+    }
+}
+
+private enum ScopeSortDirection {
+    case ascending
+    case descending
+
+    mutating func toggle() {
+        self = self == .ascending ? .descending : .ascending
+    }
+
+    var systemImage: String {
+        switch self {
+        case .ascending: return "arrow.up"
+        case .descending: return "arrow.down"
+        }
+    }
+
+    var accessibilityLabel: String {
+        switch self {
+        case .ascending: return "Ascending sort"
+        case .descending: return "Descending sort"
+        }
+    }
+}
+
 private enum SidebarRenamePromptMode {
     case newScope
     case existingScope
@@ -57,14 +128,73 @@ private func groupedScopesByProjectType(_ scopes: [JobScope]) -> [ProjectTypeSco
     }
 }
 
+private func statusRank(for status: JobStatus) -> Int {
+    switch status {
+    case .draft: return 0
+    case .sold: return 1
+    case .inProduction: return 2
+    case .closed: return 3
+    case .other: return 4
+    }
+}
+
+private func activityDate(for scope: JobScope) -> Date {
+    max(scope.updatedAt, scope.lastOpenedAt ?? .distantPast)
+}
+
+private func sortedScopes(
+    _ scopes: [JobScope],
+    option: ScopeSortOption,
+    direction: ScopeSortDirection
+) -> [JobScope] {
+    let sorted = scopes.sorted { lhs, rhs in
+        switch option {
+        case .alphabetical:
+            let comparison = lhs.displayName.localizedCaseInsensitiveCompare(rhs.displayName)
+            if comparison == .orderedSame {
+                return lhs.createdAt < rhs.createdAt
+            }
+            return comparison == .orderedAscending
+        case .jobStatus:
+            let lhsRank = statusRank(for: lhs.status)
+            let rhsRank = statusRank(for: rhs.status)
+            if lhsRank == rhsRank {
+                let comparison = lhs.displayName.localizedCaseInsensitiveCompare(rhs.displayName)
+                if comparison == .orderedSame {
+                    return lhs.createdAt < rhs.createdAt
+                }
+                return comparison == .orderedAscending
+            }
+            return lhsRank < rhsRank
+        case .createdAt:
+            if lhs.createdAt == rhs.createdAt {
+                return lhs.displayName.localizedCaseInsensitiveCompare(rhs.displayName) == .orderedAscending
+            }
+            return lhs.createdAt < rhs.createdAt
+        case .recentActivity:
+            let lhsActivity = activityDate(for: lhs)
+            let rhsActivity = activityDate(for: rhs)
+            if lhsActivity == rhsActivity {
+                return lhs.displayName.localizedCaseInsensitiveCompare(rhs.displayName) == .orderedAscending
+            }
+            return lhsActivity < rhsActivity
+        }
+    }
+
+    return direction == .ascending ? sorted : sorted.reversed()
+}
+
 private let rootNavigationCoordinateSpace = "RootNavigationCoordinateSpace"
 struct RootNavigationView: View {
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @Environment(\.modelContext) private var modelContext
-    @Query(sort: \JobScope.updatedAt, order: .reverse) private var scopes: [JobScope]
+    @Query private var scopes: [JobScope]
 
     @State private var selectedScopeID: UUID?
     @State private var selectedSection: ScopeSection = .projectInfo
+    @State private var selectedGroupingOption: ScopeGroupingOption = .projectType
+    @State private var selectedSortOption: ScopeSortOption = .recentActivity
+    @State private var sortDirection: ScopeSortDirection = .descending
     @State private var sidebarRenameScope: JobScope?
     @State private var sidebarRenameDraft = ""
     @State private var sidebarRenameMode: SidebarRenamePromptMode = .existingScope
@@ -77,8 +207,12 @@ struct RootNavigationView: View {
         scopes.first(where: { $0.id == selectedScopeID })
     }
 
-    private var groupedScopes: [ProjectTypeScopeGroup] {
-        groupedScopesByProjectType(scopes)
+    private var activitySortedScopes: [JobScope] {
+        sortedScopes(scopes, option: .recentActivity, direction: .descending)
+    }
+
+    private var visibleScopes: [JobScope] {
+        sortedScopes(scopes, option: selectedSortOption, direction: sortDirection)
     }
 
     private var useCompactNavigation: Bool {
@@ -94,8 +228,12 @@ struct RootNavigationView: View {
             Group {
                 if useCompactNavigation {
                     PhoneScopesListView(
-                        scopes: scopes,
+                        scopes: visibleScopes,
+                        selectedGroupingOption: $selectedGroupingOption,
+                        selectedSortOption: $selectedSortOption,
+                        sortDirection: $sortDirection,
                         createNewScope: createNewScope,
+                        onOpenScope: recordScopeOpened,
                         autosave: autosave,
                         renameScope: renameScope,
                         deleteScope: deleteScope
@@ -103,10 +241,14 @@ struct RootNavigationView: View {
                 } else {
                     NavigationSplitView {
                         ScopeSidebarView(
-                            scopes: scopes,
+                            scopes: visibleScopes,
+                            selectedGroupingOption: $selectedGroupingOption,
+                            selectedSortOption: $selectedSortOption,
+                            sortDirection: $sortDirection,
                             selectedScopeID: $selectedScopeID,
                             selectedSection: $selectedSection,
                             createNewScope: handleSidebarCreateScope,
+                            onSelectScope: handleScopeSelection,
                             requestRename: { beginSidebarRename(for: $0, mode: .existingScope) },
                             deleteScope: deleteScope,
                             folderPulseToken: sidebarFolderPulseToken,
@@ -234,6 +376,7 @@ struct RootNavigationView: View {
 
         selectedScopeID = newScope.id
         selectedSection = .projectInfo
+        recordScopeOpened(newScope)
         return newScope
     }
 
@@ -280,16 +423,37 @@ struct RootNavigationView: View {
             return
         }
 
-        selectedScopeID = scopes.first?.id
+        guard let firstScope = visibleScopes.first else { return }
+        selectedScopeID = firstScope.id
         selectedSection = .projectInfo
+        recordScopeOpened(firstScope)
+    }
+
+    private func handleScopeSelection(_ scope: JobScope) {
+        selectedScopeID = scope.id
+        recordScopeOpened(scope)
+    }
+
+    private func recordScopeOpened(_ scope: JobScope) {
+        scope.lastOpenedAt = .now
+
+        do {
+            try modelContext.save()
+        } catch {
+            assertionFailure("Failed to record scope access: \(error)")
+        }
     }
 }
 
 private struct ScopeSidebarView: View {
     let scopes: [JobScope]
+    @Binding var selectedGroupingOption: ScopeGroupingOption
+    @Binding var selectedSortOption: ScopeSortOption
+    @Binding var sortDirection: ScopeSortDirection
     @Binding var selectedScopeID: UUID?
     @Binding var selectedSection: ScopeSection
     let createNewScope: () -> Void
+    let onSelectScope: (JobScope) -> Void
     let requestRename: (JobScope) -> Void
     let deleteScope: (JobScope) -> Void
     let folderPulseToken: Int
@@ -305,6 +469,10 @@ private struct ScopeSidebarView: View {
 
     private var groupedScopes: [ProjectTypeScopeGroup] {
         groupedScopesByProjectType(scopes)
+    }
+
+    private var showsGroupedScopes: Bool {
+        selectedGroupingOption == .projectType
     }
 
     var body: some View {
@@ -352,11 +520,21 @@ private struct ScopeSidebarView: View {
             Section {
                 if !scopes.isEmpty {
                     DisclosureGroup(isExpanded: $scopesExpanded) {
-                        groupedScopeList
+                        scopesListContent
                     } label: {
-                        Label("Scopes", systemImage: "folder")
-                            .font(.headline)
-                            .symbolEffect(.bounce.byLayer, value: folderPulseToken)
+                        HStack(spacing: 12) {
+                            Label("Scopes", systemImage: "folder")
+                                .font(.headline)
+                                .symbolEffect(.bounce.byLayer, value: folderPulseToken)
+
+                            Spacer(minLength: 8)
+
+                            ScopeListControlGroup(
+                                selectedGroupingOption: $selectedGroupingOption,
+                                selectedSortOption: $selectedSortOption,
+                                sortDirection: $sortDirection
+                            )
+                        }
                     }
                 }
             }
@@ -419,15 +597,23 @@ private struct ScopeSidebarView: View {
     }
 
     @ViewBuilder
-    private var groupedScopeList: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            ForEach(groupedScopes) { group in
-                VStack(alignment: .leading, spacing: 6) {
-                    projectTypeGroupHeader(for: group.projectType, count: group.scopes.count)
+    private var scopesListContent: some View {
+        if showsGroupedScopes {
+            VStack(alignment: .leading, spacing: 14) {
+                ForEach(groupedScopes) { group in
+                    VStack(alignment: .leading, spacing: 6) {
+                        projectTypeGroupHeader(for: group.projectType, count: group.scopes.count)
 
-                    ForEach(group.scopes) { scope in
-                        scopeRow(for: scope)
+                        ForEach(group.scopes) { scope in
+                            scopeRow(for: scope)
+                        }
                     }
+                }
+            }
+        } else {
+            VStack(alignment: .leading, spacing: 4) {
+                ForEach(scopes) { scope in
+                    scopeRow(for: scope)
                 }
             }
         }
@@ -515,7 +701,7 @@ private struct ScopeSidebarView: View {
 
         Button {
             withAnimation(.snappy(duration: 0.26, extraBounce: 0)) {
-                selectedScopeID = scope.id
+                onSelectScope(scope)
             }
         } label: {
             HStack(spacing: 10) {
@@ -581,7 +767,11 @@ private struct ScopeSidebarView: View {
 
 private struct PhoneScopesListView: View {
     let scopes: [JobScope]
+    @Binding var selectedGroupingOption: ScopeGroupingOption
+    @Binding var selectedSortOption: ScopeSortOption
+    @Binding var sortDirection: ScopeSortDirection
     let createNewScope: () -> JobScope
+    let onOpenScope: (JobScope) -> Void
     @ObservedObject var autosave: DebouncedAutosave
     let renameScope: (JobScope, String) -> Void
     let deleteScope: (JobScope) -> Void
@@ -595,45 +785,29 @@ private struct PhoneScopesListView: View {
         groupedScopesByProjectType(scopes)
     }
 
+    private var showsGroupedScopes: Bool {
+        selectedGroupingOption == .projectType
+    }
+
     var body: some View {
         ZStack {
             NavigationStack {
                 List {
-                    ForEach(groupedScopes) { group in
-                        Section {
-                            ForEach(group.scopes) { scope in
-                                NavigationLink {
-                                    PhoneSectionListView(scope: scope, autosave: autosave)
-                                } label: {
-                                    HStack {
-                                        VStack(alignment: .leading, spacing: 4) {
-                                            Text(scope.displayName)
-                                                .font(.body)
-                                            Text(scope.projectInfo.address.isEmpty ? "No address" : scope.projectInfo.address)
-                                                .font(.footnote)
-                                                .foregroundStyle(.secondary)
-                                        }
-
-                                        Spacer()
-                                        StatusPill(status: scope.status)
-                                    }
-                                    .frame(minHeight: 44)
+                    if showsGroupedScopes {
+                        ForEach(groupedScopes) { group in
+                            Section {
+                                ForEach(group.scopes) { scope in
+                                    phoneScopeRow(for: scope)
                                 }
-                                .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-                                    Button("Delete", role: .destructive) {
-                                        scopePendingDelete = scope
-                                    }
-
-                                    Button("Rename") {
-                                        scopePendingRename = scope
-                                        renameDraft = scope.displayName
-                                        renamePromptMode = .existingScope
-                                    }
-                                    .tint(.blue)
-                                }
+                            } header: {
+                                PhoneProjectTypeHeader(projectType: group.projectType, count: group.scopes.count)
                             }
-                        } header: {
-                            PhoneProjectTypeHeader(projectType: group.projectType, count: group.scopes.count)
+                        }
+                    } else {
+                        Section {
+                            ForEach(scopes) { scope in
+                                phoneScopeRow(for: scope)
+                            }
                         }
                     }
                 }
@@ -641,6 +815,14 @@ private struct PhoneScopesListView: View {
                 .background(LiquidGlassBackdrop())
                 .navigationTitle("Scopes")
                 .toolbar {
+                    ToolbarItem(placement: .topBarLeading) {
+                        ScopeListControlGroup(
+                            selectedGroupingOption: $selectedGroupingOption,
+                            selectedSortOption: $selectedSortOption,
+                            sortDirection: $sortDirection
+                        )
+                    }
+
                     ToolbarItem(placement: .topBarTrailing) {
                         Button(action: handleCreateScope) {
                             Label("New Scope", systemImage: "plus")
@@ -714,6 +896,44 @@ private struct PhoneScopesListView: View {
         renameDraft = ""
         renamePromptMode = .existingScope
     }
+
+    @ViewBuilder
+    private func phoneScopeRow(for scope: JobScope) -> some View {
+        NavigationLink {
+            PhoneSectionListView(scope: scope, autosave: autosave)
+        } label: {
+            HStack {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(scope.displayName)
+                        .font(.body)
+                    Text(scope.projectInfo.address.isEmpty ? "No address" : scope.projectInfo.address)
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                }
+
+                Spacer()
+                StatusPill(status: scope.status)
+            }
+            .frame(minHeight: 44)
+        }
+        .simultaneousGesture(
+            TapGesture().onEnded {
+                onOpenScope(scope)
+            }
+        )
+        .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+            Button("Delete", role: .destructive) {
+                scopePendingDelete = scope
+            }
+
+            Button("Rename") {
+                scopePendingRename = scope
+                renameDraft = scope.displayName
+                renamePromptMode = .existingScope
+            }
+            .tint(.blue)
+        }
+    }
 }
 
 private struct PhoneProjectTypeHeader: View {
@@ -730,6 +950,72 @@ private struct PhoneProjectTypeHeader: View {
                 .font(.caption)
                 .foregroundStyle(.secondary)
         }
+    }
+}
+
+private struct ScopeListControlGroup: View {
+    @Binding var selectedGroupingOption: ScopeGroupingOption
+    @Binding var selectedSortOption: ScopeSortOption
+    @Binding var sortDirection: ScopeSortDirection
+
+    var body: some View {
+        ControlGroup {
+            Menu {
+                Button {
+                    selectedGroupingOption = .none
+                } label: {
+                    Label("No Grouping", systemImage: "list.bullet")
+                }
+
+                Button {
+                    selectedGroupingOption = .projectType
+                } label: {
+                    Label("Project Type", systemImage: "square.grid.2x2")
+                }
+            } label: {
+                Image(systemName: "square.grid.2x2")
+                    .font(.body.weight(.semibold))
+            }
+            .accessibilityLabel(groupingLabel)
+            .accessibilityHint("Choose whether scopes stay in project type sections.")
+
+            Menu {
+                ForEach(ScopeSortOption.allCases) { option in
+                    Button {
+                        selectedSortOption = option
+                    } label: {
+                        Label(option.label, systemImage: option.systemImage)
+                    }
+                }
+            } label: {
+                Image(systemName: "arrow.up.arrow.down.circle")
+                    .font(.body.weight(.semibold))
+            }
+            .accessibilityLabel(selectedSortLabel)
+            .accessibilityHint("Choose how scopes are organized in the list.")
+
+            Button {
+                sortDirection.toggle()
+            } label: {
+                Image(systemName: sortDirection.systemImage)
+                    .font(.body.weight(.semibold))
+                    .frame(minWidth: 28)
+            }
+            .accessibilityLabel(sortDirection.accessibilityLabel)
+            .accessibilityHint(directionHint)
+        }
+    }
+
+    private var groupingLabel: String {
+        "Grouping, current \(selectedGroupingOption.label)"
+    }
+
+    private var selectedSortLabel: String {
+        "Sort options, current \(selectedSortOption.label)"
+    }
+
+    private var directionHint: String {
+        "Toggles between ascending and descending order."
     }
 }
 

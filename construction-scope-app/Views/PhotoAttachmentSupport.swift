@@ -7,7 +7,7 @@ import UIKit
 #endif
 
 struct ScopePhotosSheet: View {
-    @Bindable var scope: JobScope
+    let scope: JobScope
     @ObservedObject var autosave: DebouncedAutosave
 
     @Environment(\.dismiss) private var dismiss

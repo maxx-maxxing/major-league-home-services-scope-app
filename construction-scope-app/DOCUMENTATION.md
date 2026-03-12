@@ -188,6 +188,10 @@
     - expanded schema-backed dropdown enums used by section editors so each menu includes an `Other` option
     - refined `Knee Wall + Doors` so aluminum-panel and framed-knee-wall variants now reveal different schema-backed controls instead of sharing one generic field set
     - reworked enclosure door options into conditional native pickers so hinged-screen and `PGT Cabana Door` variants reveal their own side/style/dimension fields
+  - Scope folder project-type grouping pass:
+    - grouped scopes inside the sidebar `Scopes` folder and the compact scopes list by the selected `Project Type`
+    - reused schema-backed `ProjectType` labels so grouping stays aligned with the Project Information picker
+    - kept the grouping treatment intentionally soft with lightweight headers instead of nested cards or extra glass chrome
 - Production notes are stored in `customerApproval.optionsConfirmedText` (schema-consistent text field already available).
 - `schema.json` was updated when dropdown options / notes fields changed.
 

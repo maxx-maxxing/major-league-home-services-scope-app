@@ -42,6 +42,21 @@ private enum SidebarRenamePromptMode {
     case existingScope
 }
 
+private struct ProjectTypeScopeGroup: Identifiable {
+    let projectType: ProjectType
+    let scopes: [JobScope]
+
+    var id: ProjectType { projectType }
+}
+
+private func groupedScopesByProjectType(_ scopes: [JobScope]) -> [ProjectTypeScopeGroup] {
+    ProjectType.allCases.compactMap { projectType in
+        let matchingScopes = scopes.filter { $0.projectInfo.projectType == projectType }
+        guard !matchingScopes.isEmpty else { return nil }
+        return ProjectTypeScopeGroup(projectType: projectType, scopes: matchingScopes)
+    }
+}
+
 private let rootNavigationCoordinateSpace = "RootNavigationCoordinateSpace"
 struct RootNavigationView: View {
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
@@ -60,6 +75,10 @@ struct RootNavigationView: View {
 
     private var selectedScope: JobScope? {
         scopes.first(where: { $0.id == selectedScopeID })
+    }
+
+    private var groupedScopes: [ProjectTypeScopeGroup] {
+        groupedScopesByProjectType(scopes)
     }
 
     private var useCompactNavigation: Bool {
@@ -284,6 +303,10 @@ private struct ScopeSidebarView: View {
         scopes.first(where: { $0.id == selectedScopeID })
     }
 
+    private var groupedScopes: [ProjectTypeScopeGroup] {
+        groupedScopesByProjectType(scopes)
+    }
+
     var body: some View {
         List {
             Section {
@@ -329,9 +352,7 @@ private struct ScopeSidebarView: View {
             Section {
                 if !scopes.isEmpty {
                     DisclosureGroup(isExpanded: $scopesExpanded) {
-                        ForEach(scopes) { scope in
-                            scopeRow(for: scope)
-                        }
+                        groupedScopeList
                     } label: {
                         Label("Scopes", systemImage: "folder")
                             .font(.headline)
@@ -398,6 +419,21 @@ private struct ScopeSidebarView: View {
     }
 
     @ViewBuilder
+    private var groupedScopeList: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            ForEach(groupedScopes) { group in
+                VStack(alignment: .leading, spacing: 6) {
+                    projectTypeGroupHeader(for: group.projectType, count: group.scopes.count)
+
+                    ForEach(group.scopes) { scope in
+                        scopeRow(for: scope)
+                    }
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
     private func sidebarSectionLabel(for section: ScopeSection) -> some View {
         let isSelected = selectedSection == section
 
@@ -449,6 +485,28 @@ private struct ScopeSidebarView: View {
                 }
             }
         )
+    }
+
+    @ViewBuilder
+    private func projectTypeGroupHeader(for projectType: ProjectType, count: Int) -> some View {
+        HStack(spacing: 8) {
+            Text(projectType.displayName)
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.secondary)
+                .textCase(.uppercase)
+
+            Circle()
+                .fill(.secondary.opacity(0.2))
+                .frame(width: 4, height: 4)
+
+            Text(count == 1 ? "1 scope" : "\(count) scopes")
+                .font(.caption)
+                .foregroundStyle(.tertiary)
+
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, 12)
+        .padding(.top, 6)
     }
 
     @ViewBuilder
@@ -533,41 +591,49 @@ private struct PhoneScopesListView: View {
     @State private var renameDraft = ""
     @State private var scopePendingDelete: JobScope?
 
+    private var groupedScopes: [ProjectTypeScopeGroup] {
+        groupedScopesByProjectType(scopes)
+    }
+
     var body: some View {
         ZStack {
             NavigationStack {
                 List {
-                    Section {
-                        ForEach(scopes) { scope in
-                            NavigationLink {
-                                PhoneSectionListView(scope: scope, autosave: autosave)
-                            } label: {
-                                HStack {
-                                    VStack(alignment: .leading, spacing: 4) {
-                                        Text(scope.displayName)
-                                            .font(.body)
-                                        Text(scope.projectInfo.address.isEmpty ? "No address" : scope.projectInfo.address)
-                                            .font(.footnote)
-                                            .foregroundStyle(.secondary)
+                    ForEach(groupedScopes) { group in
+                        Section {
+                            ForEach(group.scopes) { scope in
+                                NavigationLink {
+                                    PhoneSectionListView(scope: scope, autosave: autosave)
+                                } label: {
+                                    HStack {
+                                        VStack(alignment: .leading, spacing: 4) {
+                                            Text(scope.displayName)
+                                                .font(.body)
+                                            Text(scope.projectInfo.address.isEmpty ? "No address" : scope.projectInfo.address)
+                                                .font(.footnote)
+                                                .foregroundStyle(.secondary)
+                                        }
+
+                                        Spacer()
+                                        StatusPill(status: scope.status)
+                                    }
+                                    .frame(minHeight: 44)
+                                }
+                                .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                                    Button("Delete", role: .destructive) {
+                                        scopePendingDelete = scope
                                     }
 
-                                    Spacer()
-                                    StatusPill(status: scope.status)
+                                    Button("Rename") {
+                                        scopePendingRename = scope
+                                        renameDraft = scope.displayName
+                                        renamePromptMode = .existingScope
+                                    }
+                                    .tint(.blue)
                                 }
-                                .frame(minHeight: 44)
                             }
-                            .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-                                Button("Delete", role: .destructive) {
-                                    scopePendingDelete = scope
-                                }
-
-                                Button("Rename") {
-                                    scopePendingRename = scope
-                                    renameDraft = scope.displayName
-                                    renamePromptMode = .existingScope
-                                }
-                                .tint(.blue)
-                            }
+                        } header: {
+                            PhoneProjectTypeHeader(projectType: group.projectType, count: group.scopes.count)
                         }
                     }
                 }
@@ -647,6 +713,23 @@ private struct PhoneScopesListView: View {
         scopePendingRename = nil
         renameDraft = ""
         renamePromptMode = .existingScope
+    }
+}
+
+private struct PhoneProjectTypeHeader: View {
+    let projectType: ProjectType
+    let count: Int
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Text(projectType.displayName)
+                .font(.caption.weight(.semibold))
+                .textCase(.uppercase)
+
+            Text(count == 1 ? "1 scope" : "\(count) scopes")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
     }
 }
 
@@ -861,7 +944,7 @@ private struct ScopeRenameOverlay: View {
 }
 
 private struct PhoneSectionListView: View {
-    @Bindable var scope: JobScope
+    let scope: JobScope
     @ObservedObject var autosave: DebouncedAutosave
 
     var body: some View {
@@ -886,7 +969,7 @@ private struct PhoneSectionListView: View {
 }
 
 struct SectionEditorView: View {
-    @Bindable var scope: JobScope
+    let scope: JobScope
     let section: ScopeSection
     @ObservedObject var autosave: DebouncedAutosave
     let sketchAction: (() -> Void)?
@@ -1076,7 +1159,7 @@ struct SectionEditorView: View {
 }
 
 private struct SignatureAndSketchSheet: View {
-    @Bindable var scope: JobScope
+    let scope: JobScope
     @ObservedObject var autosave: DebouncedAutosave
 
     @Environment(\.dismiss) private var dismiss

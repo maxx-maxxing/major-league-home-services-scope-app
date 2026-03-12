@@ -4,7 +4,7 @@ import SwiftData
 import PencilKit
 
 struct ProjectInfoEditorView: View {
-    @Bindable var scope: JobScope
+    let scope: JobScope
     @ObservedObject var autosave: DebouncedAutosave
 
     var body: some View {
@@ -185,7 +185,7 @@ struct ProjectInfoEditorView: View {
 }
 
 struct ExistingConditionsEditorView: View {
-    @Bindable var scope: JobScope
+    let scope: JobScope
     @ObservedObject var autosave: DebouncedAutosave
 
     var body: some View {
@@ -324,7 +324,7 @@ struct ExistingConditionsEditorView: View {
 }
 
 struct DimensionsEditorView: View {
-    @Bindable var scope: JobScope
+    let scope: JobScope
     @ObservedObject var autosave: DebouncedAutosave
 
     var body: some View {
@@ -440,7 +440,7 @@ struct DimensionsEditorView: View {
 }
 
 struct StructuralSystemEditorView: View {
-    @Bindable var scope: JobScope
+    let scope: JobScope
     @ObservedObject var autosave: DebouncedAutosave
 
     var body: some View {
@@ -563,7 +563,7 @@ struct StructuralSystemEditorView: View {
 }
 
 struct EnclosureEditorView: View {
-    @Bindable var scope: JobScope
+    let scope: JobScope
     @ObservedObject var autosave: DebouncedAutosave
 
     var body: some View {
@@ -1237,7 +1237,7 @@ struct EnclosureEditorView: View {
 }
 
 struct WindowsAndGlassEditorView: View {
-    @Bindable var scope: JobScope
+    let scope: JobScope
     @ObservedObject var autosave: DebouncedAutosave
     @State private var isWindowSystemEnabled = false
 
@@ -1526,7 +1526,7 @@ struct WindowsAndGlassEditorView: View {
 }
 
 struct ElectricalEditorView: View {
-    @Bindable var scope: JobScope
+    let scope: JobScope
     @ObservedObject var autosave: DebouncedAutosave
 
     var body: some View {
@@ -1644,7 +1644,7 @@ struct ElectricalEditorView: View {
 }
 
 struct DrainageEditorView: View {
-    @Bindable var scope: JobScope
+    let scope: JobScope
     @ObservedObject var autosave: DebouncedAutosave
 
     var body: some View {
@@ -1711,7 +1711,7 @@ struct DrainageEditorView: View {
 }
 
 struct AttachmentConditionsEditorView: View {
-    @Bindable var scope: JobScope
+    let scope: JobScope
     @ObservedObject var autosave: DebouncedAutosave
 
     var body: some View {
@@ -2041,7 +2041,7 @@ struct AttachmentConditionsEditorView: View {
 }
 
 struct FinishesEditorView: View {
-    @Bindable var scope: JobScope
+    let scope: JobScope
     @ObservedObject var autosave: DebouncedAutosave
 
     var body: some View {
@@ -2109,7 +2109,7 @@ struct FinishesEditorView: View {
 }
 
 struct PermitsHOAEditorView: View {
-    @Bindable var scope: JobScope
+    let scope: JobScope
     @ObservedObject var autosave: DebouncedAutosave
 
     var body: some View {
@@ -2185,7 +2185,7 @@ struct PermitsHOAEditorView: View {
 }
 
 struct ProductionNotesEditorView: View {
-    @Bindable var scope: JobScope
+    let scope: JobScope
     @ObservedObject var autosave: DebouncedAutosave
 
     var body: some View {
@@ -2410,7 +2410,7 @@ struct ProductionNotesEditorView: View {
 }
 
 struct SignatureAndSketchEditorView: View {
-    @Bindable var scope: JobScope
+    let scope: JobScope
     @ObservedObject var autosave: DebouncedAutosave
 
     @State private var customerSignatureDrawing = PKDrawing()

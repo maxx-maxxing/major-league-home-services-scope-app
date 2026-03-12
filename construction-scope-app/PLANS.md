@@ -208,6 +208,10 @@ Keep milestones small, testable, and reviewable.
     - Add missing section notes fields where requested and surface them in PDF export
     - Ensure every menu-style dropdown in the section editors includes an `Other` option where schema-backed
     - Refine knee-wall variant fields so aluminum-panel and framed-wall options each reveal only their relevant controls
+  - Milestone 7.4.4 – Scope Folder Project-Type Grouping
+    - Organize scopes into soft subcategories inside the `Scopes` folder/list based on the selected `Project Type`
+    - Reuse the schema-backed `ProjectType` labels so grouping stays aligned with the Project Information picker
+    - Keep the presentation subtle and first-party, without adding nested glass cards or heavy chrome
 
 ## Milestone 7.1 – Interaction Animation Polish
 - Add motion to key UI state changes so content changes are visually legible

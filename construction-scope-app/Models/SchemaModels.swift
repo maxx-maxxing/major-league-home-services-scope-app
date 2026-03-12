@@ -18,6 +18,7 @@ enum JobStatus: String, Codable, CaseIterable, SchemaEnumDisplayable {
     case sold
     case inProduction = "in_production"
     case closed
+    case other
 }
 
 enum ProjectType: String, Codable, CaseIterable, SchemaEnumDisplayable {
@@ -33,6 +34,7 @@ enum ProjectType: String, Codable, CaseIterable, SchemaEnumDisplayable {
 enum HouseStories: String, Codable, CaseIterable, SchemaEnumDisplayable {
     case oneStory = "one_story"
     case twoStory = "two_story"
+    case other
 }
 
 enum ExteriorFinish: String, Codable, CaseIterable, SchemaEnumDisplayable {
@@ -56,18 +58,21 @@ enum RoofStyle: String, Codable, CaseIterable, SchemaEnumDisplayable {
     case lowSlope = "low_slope"
     case gable
     case pergola
+    case other
 }
 
 enum DimensionsAttachmentType: String, Codable, CaseIterable, SchemaEnumDisplayable {
     case fasciaMount = "fascia_mount"
     case wallMount = "wall_mount"
     case freeStanding = "free_standing"
+    case other
 }
 
 enum FrameMaterial: String, Codable, CaseIterable, SchemaEnumDisplayable {
     case aluminum
     case cedar
     case steel
+    case other
 }
 
 enum RoofSystem: String, Codable, CaseIterable, SchemaEnumDisplayable {
@@ -75,14 +80,40 @@ enum RoofSystem: String, Codable, CaseIterable, SchemaEnumDisplayable {
     case polycarbonate
     case metal
     case shingle
+    case other
 }
 
 enum EnclosureType: String, Codable, CaseIterable, SchemaEnumDisplayable {
-    case screenOnly = "screen_only"
-    case screenRoomWithDoor = "screen_room_with_door"
+    case screenEnclosure = "screen_enclosure"
     case vinylWindowEnclosure = "vinyl_window_enclosure"
     case glassSunroom = "glass_sunroom"
     case mixed
+    case other
+    case legacyScreenOnly = "screen_only"
+    case legacyScreenRoomWithDoor = "screen_room_with_door"
+
+    static var allCases: [EnclosureType] {
+        [.screenEnclosure, .vinylWindowEnclosure, .glassSunroom, .mixed, .other]
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.singleValueContainer()
+        let rawValue = try container.decode(String.self)
+
+        switch rawValue {
+        case Self.legacyScreenOnly.rawValue, Self.legacyScreenRoomWithDoor.rawValue:
+            self = .screenEnclosure
+        case let value where Self.allCases.contains(where: { $0.rawValue == value }):
+            self = Self(rawValue: value) ?? .other
+        default:
+            self = .other
+        }
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.singleValueContainer()
+        try container.encode(rawValue)
+    }
 }
 
 enum ScreenWallType: String, Codable, CaseIterable, SchemaEnumDisplayable {
@@ -90,6 +121,7 @@ enum ScreenWallType: String, Codable, CaseIterable, SchemaEnumDisplayable {
     case noSeeUm2020 = "20x20_no_see_um"
     case tuff1814 = "18x14_tuff"
     case tuff2020 = "20x20_tuff"
+    case other
 
     var displayName: String {
         switch self {
@@ -97,6 +129,7 @@ enum ScreenWallType: String, Codable, CaseIterable, SchemaEnumDisplayable {
         case .noSeeUm2020: return "20x20 No-See-Um"
         case .tuff1814: return "18x14 Tuff"
         case .tuff2020: return "20x20 Tuff"
+        case .other: return "Other"
         }
     }
 }
@@ -107,11 +140,22 @@ enum StandardColorOption: String, Codable, CaseIterable, SchemaEnumDisplayable {
     case bronze
     case black
     case custom
+    case other
+}
+
+enum ScreenFrameColorOption: String, Codable, CaseIterable, SchemaEnumDisplayable {
+    case white
+    case beige
+    case bronze
+    case black
+    case khaki
+    case other
 }
 
 enum WindowType: String, Codable, CaseIterable, SchemaEnumDisplayable {
     case pgtEzebreeze4TrackVinyl = "pgt_ezebreeze_4track_vinyl"
     case doublePaneInsulatedGlass = "double_pane_insulated_glass"
+    case other
 
     var displayName: String {
         switch self {
@@ -119,6 +163,8 @@ enum WindowType: String, Codable, CaseIterable, SchemaEnumDisplayable {
             return "PGT Eze-Breeze Vertical 4-Track Vinyl"
         case .doublePaneInsulatedGlass:
             return "Double Pane Insulated Glass"
+        case .other:
+            return "Other"
         }
     }
 }
@@ -127,18 +173,21 @@ enum WindowFrameSystem: String, Codable, CaseIterable, SchemaEnumDisplayable {
     case standardPatioExtrusion = "standard_patio_extrusion"
     case heavyDutyExtrusion = "heavy_duty_extrusion"
     case thermallyBrokenInsulated = "thermally_broken_insulated"
+    case other
 }
 
 enum GlassType: String, Codable, CaseIterable, SchemaEnumDisplayable {
     case clear
     case lowE = "low_e"
     case tinted
+    case other
 }
 
 enum GlassSafety: String, Codable, CaseIterable, SchemaEnumDisplayable {
     case annealed
     case tempered
     case temperedRequiredByCode = "tempered_required_by_code"
+    case other
 }
 
 enum GridOption: String, Codable, CaseIterable, SchemaEnumDisplayable {
@@ -146,6 +195,7 @@ enum GridOption: String, Codable, CaseIterable, SchemaEnumDisplayable {
     case twoByTwo = "2x2"
     case twoByThree = "2x3"
     case colonial
+    case other
 
     var displayName: String {
         switch self {
@@ -153,6 +203,7 @@ enum GridOption: String, Codable, CaseIterable, SchemaEnumDisplayable {
         case .twoByTwo: return "2x2"
         case .twoByThree: return "2x3"
         case .colonial: return "Colonial"
+        case .other: return "Other"
         }
     }
 }
@@ -162,12 +213,14 @@ enum WindowOperation: String, Codable, CaseIterable, SchemaEnumDisplayable {
     case horizontalSlide = "horizontal_slide"
     case fixed
     case casement
+    case other
 }
 
 enum WindowConfiguration: String, Codable, CaseIterable, SchemaEnumDisplayable {
     case fullHeight = "full_height"
     case aboveKneeWall = "above_knee_wall"
     case mixed
+    case other
 }
 
 enum KneeWallOption: String, Codable, CaseIterable, SchemaEnumDisplayable {
@@ -175,6 +228,7 @@ enum KneeWallOption: String, Codable, CaseIterable, SchemaEnumDisplayable {
     case aluminumKickplate = "aluminum_kickplate"
     case framedKneeWall = "framed_knee_wall"
     case insulatedAluminumPanel = "insulated_aluminum_panel"
+    case other
 
     var displayName: String {
         switch self {
@@ -182,16 +236,91 @@ enum KneeWallOption: String, Codable, CaseIterable, SchemaEnumDisplayable {
         case .aluminumKickplate: return "Aluminum Kickplate"
         case .framedKneeWall: return "Framed Knee Wall"
         case .insulatedAluminumPanel: return "Insulated Aluminum Panel Knee Wall"
+        case .other: return "Other"
         }
+    }
+}
+
+enum KneeWallPanelHeightOption: String, Codable, CaseIterable, SchemaEnumDisplayable {
+    case inches16 = "16_in"
+    case inches24 = "24_in"
+
+    var displayName: String {
+        switch self {
+        case .inches16: return "16\""
+        case .inches24: return "24\""
+        }
+    }
+}
+
+enum KneeWallFramingOption: String, Codable, CaseIterable, SchemaEnumDisplayable {
+    case twoByFour = "2x4"
+    case twoBySix = "2x6"
+
+    var displayName: String {
+        rawValue
     }
 }
 
 enum DoorType: String, Codable, CaseIterable, SchemaEnumDisplayable {
     case none
     case hingedScreen = "hinged_screen"
-    case heavyDutyAluminum = "heavy_duty_aluminum"
+    case pgtCabanaDoor = "pgt_cabana_door"
     case slidingGlass = "sliding_glass"
+    case other
+    case legacyHeavyDutyAluminum = "heavy_duty_aluminum"
+    case legacyFrench = "french"
+
+    static var allCases: [DoorType] {
+        [.none, .hingedScreen, .pgtCabanaDoor, .slidingGlass, .other]
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.singleValueContainer()
+        let rawValue = try container.decode(String.self)
+
+        switch rawValue {
+        case Self.legacyHeavyDutyAluminum.rawValue:
+            self = .pgtCabanaDoor
+        case Self.legacyFrench.rawValue:
+            self = .legacyFrench
+        case let value where Self.allCases.contains(where: { $0.rawValue == value }):
+            self = Self(rawValue: value) ?? .other
+        default:
+            self = .other
+        }
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.singleValueContainer()
+        try container.encode(rawValue)
+    }
+
+    var displayName: String {
+        switch self {
+        case .pgtCabanaDoor:
+            return "PGT Cabana Door"
+        default:
+            return rawValue
+                .replacingOccurrences(of: "_", with: " ")
+                .capitalized
+        }
+    }
+}
+
+enum DoorStyleOption: String, Codable, CaseIterable, SchemaEnumDisplayable {
     case french
+    case single
+}
+
+enum DoorOperableSideOption: String, Codable, CaseIterable, SchemaEnumDisplayable {
+    case left
+    case right
+}
+
+enum DoorHingeSideOption: String, Codable, CaseIterable, SchemaEnumDisplayable {
+    case leftHinge = "left_hinge"
+    case rightHinge = "right_hinge"
 }
 
 enum LightingOption: String, Codable, CaseIterable, SchemaEnumDisplayable {
@@ -199,6 +328,7 @@ enum LightingOption: String, Codable, CaseIterable, SchemaEnumDisplayable {
     case recessed
     case fanLight = "fan_light"
     case surfaceMount = "surface_mount"
+    case other
 }
 
 enum DedicatedCircuitType: String, Codable, CaseIterable, SchemaEnumDisplayable {
@@ -225,6 +355,7 @@ enum HouseMountingType: String, Codable, CaseIterable, SchemaEnumDisplayable {
     case directMount = "direct_mount"
     case throughSidingIntoFraming = "through_siding_into_framing"
     case throughMasonryIntoStructure = "through_masonry_into_structure"
+    case other
 }
 
 enum PostColumnMaterial: String, Codable, CaseIterable, SchemaEnumDisplayable {
@@ -254,6 +385,7 @@ enum TrimThickness: String, Codable, CaseIterable, SchemaEnumDisplayable {
     case inchesOneAndHalf = "1.5"
     case inchesTwo = "2.0"
     case custom
+    case other
 
     var displayName: String {
         switch self {
@@ -264,6 +396,7 @@ enum TrimThickness: String, Codable, CaseIterable, SchemaEnumDisplayable {
         case .inchesOneAndHalf: return "1.5 in"
         case .inchesTwo: return "2.0 in"
         case .custom: return "Custom"
+        case .other: return "Other"
         }
     }
 }
@@ -273,6 +406,7 @@ enum MountCondition: String, Codable, CaseIterable, SchemaEnumDisplayable {
     case throughTrimToStructural = "through_trim_to_structural"
     case trimCutBack = "trim_cut_back"
     case spacerBlockRequired = "spacer_block_required"
+    case other
 }
 
 enum FastenerType: String, Codable, CaseIterable, SchemaEnumDisplayable {
@@ -287,12 +421,14 @@ enum MaterialOrderStatus: String, Codable, CaseIterable, SchemaEnumDisplayable {
     case notOrdered = "not_ordered"
     case ordered
     case delivered
+    case other
 }
 
 enum PermitStatus: String, Codable, CaseIterable, SchemaEnumDisplayable {
     case notSubmitted = "not_submitted"
     case submitted
     case approved
+    case other
 }
 
 struct ProjectInfo: Codable, Hashable {
@@ -370,12 +506,13 @@ struct StructuralSystem: Codable, Hashable {
     var roofSystem: RoofSystem?
     var roofColor: String?
     var frameColor: String?
+    var notes: String?
 }
 
 struct Enclosure: Codable, Hashable {
     var enclosureType: EnclosureType?
     var screenWallType: ScreenWallType?
-    var screenFrameColor: StandardColorOption?
+    var screenFrameColor: ScreenFrameColorOption?
     var screenFrameColorCustom: String?
     var windowSystem: WindowSystem?
     var kneeWall: KneeWall?
@@ -394,19 +531,170 @@ struct WindowSystem: Codable, Hashable {
     var windowHeight: Double?
     var numBays: Double?
     var configuration: WindowConfiguration?
+    var notes: String?
 }
 
 struct KneeWall: Codable, Hashable {
     var option: KneeWallOption?
-    var panelHeight: Double?
+    var panelHeight: KneeWallPanelHeightOption?
     var panelColor: String?
-    var trimColor: String?
-    var interiorFinish: String?
+    var linearFootage: String?
+    var height: String?
+    var interiorFinishColor: ScreenFrameColorOption?
+    var exteriorFinishColor: ScreenFrameColorOption?
+    var framing: KneeWallFramingOption?
+
+    private enum CodingKeys: String, CodingKey {
+        case option
+        case panelHeight
+        case panelColor
+        case linearFootage
+        case height
+        case interiorFinishColor
+        case exteriorFinishColor
+        case framing
+        case trimColor
+    }
+
+    init(
+        option: KneeWallOption? = nil,
+        panelHeight: KneeWallPanelHeightOption? = nil,
+        panelColor: String? = nil,
+        linearFootage: String? = nil,
+        height: String? = nil,
+        interiorFinishColor: ScreenFrameColorOption? = nil,
+        exteriorFinishColor: ScreenFrameColorOption? = nil,
+        framing: KneeWallFramingOption? = nil
+    ) {
+        self.option = option
+        self.panelHeight = panelHeight
+        self.panelColor = panelColor
+        self.linearFootage = linearFootage
+        self.height = height
+        self.interiorFinishColor = interiorFinishColor
+        self.exteriorFinishColor = exteriorFinishColor
+        self.framing = framing
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        option = try container.decodeIfPresent(KneeWallOption.self, forKey: .option)
+        panelColor = try container.decodeIfPresent(String.self, forKey: .panelColor)
+        linearFootage =
+            try container.decodeIfPresent(String.self, forKey: .linearFootage) ??
+            container.decodeIfPresent(String.self, forKey: .trimColor)
+        height = try container.decodeIfPresent(String.self, forKey: .height)
+        interiorFinishColor = try container.decodeIfPresent(ScreenFrameColorOption.self, forKey: .interiorFinishColor)
+        exteriorFinishColor = try container.decodeIfPresent(ScreenFrameColorOption.self, forKey: .exteriorFinishColor)
+        framing = try container.decodeIfPresent(KneeWallFramingOption.self, forKey: .framing)
+
+        if let panelHeight = try container.decodeIfPresent(KneeWallPanelHeightOption.self, forKey: .panelHeight) {
+            self.panelHeight = panelHeight
+        } else if let legacyHeight = try container.decodeIfPresent(Double.self, forKey: .panelHeight) {
+            switch Int(legacyHeight.rounded()) {
+            case 16:
+                self.panelHeight = .inches16
+            case 24:
+                self.panelHeight = .inches24
+            default:
+                self.panelHeight = nil
+            }
+        } else {
+            panelHeight = nil
+        }
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encodeIfPresent(option, forKey: .option)
+        try container.encodeIfPresent(panelHeight, forKey: .panelHeight)
+        try container.encodeIfPresent(panelColor, forKey: .panelColor)
+        try container.encodeIfPresent(linearFootage, forKey: .linearFootage)
+        try container.encodeIfPresent(height, forKey: .height)
+        try container.encodeIfPresent(interiorFinishColor, forKey: .interiorFinishColor)
+        try container.encodeIfPresent(exteriorFinishColor, forKey: .exteriorFinishColor)
+        try container.encodeIfPresent(framing, forKey: .framing)
+    }
 }
 
 struct DoorOptions: Codable, Hashable {
     var doorType: DoorType?
+    var style: DoorStyleOption?
+    var operableSide: DoorOperableSideOption?
+    var hingeSide: DoorHingeSideOption?
+    var width: String?
+    var height: String?
+    var color: String?
+    var dimensions: String?
     var notes: String?
+
+    private enum CodingKeys: String, CodingKey {
+        case doorType
+        case style
+        case operableSide
+        case hingeSide
+        case width
+        case height
+        case color
+        case dimensions
+        case notes
+    }
+
+    init(
+        doorType: DoorType? = nil,
+        style: DoorStyleOption? = nil,
+        operableSide: DoorOperableSideOption? = nil,
+        hingeSide: DoorHingeSideOption? = nil,
+        width: String? = nil,
+        height: String? = nil,
+        color: String? = nil,
+        dimensions: String? = nil,
+        notes: String? = nil
+    ) {
+        self.doorType = doorType
+        self.style = style
+        self.operableSide = operableSide
+        self.hingeSide = hingeSide
+        self.width = width
+        self.height = height
+        self.color = color
+        self.dimensions = dimensions
+        self.notes = notes
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        let decodedDoorType = try container.decodeIfPresent(DoorType.self, forKey: .doorType)
+
+        if decodedDoorType?.rawValue == "french" {
+            doorType = .hingedScreen
+            style = .french
+        } else {
+            doorType = decodedDoorType
+            style = try container.decodeIfPresent(DoorStyleOption.self, forKey: .style)
+        }
+
+        operableSide = try container.decodeIfPresent(DoorOperableSideOption.self, forKey: .operableSide)
+        hingeSide = try container.decodeIfPresent(DoorHingeSideOption.self, forKey: .hingeSide)
+        width = try container.decodeIfPresent(String.self, forKey: .width)
+        height = try container.decodeIfPresent(String.self, forKey: .height)
+        color = try container.decodeIfPresent(String.self, forKey: .color)
+        dimensions = try container.decodeIfPresent(String.self, forKey: .dimensions)
+        notes = try container.decodeIfPresent(String.self, forKey: .notes)
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encodeIfPresent(doorType, forKey: .doorType)
+        try container.encodeIfPresent(style, forKey: .style)
+        try container.encodeIfPresent(operableSide, forKey: .operableSide)
+        try container.encodeIfPresent(hingeSide, forKey: .hingeSide)
+        try container.encodeIfPresent(width, forKey: .width)
+        try container.encodeIfPresent(height, forKey: .height)
+        try container.encodeIfPresent(color, forKey: .color)
+        try container.encodeIfPresent(dimensions, forKey: .dimensions)
+        try container.encodeIfPresent(notes, forKey: .notes)
+    }
 }
 
 struct Electrical: Codable, Hashable {

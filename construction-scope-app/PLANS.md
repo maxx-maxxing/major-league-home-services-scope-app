@@ -198,10 +198,16 @@ Keep milestones small, testable, and reviewable.
       - routine input and utility surfaces
     - Shift hierarchy away from explicit shadow dependence and toward calmer material separation
     - Preserve the existing system-toolbar-host approach and avoid adding new top-level chrome wrappers
-    - Narrow refinement pass:
+  - Narrow refinement pass:
       - make selected sidebar rows feel pooled into the list layer rather than floating chips
       - increase separation between editor header chrome and routine form cards beneath it
       - restore a restrained Liquid Glass identity to inputs, photo/drawing surfaces, and PDF preview containers without reintroducing heavy borders or stacked effects
+  - Milestone 7.4.3 – Schema/UI Field Alignment Pass
+    - Update schema-backed dropdown choices to match current field-estimator terminology
+    - Replace enclosure `screen_only` / `screen_room_with_door` with a single `screen_enclosure` option
+    - Add missing section notes fields where requested and surface them in PDF export
+    - Ensure every menu-style dropdown in the section editors includes an `Other` option where schema-backed
+    - Refine knee-wall variant fields so aluminum-panel and framed-wall options each reveal only their relevant controls
 
 ## Milestone 7.1 – Interaction Animation Polish
 - Add motion to key UI state changes so content changes are visually legible

@@ -296,15 +296,22 @@ enum ScopePDFExporter {
                     .init(label: "Beam Type", value: structural?.beamType?.nilIfBlank ?? "Not set"),
                     .init(label: "Roof System", value: structural?.roofSystem?.displayName ?? "Not set"),
                     .init(label: "Roof Color", value: structural?.roofColor?.nilIfBlank ?? "Not set"),
-                    .init(label: "Frame Color", value: structural?.frameColor?.nilIfBlank ?? "Not set")
+                    .init(label: "Frame Color", value: structural?.frameColor?.nilIfBlank ?? "Not set"),
+                    .init(label: "Notes", value: structural?.notes?.nilIfBlank ?? "None")
                 ]),
                 PDFSection(title: "Enclosure", rows: [
                     .init(label: "Type", value: enclosure?.enclosureType?.displayName ?? "Not set"),
                     .init(label: "Screen Type", value: enclosure?.screenWallType?.displayName ?? "Not set"),
-                    .init(label: "Frame Color", value: resolvedStandardColor(enclosure?.screenFrameColor, custom: enclosure?.screenFrameColorCustom)),
+                    .init(label: "Frame Color", value: resolvedScreenFrameColor(enclosure?.screenFrameColor, custom: enclosure?.screenFrameColorCustom)),
                     .init(label: "Knee Wall", value: enclosure?.kneeWall?.option?.displayName ?? "Not set"),
                     .init(label: "Knee Wall Details", value: kneeWallSummary(enclosure?.kneeWall)),
                     .init(label: "Door Type", value: enclosure?.doors?.doorType?.displayName ?? "Not set"),
+                    .init(label: "Door Style", value: enclosure?.doors?.style?.displayName ?? "Not set"),
+                    .init(label: "Operable Side", value: enclosure?.doors?.operableSide?.displayName ?? "Not set"),
+                    .init(label: "Hinge Side", value: enclosure?.doors?.hingeSide?.displayName ?? "Not set"),
+                    .init(label: "Door Dimensions", value: combinedValue(enclosure?.doors?.width?.nilIfBlank, enclosure?.doors?.height?.nilIfBlank)),
+                    .init(label: "Sliding Door Color", value: enclosure?.doors?.color?.nilIfBlank ?? "Not set"),
+                    .init(label: "Sliding Door Dimensions", value: enclosure?.doors?.dimensions?.nilIfBlank ?? "Not set"),
                     .init(label: "Door Notes", value: enclosure?.doors?.notes?.nilIfBlank ?? "None")
                 ])
             ]
@@ -328,7 +335,8 @@ enum ScopePDFExporter {
                     .init(label: "Operation", value: window?.operation?.displayName ?? "Not set"),
                     .init(label: "Frame Color", value: resolvedStandardColor(window?.color, custom: window?.colorCustom)),
                     .init(label: "Height / Bays", value: combinedValue(formatOptionalPDFNumber(window?.windowHeight, suffix: "ft"), formatOptionalPDFNumber(window?.numBays, suffix: "bays"))),
-                    .init(label: "Configuration", value: window?.configuration?.displayName ?? "Not set")
+                    .init(label: "Configuration", value: window?.configuration?.displayName ?? "Not set"),
+                    .init(label: "Notes", value: window?.notes?.nilIfBlank ?? "None")
                 ]),
                 PDFSection(title: "Electrical", rows: [
                     .init(label: "Outlets", value: formatNumber(electrical?.outletCount, suffix: "")),
@@ -538,7 +546,15 @@ enum ScopePDFExporter {
 
     private static func resolvedStandardColor(_ color: StandardColorOption?, custom: String?) -> String {
         guard let color else { return "Not set" }
-        if color == .custom {
+        if color == .custom || color == .other {
+            return custom?.nilIfBlank ?? color.displayName
+        }
+        return color.displayName
+    }
+
+    private static func resolvedScreenFrameColor(_ color: ScreenFrameColorOption?, custom: String?) -> String {
+        guard let color else { return "Not set" }
+        if color == .other {
             return custom?.nilIfBlank ?? color.displayName
         }
         return color.displayName
@@ -572,7 +588,7 @@ enum ScopePDFExporter {
     private static func resolvedTrimThickness(_ attachment: AttachmentConditions?) -> String {
         guard attachment?.trimPresent == true else { return "Not applicable" }
         guard let thickness = attachment?.trimThickness else { return "Not set" }
-        if thickness == .custom {
+        if thickness == .custom || thickness == .other {
             return formatNumber(attachment?.trimThicknessCustom, suffix: "in")
         }
         return thickness.displayName
@@ -582,16 +598,25 @@ enum ScopePDFExporter {
         guard let kneeWall else { return "Not set" }
         var parts: [String] = []
         if let height = kneeWall.panelHeight {
-            parts.append(formatNumber(height, suffix: "ft"))
+            parts.append("Panel Height \(height.displayName)")
         }
         if let color = kneeWall.panelColor?.nilIfBlank {
-            parts.append(color)
+            parts.append("Panel Color \(color)")
         }
-        if let trimColor = kneeWall.trimColor?.nilIfBlank {
-            parts.append("Trim \(trimColor)")
+        if let linearFootage = kneeWall.linearFootage?.nilIfBlank {
+            parts.append("Linear Footage \(linearFootage)")
         }
-        if let finish = kneeWall.interiorFinish?.nilIfBlank {
-            parts.append(finish)
+        if let height = kneeWall.height?.nilIfBlank {
+            parts.append("Height \(height)")
+        }
+        if let interior = kneeWall.interiorFinishColor {
+            parts.append("Interior \(interior.displayName)")
+        }
+        if let exterior = kneeWall.exteriorFinishColor {
+            parts.append("Exterior \(exterior.displayName)")
+        }
+        if let framing = kneeWall.framing {
+            parts.append("Framing \(framing.displayName)")
         }
         return parts.isEmpty ? "No additional details" : parts.joined(separator: ", ")
     }

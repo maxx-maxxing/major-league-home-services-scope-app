@@ -484,6 +484,10 @@ struct StructuralSystemEditorView: View {
                         .liquidGlassInput()
                 }
             }
+
+            CardGroup(title: "Structural Notes") {
+                NotesField(title: "Structural Notes", text: notesBinding, minHeight: 140, showInlineTitle: false)
+            }
         }
     }
 
@@ -541,6 +545,15 @@ struct StructuralSystemEditorView: View {
         )
     }
 
+    private var notesBinding: Binding<String> {
+        Binding(
+            get: { scope.structuralSystem?.notes ?? "" },
+            set: { newValue in
+                updateStructuralSystem { $0.notes = newValue.nilIfBlank }
+            }
+        )
+    }
+
     private func updateStructuralSystem(_ update: (inout StructuralSystem) -> Void) {
         var structuralSystem = scope.structuralSystem ?? emptyStructuralSystem()
         update(&structuralSystem)
@@ -582,16 +595,16 @@ struct EnclosureEditorView: View {
 
                         FieldHeader("Screen Frame Color")
                         Picker("Screen Frame Color", selection: screenFrameColorBinding) {
-                            Text("Not Set").tag(nil as StandardColorOption?)
-                            ForEach(StandardColorOption.allCases, id: \.self) { color in
+                            Text("Not Set").tag(nil as ScreenFrameColorOption?)
+                            ForEach(ScreenFrameColorOption.allCases, id: \.self) { color in
                                 Text(color.displayName).tag(Optional(color))
                             }
                         }
                         .pickerStyle(.menu)
                         .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
 
-                        if scope.enclosure?.screenFrameColor == .custom {
-                            TextField("Custom screen frame color", text: screenFrameColorCustomBinding)
+                        if showsCustomScreenFrameColorField {
+                            TextField("Custom or other screen frame color", text: screenFrameColorCustomBinding)
                                 .liquidGlassInput()
                                 .formRevealTransition()
                         }
@@ -616,23 +629,67 @@ struct EnclosureEditorView: View {
                         .formRevealTransition()
 
                         if scope.enclosure?.kneeWall?.option != KneeWallOption.none {
-                            TextField("Panel height", text: kneeWallPanelHeightBinding)
-                                .liquidGlassInput()
-                                .keyboardType(.decimalPad)
-                                .frame(minHeight: 44)
+                            if showsPanelStyleKneeWallFields {
+                                if showsPanelHeightOptions {
+                                    FieldHeader("Panel Height")
+                                    Picker("Panel Height", selection: kneeWallPanelHeightBinding) {
+                                        Text("Not Set").tag(nil as KneeWallPanelHeightOption?)
+                                        ForEach(KneeWallPanelHeightOption.allCases, id: \.self) { option in
+                                            Text(option.displayName).tag(Optional(option))
+                                        }
+                                    }
+                                    .pickerStyle(.menu)
+                                    .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+                                    .formRevealTransition()
+                                }
+
+                                TextField("Panel color", text: kneeWallPanelColorBinding)
+                                    .liquidGlassInput()
+                                    .formRevealTransition()
+
+                                TextField("Linear footage", text: kneeWallLinearFootageBinding)
+                                    .liquidGlassInput()
+                                    .formRevealTransition()
+                            }
+
+                            if showsFramedKneeWallFields {
+                                TextField("Height", text: kneeWallHeightBinding)
+                                    .liquidGlassInput()
+                                    .formRevealTransition()
+
+                                FieldHeader("Interior Finish/Color")
+                                Picker("Interior Finish/Color", selection: kneeWallInteriorFinishColorBinding) {
+                                    Text("Not Set").tag(nil as ScreenFrameColorOption?)
+                                    ForEach(ScreenFrameColorOption.allCases, id: \.self) { color in
+                                        Text(color.displayName).tag(Optional(color))
+                                    }
+                                }
+                                .pickerStyle(.menu)
+                                .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
                                 .formRevealTransition()
 
-                            TextField("Panel color", text: kneeWallPanelColorBinding)
-                                .liquidGlassInput()
+                                FieldHeader("Exterior Finish/Color")
+                                Picker("Exterior Finish/Color", selection: kneeWallExteriorFinishColorBinding) {
+                                    Text("Not Set").tag(nil as ScreenFrameColorOption?)
+                                    ForEach(ScreenFrameColorOption.allCases, id: \.self) { color in
+                                        Text(color.displayName).tag(Optional(color))
+                                    }
+                                }
+                                .pickerStyle(.menu)
+                                .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
                                 .formRevealTransition()
 
-                            TextField("Trim color", text: kneeWallTrimColorBinding)
-                                .liquidGlassInput()
+                                FieldHeader("Framing")
+                                Picker("Framing", selection: kneeWallFramingBinding) {
+                                    Text("Not Set").tag(nil as KneeWallFramingOption?)
+                                    ForEach(KneeWallFramingOption.allCases, id: \.self) { option in
+                                        Text(option.displayName).tag(Optional(option))
+                                    }
+                                }
+                                .pickerStyle(.menu)
+                                .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
                                 .formRevealTransition()
-
-                            TextField("Interior finish", text: kneeWallInteriorFinishBinding)
-                                .liquidGlassInput()
-                                .formRevealTransition()
+                            }
                         }
                     }
 
@@ -651,6 +708,76 @@ struct EnclosureEditorView: View {
                         .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
                         .formRevealTransition()
 
+                        if showsHingedScreenStyleOptions {
+                            FieldHeader("Style")
+                            Picker("Style", selection: doorStyleBinding) {
+                                Text("Not Set").tag(nil as DoorStyleOption?)
+                                ForEach(DoorStyleOption.allCases, id: \.self) { option in
+                                    Text(option.displayName).tag(Optional(option))
+                                }
+                            }
+                            .pickerStyle(.menu)
+                            .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+                            .formRevealTransition()
+                        }
+
+                        if showsOperableSideOptions {
+                            FieldHeader("Operable Side")
+                            Picker("Operable Side", selection: doorOperableSideBinding) {
+                                Text("Not Set").tag(nil as DoorOperableSideOption?)
+                                ForEach(DoorOperableSideOption.allCases, id: \.self) { option in
+                                    Text(option.displayName).tag(Optional(option))
+                                }
+                            }
+                            .pickerStyle(.menu)
+                            .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+                            .formRevealTransition()
+                        }
+
+                        if showsDoorHingeSideOptions {
+                            FieldHeader("Hinge Side")
+                            Picker("Hinge Side", selection: doorHingeSideBinding) {
+                                Text("Not Set").tag(nil as DoorHingeSideOption?)
+                                ForEach(DoorHingeSideOption.allCases, id: \.self) { option in
+                                    Text(option.displayName).tag(Optional(option))
+                                }
+                            }
+                            .pickerStyle(.menu)
+                            .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+                            .formRevealTransition()
+                        }
+
+                        if showsCabanaDimensions {
+                            TextField("Width", text: doorWidthBinding)
+                                .liquidGlassInput()
+                                .formRevealTransition()
+
+                            TextField("Height", text: doorHeightBinding)
+                                .liquidGlassInput()
+                                .formRevealTransition()
+                        }
+
+                        if showsSlidingGlassFields {
+                            FieldHeader("Pull Side")
+                            Picker("Pull Side", selection: doorOperableSideBinding) {
+                                Text("Not Set").tag(nil as DoorOperableSideOption?)
+                                ForEach(DoorOperableSideOption.allCases, id: \.self) { option in
+                                    Text(option.displayName).tag(Optional(option))
+                                }
+                            }
+                            .pickerStyle(.menu)
+                            .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+                            .formRevealTransition()
+
+                            TextField("Color", text: doorColorBinding)
+                                .liquidGlassInput()
+                                .formRevealTransition()
+
+                            TextField("Dimensions", text: doorDimensionsBinding)
+                                .liquidGlassInput()
+                                .formRevealTransition()
+                        }
+
                         VStack(alignment: .leading, spacing: 6) {
                             Text("Door Notes")
                                 .font(.body)
@@ -665,15 +792,29 @@ struct EnclosureEditorView: View {
             }
         }
         .animation(.formReveal, value: showsScreenOptions)
-        .animation(.formReveal, value: scope.enclosure?.screenFrameColor == .custom)
+        .animation(.formReveal, value: showsCustomScreenFrameColorField)
         .animation(.formReveal, value: scope.enclosure?.kneeWall != nil)
         .animation(.formReveal, value: scope.enclosure?.kneeWall?.option != KneeWallOption.none)
         .animation(.formReveal, value: scope.enclosure?.doors != nil)
+        .animation(.formReveal, value: showsHingedScreenStyleOptions)
+        .animation(.formReveal, value: showsOperableSideOptions)
+        .animation(.formReveal, value: showsDoorHingeSideOptions)
+        .animation(.formReveal, value: showsCabanaDimensions)
+        .animation(.formReveal, value: showsSlidingGlassFields)
     }
 
     private var showsScreenOptions: Bool {
         switch scope.enclosure?.enclosureType {
-        case .screenOnly, .screenRoomWithDoor, .mixed:
+        case .screenEnclosure, .mixed:
+            return true
+        default:
+            return false
+        }
+    }
+
+    private var showsCustomScreenFrameColorField: Bool {
+        switch scope.enclosure?.screenFrameColor {
+        case .other:
             return true
         default:
             return false
@@ -705,13 +846,13 @@ struct EnclosureEditorView: View {
         )
     }
 
-    private var screenFrameColorBinding: Binding<StandardColorOption?> {
+    private var screenFrameColorBinding: Binding<ScreenFrameColorOption?> {
         Binding(
             get: { scope.enclosure?.screenFrameColor },
             set: { newValue in
                 updateEnclosure { enclosure in
                     enclosure.screenFrameColor = newValue
-                    if newValue != .custom {
+                    if newValue != .other {
                         enclosure.screenFrameColorCustom = nil
                     }
                 }
@@ -749,8 +890,24 @@ struct EnclosureEditorView: View {
                     if newValue == .none {
                         kneeWall.panelHeight = nil
                         kneeWall.panelColor = nil
-                        kneeWall.trimColor = nil
-                        kneeWall.interiorFinish = nil
+                        kneeWall.linearFootage = nil
+                        kneeWall.height = nil
+                        kneeWall.interiorFinishColor = nil
+                        kneeWall.exteriorFinishColor = nil
+                        kneeWall.framing = nil
+                    }
+
+                    if !showsPanelStyleFields(for: newValue) {
+                        kneeWall.panelHeight = nil
+                        kneeWall.panelColor = nil
+                        kneeWall.linearFootage = nil
+                    }
+
+                    if !showsFramedFields(for: newValue) {
+                        kneeWall.height = nil
+                        kneeWall.interiorFinishColor = nil
+                        kneeWall.exteriorFinishColor = nil
+                        kneeWall.framing = nil
                     }
                     enclosure.kneeWall = kneeWall
                 }
@@ -758,13 +915,25 @@ struct EnclosureEditorView: View {
         )
     }
 
-    private var kneeWallPanelHeightBinding: Binding<String> {
+    private var showsPanelStyleKneeWallFields: Bool {
+        showsPanelStyleFields(for: scope.enclosure?.kneeWall?.option)
+    }
+
+    private var showsPanelHeightOptions: Bool {
+        supportsPanelHeight(scope.enclosure?.kneeWall?.option)
+    }
+
+    private var showsFramedKneeWallFields: Bool {
+        showsFramedFields(for: scope.enclosure?.kneeWall?.option)
+    }
+
+    private var kneeWallPanelHeightBinding: Binding<KneeWallPanelHeightOption?> {
         Binding(
-            get: { formatOptionalDouble(scope.enclosure?.kneeWall?.panelHeight) },
+            get: { scope.enclosure?.kneeWall?.panelHeight },
             set: { newValue in
                 updateEnclosure { enclosure in
                     var kneeWall = enclosure.kneeWall ?? emptyKneeWall()
-                    kneeWall.panelHeight = parseOptionalDouble(newValue)
+                    kneeWall.panelHeight = newValue
                     enclosure.kneeWall = kneeWall
                 }
             }
@@ -784,26 +953,65 @@ struct EnclosureEditorView: View {
         )
     }
 
-    private var kneeWallTrimColorBinding: Binding<String> {
+    private var kneeWallLinearFootageBinding: Binding<String> {
         Binding(
-            get: { scope.enclosure?.kneeWall?.trimColor ?? "" },
+            get: { scope.enclosure?.kneeWall?.linearFootage ?? "" },
             set: { newValue in
                 updateEnclosure { enclosure in
                     var kneeWall = enclosure.kneeWall ?? emptyKneeWall()
-                    kneeWall.trimColor = newValue.nilIfBlank
+                    kneeWall.linearFootage = newValue.nilIfBlank
                     enclosure.kneeWall = kneeWall
                 }
             }
         )
     }
 
-    private var kneeWallInteriorFinishBinding: Binding<String> {
+    private var kneeWallHeightBinding: Binding<String> {
         Binding(
-            get: { scope.enclosure?.kneeWall?.interiorFinish ?? "" },
+            get: { scope.enclosure?.kneeWall?.height ?? "" },
             set: { newValue in
                 updateEnclosure { enclosure in
                     var kneeWall = enclosure.kneeWall ?? emptyKneeWall()
-                    kneeWall.interiorFinish = newValue.nilIfBlank
+                    kneeWall.height = newValue.nilIfBlank
+                    enclosure.kneeWall = kneeWall
+                }
+            }
+        )
+    }
+
+    private var kneeWallInteriorFinishColorBinding: Binding<ScreenFrameColorOption?> {
+        Binding(
+            get: { scope.enclosure?.kneeWall?.interiorFinishColor },
+            set: { newValue in
+                updateEnclosure { enclosure in
+                    var kneeWall = enclosure.kneeWall ?? emptyKneeWall()
+                    kneeWall.interiorFinishColor = newValue
+                    enclosure.kneeWall = kneeWall
+                }
+            }
+        )
+    }
+
+    private var kneeWallExteriorFinishColorBinding: Binding<ScreenFrameColorOption?> {
+        Binding(
+            get: { scope.enclosure?.kneeWall?.exteriorFinishColor },
+            set: { newValue in
+                updateEnclosure { enclosure in
+                    var kneeWall = enclosure.kneeWall ?? emptyKneeWall()
+                    kneeWall.exteriorFinishColor = newValue
+                    enclosure.kneeWall = kneeWall
+                }
+            }
+        )
+    }
+
+    private var kneeWallFramingBinding: Binding<KneeWallFramingOption?> {
+        Binding(
+            get: { scope.enclosure?.kneeWall?.framing },
+            set: { newValue in
+                updateEnclosure { enclosure in
+                    var kneeWall = enclosure.kneeWall ?? emptyKneeWall()
+                    kneeWall.framing = newValue
                     enclosure.kneeWall = kneeWall
                 }
             }
@@ -828,6 +1036,148 @@ struct EnclosureEditorView: View {
                 updateEnclosure { enclosure in
                     var doors = enclosure.doors ?? emptyDoorOptions()
                     doors.doorType = newValue
+                    if newValue != .hingedScreen {
+                        doors.style = nil
+                    }
+                    if newValue != .hingedScreen, newValue != .slidingGlass {
+                        doors.operableSide = nil
+                    }
+                    if newValue != .hingedScreen, newValue != .pgtCabanaDoor {
+                        doors.hingeSide = nil
+                    }
+                    if newValue != .pgtCabanaDoor {
+                        doors.width = nil
+                        doors.height = nil
+                    }
+                    if newValue != .slidingGlass {
+                        doors.color = nil
+                        doors.dimensions = nil
+                    }
+                    enclosure.doors = doors
+                }
+            }
+        )
+    }
+
+    private var showsHingedScreenStyleOptions: Bool {
+        scope.enclosure?.doors?.doorType == .hingedScreen
+    }
+
+    private var showsOperableSideOptions: Bool {
+        scope.enclosure?.doors?.doorType == .hingedScreen &&
+        scope.enclosure?.doors?.style == .french
+    }
+
+    private var showsDoorHingeSideOptions: Bool {
+        switch scope.enclosure?.doors?.doorType {
+        case .hingedScreen:
+            return scope.enclosure?.doors?.style == .single
+        case .pgtCabanaDoor:
+            return true
+        default:
+            return false
+        }
+    }
+
+    private var showsCabanaDimensions: Bool {
+        scope.enclosure?.doors?.doorType == .pgtCabanaDoor
+    }
+
+    private var showsSlidingGlassFields: Bool {
+        scope.enclosure?.doors?.doorType == .slidingGlass
+    }
+
+    private var doorStyleBinding: Binding<DoorStyleOption?> {
+        Binding(
+            get: { scope.enclosure?.doors?.style },
+            set: { newValue in
+                updateEnclosure { enclosure in
+                    var doors = enclosure.doors ?? emptyDoorOptions()
+                    doors.style = newValue
+                    if newValue != .french {
+                        doors.operableSide = nil
+                    }
+                    if newValue != .single, doors.doorType == .hingedScreen {
+                        doors.hingeSide = nil
+                    }
+                    enclosure.doors = doors
+                }
+            }
+        )
+    }
+
+    private var doorOperableSideBinding: Binding<DoorOperableSideOption?> {
+        Binding(
+            get: { scope.enclosure?.doors?.operableSide },
+            set: { newValue in
+                updateEnclosure { enclosure in
+                    var doors = enclosure.doors ?? emptyDoorOptions()
+                    doors.operableSide = newValue
+                    enclosure.doors = doors
+                }
+            }
+        )
+    }
+
+    private var doorHingeSideBinding: Binding<DoorHingeSideOption?> {
+        Binding(
+            get: { scope.enclosure?.doors?.hingeSide },
+            set: { newValue in
+                updateEnclosure { enclosure in
+                    var doors = enclosure.doors ?? emptyDoorOptions()
+                    doors.hingeSide = newValue
+                    enclosure.doors = doors
+                }
+            }
+        )
+    }
+
+    private var doorWidthBinding: Binding<String> {
+        Binding(
+            get: { scope.enclosure?.doors?.width ?? "" },
+            set: { newValue in
+                updateEnclosure { enclosure in
+                    var doors = enclosure.doors ?? emptyDoorOptions()
+                    doors.width = newValue.nilIfBlank
+                    enclosure.doors = doors
+                }
+            }
+        )
+    }
+
+    private var doorHeightBinding: Binding<String> {
+        Binding(
+            get: { scope.enclosure?.doors?.height ?? "" },
+            set: { newValue in
+                updateEnclosure { enclosure in
+                    var doors = enclosure.doors ?? emptyDoorOptions()
+                    doors.height = newValue.nilIfBlank
+                    enclosure.doors = doors
+                }
+            }
+        )
+    }
+
+    private var doorColorBinding: Binding<String> {
+        Binding(
+            get: { scope.enclosure?.doors?.color ?? "" },
+            set: { newValue in
+                updateEnclosure { enclosure in
+                    var doors = enclosure.doors ?? emptyDoorOptions()
+                    doors.color = newValue.nilIfBlank
+                    enclosure.doors = doors
+                }
+            }
+        )
+    }
+
+    private var doorDimensionsBinding: Binding<String> {
+        Binding(
+            get: { scope.enclosure?.doors?.dimensions ?? "" },
+            set: { newValue in
+                updateEnclosure { enclosure in
+                    var doors = enclosure.doors ?? emptyDoorOptions()
+                    doors.dimensions = newValue.nilIfBlank
                     enclosure.doors = doors
                 }
             }
@@ -850,17 +1200,39 @@ struct EnclosureEditorView: View {
     private func updateEnclosure(_ update: (inout Enclosure) -> Void) {
         var enclosure = scope.enclosure ?? emptyEnclosure()
         update(&enclosure)
-        scope.enclosure = enclosure
+        scope.enclosure = enclosure.isEffectivelyEmpty ? nil : enclosure
         autosave.scheduleSave(for: scope)
     }
 
     private func isScreenType(_ value: EnclosureType?) -> Bool {
         switch value {
-        case .screenOnly, .screenRoomWithDoor, .mixed:
+        case .screenEnclosure, .mixed:
             return true
         default:
             return false
         }
+    }
+
+    private func supportsPanelHeight(_ option: KneeWallOption?) -> Bool {
+        switch option {
+        case .aluminumKickplate, .insulatedAluminumPanel:
+            return true
+        default:
+            return false
+        }
+    }
+
+    private func showsPanelStyleFields(for option: KneeWallOption?) -> Bool {
+        switch option {
+        case .aluminumKickplate, .insulatedAluminumPanel:
+            return true
+        default:
+            return false
+        }
+    }
+
+    private func showsFramedFields(for option: KneeWallOption?) -> Bool {
+        option == .framedKneeWall
     }
 }
 
@@ -960,8 +1332,8 @@ struct WindowsAndGlassEditorView: View {
                         .pickerStyle(.menu)
                         .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
 
-                        if scope.enclosure?.windowSystem?.color == .custom {
-                            TextField("Custom frame color", text: frameColorCustomBinding)
+                        if showsCustomWindowFrameColorField {
+                            TextField("Custom or other frame color", text: frameColorCustomBinding)
                                 .liquidGlassInput()
                                 .formRevealTransition()
                         }
@@ -988,13 +1360,18 @@ struct WindowsAndGlassEditorView: View {
                     }
                 }
                 .formRevealTransition()
+
+                CardGroup(title: "Window Notes") {
+                    NotesField(title: "Window Notes", text: notesBinding, minHeight: 140, showInlineTitle: false)
+                }
+                .formRevealTransition()
             }
         }
         .onAppear {
             isWindowSystemEnabled = scope.enclosure?.windowSystem != nil
         }
         .animation(.formReveal, value: isWindowSystemEnabled)
-        .animation(.formReveal, value: scope.enclosure?.windowSystem?.color == .custom)
+        .animation(.formReveal, value: showsCustomWindowFrameColorField)
     }
 
     private var includeWindowSystemBinding: Binding<Bool> {
@@ -1070,12 +1447,21 @@ struct WindowsAndGlassEditorView: View {
             set: { newValue in
                 updateWindowSystem { windowSystem in
                     windowSystem.color = newValue
-                    if newValue != .custom {
+                    if newValue != .custom, newValue != .other {
                         windowSystem.colorCustom = nil
                     }
                 }
             }
         )
+    }
+
+    private var showsCustomWindowFrameColorField: Bool {
+        switch scope.enclosure?.windowSystem?.color {
+        case .custom, .other:
+            return true
+        default:
+            return false
+        }
     }
 
     private var frameColorCustomBinding: Binding<String> {
@@ -1114,6 +1500,15 @@ struct WindowsAndGlassEditorView: View {
         )
     }
 
+    private var notesBinding: Binding<String> {
+        Binding(
+            get: { scope.enclosure?.windowSystem?.notes ?? "" },
+            set: { newValue in
+                updateWindowSystem { $0.notes = newValue.nilIfBlank }
+            }
+        )
+    }
+
     private func updateEnclosure(_ update: (inout Enclosure) -> Void) {
         var enclosure = scope.enclosure ?? emptyEnclosure()
         update(&enclosure)
@@ -1125,7 +1520,7 @@ struct WindowsAndGlassEditorView: View {
         updateEnclosure { enclosure in
             var windowSystem = enclosure.windowSystem ?? emptyWindowSystem()
             update(&windowSystem)
-            enclosure.windowSystem = windowSystem
+            enclosure.windowSystem = windowSystem.isEffectivelyEmpty ? nil : windowSystem
         }
     }
 }
@@ -1417,8 +1812,8 @@ struct AttachmentConditionsEditorView: View {
                         .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
                         .formRevealTransition()
 
-                        if scope.attachment?.trimThickness == .custom {
-                            TextField("Custom trim thickness", text: trimThicknessCustomBinding)
+                        if showsCustomTrimThicknessField {
+                            TextField("Custom or other trim thickness", text: trimThicknessCustomBinding)
                                 .liquidGlassInput()
                                 .keyboardType(.decimalPad)
                                 .frame(minHeight: 44)
@@ -1452,7 +1847,7 @@ struct AttachmentConditionsEditorView: View {
         .animation(.formReveal, value: scope.attachment?.postColumnMaterial == .other)
         .animation(.formReveal, value: scope.attachment?.trimPresent == true)
         .animation(.formReveal, value: scope.attachment?.trimMaterial == .other)
-        .animation(.formReveal, value: scope.attachment?.trimThickness == .custom)
+        .animation(.formReveal, value: showsCustomTrimThicknessField)
     }
 
     private var houseWallMaterialBinding: Binding<HouseWallMaterial?> {
@@ -1583,12 +1978,21 @@ struct AttachmentConditionsEditorView: View {
             set: { newValue in
                 updateAttachment { attachment in
                     attachment.trimThickness = newValue
-                    if newValue != .custom {
+                    if newValue != .custom, newValue != .other {
                         attachment.trimThicknessCustom = nil
                     }
                 }
             }
         )
+    }
+
+    private var showsCustomTrimThicknessField: Bool {
+        switch scope.attachment?.trimThickness {
+        case .custom, .other:
+            return true
+        default:
+            return false
+        }
     }
 
     private var trimThicknessCustomBinding: Binding<String> {
@@ -2430,7 +2834,8 @@ private func emptyStructuralSystem() -> StructuralSystem {
         beamType: nil,
         roofSystem: nil,
         roofColor: nil,
-        frameColor: nil
+        frameColor: nil,
+        notes: nil
     )
 }
 
@@ -2446,7 +2851,8 @@ private func emptyWindowSystem() -> WindowSystem {
         colorCustom: nil,
         windowHeight: nil,
         numBays: nil,
-        configuration: nil
+        configuration: nil,
+        notes: nil
     )
 }
 
@@ -2523,7 +2929,25 @@ private extension StructuralSystem {
         (beamType ?? "").nilIfBlank == nil &&
         roofSystem == nil &&
         (roofColor ?? "").nilIfBlank == nil &&
-        (frameColor ?? "").nilIfBlank == nil
+        (frameColor ?? "").nilIfBlank == nil &&
+        (notes ?? "").nilIfBlank == nil
+    }
+}
+
+private extension WindowSystem {
+    var isEffectivelyEmpty: Bool {
+        windowType == nil &&
+        frameSystem == nil &&
+        glassType == nil &&
+        glassSafety == nil &&
+        gridOption == nil &&
+        operation == nil &&
+        color == nil &&
+        (colorCustom ?? "").nilIfBlank == nil &&
+        windowHeight == nil &&
+        numBays == nil &&
+        configuration == nil &&
+        (notes ?? "").nilIfBlank == nil
     }
 }
 
@@ -2532,13 +2956,26 @@ private func emptyKneeWall() -> KneeWall {
         option: KneeWallOption.none,
         panelHeight: nil,
         panelColor: nil,
-        trimColor: nil,
-        interiorFinish: nil
+        linearFootage: nil,
+        height: nil,
+        interiorFinishColor: nil,
+        exteriorFinishColor: nil,
+        framing: nil
     )
 }
 
 private func emptyDoorOptions() -> DoorOptions {
-    DoorOptions(doorType: DoorType.none, notes: nil)
+    DoorOptions(
+        doorType: DoorType.none,
+        style: nil,
+        operableSide: nil,
+        hingeSide: nil,
+        width: nil,
+        height: nil,
+        color: nil,
+        dimensions: nil,
+        notes: nil
+    )
 }
 
 private func emptyAttachmentConditions() -> AttachmentConditions {

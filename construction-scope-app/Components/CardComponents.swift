@@ -4,13 +4,19 @@
 // This intentionally exaggerates depth and translucency so the team can
 // judge the maximum plausible Apple-style direction before scaling back.
 struct LiquidGlassBackdrop: View {
+    @Environment(\.colorScheme) private var colorScheme
+
     var body: some View {
         ZStack {
             LinearGradient(
                 colors: [
                     Color(uiColor: .systemGroupedBackground),
-                    Color.white.opacity(0.9),
-                    Color(uiColor: .secondarySystemGroupedBackground).opacity(0.96)
+                    colorScheme == .dark
+                        ? Color.white.opacity(0.9)
+                        : Color(uiColor: .secondarySystemGroupedBackground),
+                    colorScheme == .dark
+                        ? Color(uiColor: .secondarySystemGroupedBackground).opacity(0.96)
+                        : Color(uiColor: .tertiarySystemGroupedBackground).opacity(0.92)
                 ],
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
@@ -20,46 +26,46 @@ struct LiquidGlassBackdrop: View {
             // surfaces stay neutral while refraction feels slightly deeper.
             LinearGradient(
                 colors: [
-                    Color.accentColor.opacity(0.045),
+                    Color.accentColor.opacity(colorScheme == .dark ? 0.045 : 0.03),
                     Color.clear,
-                    Color.accentColor.opacity(0.025)
+                    Color.accentColor.opacity(colorScheme == .dark ? 0.025 : 0.016)
                 ],
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
             )
 
             Circle()
-                .fill(Color.accentColor.opacity(0.08))
+                .fill(Color.accentColor.opacity(colorScheme == .dark ? 0.08 : 0.05))
                 .frame(width: 360, height: 360)
                 .blur(radius: 110)
                 .offset(x: -185, y: -210)
 
             Circle()
-                .fill(Color.accentColor.opacity(0.045))
+                .fill(Color.accentColor.opacity(colorScheme == .dark ? 0.045 : 0.025))
                 .frame(width: 260, height: 260)
                 .blur(radius: 96)
                 .offset(x: 220, y: 265)
 
             Circle()
-                .fill(Color.white.opacity(0.46))
+                .fill(Color.white.opacity(colorScheme == .dark ? 0.46 : 0.24))
                 .frame(width: 340, height: 340)
                 .blur(radius: 88)
                 .offset(x: -170, y: -250)
 
             Circle()
-                .fill(Color.white.opacity(0.18))
+                .fill(Color.white.opacity(colorScheme == .dark ? 0.18 : 0.08))
                 .frame(width: 280, height: 280)
                 .blur(radius: 82)
                 .offset(x: 180, y: -140)
 
             Circle()
-                .fill(Color.black.opacity(0.05))
+                .fill(Color.black.opacity(colorScheme == .dark ? 0.05 : 0.08))
                 .frame(width: 300, height: 300)
                 .blur(radius: 88)
                 .offset(x: -130, y: 280)
 
             Circle()
-                .fill(Color.white.opacity(0.22))
+                .fill(Color.white.opacity(colorScheme == .dark ? 0.22 : 0.1))
                 .frame(width: 260, height: 260)
                 .blur(radius: 70)
                 .offset(x: 210, y: 250)
@@ -69,6 +75,8 @@ struct LiquidGlassBackdrop: View {
 }
 
 struct CardGroup<Content: View>: View {
+    @Environment(\.colorScheme) private var colorScheme
+
     let title: String
     @ViewBuilder var content: Content
 
@@ -89,28 +97,28 @@ struct CardGroup<Content: View>: View {
                     .fill(
                         LinearGradient(
                             colors: [
-                                Color.white.opacity(0.08),
-                                Color.white.opacity(0.025),
-                                Color.black.opacity(0.015)
+                                Color.white.opacity(colorScheme == .dark ? 0.08 : 0.13),
+                                Color.white.opacity(colorScheme == .dark ? 0.025 : 0.05),
+                                Color.black.opacity(colorScheme == .dark ? 0.015 : 0.028)
                             ],
                             startPoint: .topLeading,
                             endPoint: .bottomTrailing
                         )
                     )
                 RoundedRectangle(cornerRadius: 22, style: .continuous)
-                    .fill(Color(uiColor: .secondarySystemGroupedBackground).opacity(0.3))
+                    .fill(Color(uiColor: .secondarySystemGroupedBackground).opacity(colorScheme == .dark ? 0.3 : 0.46))
             }
         )
         .overlay {
             RoundedRectangle(cornerRadius: 22, style: .continuous)
                 .strokeBorder(
-                    LinearGradient(
-                        colors: [
-                            Color.white.opacity(0.14),
-                            Color.white.opacity(0.04),
-                            Color.clear
-                        ],
-                        startPoint: .topLeading,
+                        LinearGradient(
+                            colors: [
+                                Color.white.opacity(colorScheme == .dark ? 0.14 : 0.24),
+                                Color.white.opacity(colorScheme == .dark ? 0.04 : 0.08),
+                                Color.clear
+                            ],
+                            startPoint: .topLeading,
                         endPoint: .bottomTrailing
                     ),
                     lineWidth: 1
@@ -119,13 +127,13 @@ struct CardGroup<Content: View>: View {
         .overlay {
             RoundedRectangle(cornerRadius: 22, style: .continuous)
                 .strokeBorder(
-                    LinearGradient(
-                        colors: [
-                            Color.clear,
-                            Color.white.opacity(0.05)
-                        ],
-                        startPoint: .top,
-                        endPoint: .bottom
+                        LinearGradient(
+                            colors: [
+                                Color.clear,
+                                Color.white.opacity(colorScheme == .dark ? 0.05 : 0.09)
+                            ],
+                            startPoint: .top,
+                            endPoint: .bottom
                     ),
                     lineWidth: 2
                 )
@@ -135,6 +143,8 @@ struct CardGroup<Content: View>: View {
 }
 
 struct GlassChromePanel<Content: View>: View {
+    @Environment(\.colorScheme) private var colorScheme
+
     let cornerRadius: CGFloat
     @ViewBuilder var content: Content
 
@@ -154,9 +164,9 @@ struct GlassChromePanel<Content: View>: View {
                         .fill(
                             LinearGradient(
                                 colors: [
-                                    Color.white.opacity(0.24),
-                                    Color.white.opacity(0.08),
-                                    Color.black.opacity(0.015)
+                                    Color.white.opacity(colorScheme == .dark ? 0.24 : 0.18),
+                                    Color.white.opacity(colorScheme == .dark ? 0.08 : 0.05),
+                                    Color.black.opacity(colorScheme == .dark ? 0.015 : 0.03)
                                 ],
                                 startPoint: .topLeading,
                                 endPoint: .bottomTrailing
@@ -169,8 +179,8 @@ struct GlassChromePanel<Content: View>: View {
                     .strokeBorder(
                         LinearGradient(
                             colors: [
-                                Color.white.opacity(0.36),
-                                Color.white.opacity(0.08),
+                                Color.white.opacity(colorScheme == .dark ? 0.36 : 0.28),
+                                Color.white.opacity(colorScheme == .dark ? 0.08 : 0.11),
                                 Color.clear
                             ],
                             startPoint: .topLeading,
@@ -181,7 +191,7 @@ struct GlassChromePanel<Content: View>: View {
             }
             .overlay(alignment: .top) {
                 RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                    .strokeBorder(Color.white.opacity(0.16), lineWidth: 4)
+                    .strokeBorder(Color.white.opacity(colorScheme == .dark ? 0.16 : 0.12), lineWidth: 4)
                     .blur(radius: 8)
                     .mask(alignment: .top) {
                         Rectangle()
@@ -318,12 +328,14 @@ struct RequiredLabel: View {
     }
 }
 
-extension View {
-    // Experimental upper-bound Liquid Glass input styling for the branch.
-    // Centralized here so all typed and Scribble-friendly text surfaces can
-    // share one consistent treatment during the exploration pass.
-    func liquidGlassInput(cornerRadius: CGFloat = 14) -> some View {
-        textFieldStyle(.plain)
+private struct LiquidGlassInputModifier: ViewModifier {
+    @Environment(\.colorScheme) private var colorScheme
+
+    let cornerRadius: CGFloat
+
+    func body(content: Content) -> some View {
+        content
+            .textFieldStyle(.plain)
             .padding(.horizontal, 14)
             .frame(minHeight: 44)
             .background(
@@ -331,9 +343,11 @@ extension View {
                     RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
                         .fill(.ultraThinMaterial)
                     RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                        .fill(Color.white.opacity(0.04))
+                        .fill(Color.white.opacity(colorScheme == .dark ? 0.04 : 0.08))
                     RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                        .fill(Color.accentColor.opacity(0.035))
+                        .fill(Color.black.opacity(colorScheme == .dark ? 0.012 : 0.028))
+                    RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                        .fill(Color.accentColor.opacity(colorScheme == .dark ? 0.035 : 0.02))
                 }
             )
             .overlay {
@@ -341,8 +355,8 @@ extension View {
                     .strokeBorder(
                         LinearGradient(
                             colors: [
-                                Color.white.opacity(0.18),
-                                Color.white.opacity(0.05),
+                                Color.white.opacity(colorScheme == .dark ? 0.18 : 0.26),
+                                Color.white.opacity(colorScheme == .dark ? 0.05 : 0.09),
                                 Color.clear
                             ],
                             startPoint: .topLeading,
@@ -353,7 +367,7 @@ extension View {
             }
             .overlay(alignment: .top) {
                 RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                    .strokeBorder(Color.white.opacity(0.11), lineWidth: 2)
+                    .strokeBorder(Color.white.opacity(colorScheme == .dark ? 0.11 : 0.16), lineWidth: 2)
                     .blur(radius: 4)
                     .mask {
                         Rectangle()
@@ -361,17 +375,26 @@ extension View {
                     }
             }
     }
+}
 
-    func liquidGlassInputBackground(cornerRadius: CGFloat = 14) -> some View {
-        scrollContentBackground(.hidden)
+private struct LiquidGlassInputBackgroundModifier: ViewModifier {
+    @Environment(\.colorScheme) private var colorScheme
+
+    let cornerRadius: CGFloat
+
+    func body(content: Content) -> some View {
+        content
+            .scrollContentBackground(.hidden)
             .background(
                 ZStack {
                     RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
                         .fill(.ultraThinMaterial)
                     RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                        .fill(Color.white.opacity(0.04))
+                        .fill(Color.white.opacity(colorScheme == .dark ? 0.04 : 0.08))
                     RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                        .fill(Color.accentColor.opacity(0.03))
+                        .fill(Color.black.opacity(colorScheme == .dark ? 0.012 : 0.026))
+                    RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                        .fill(Color.accentColor.opacity(colorScheme == .dark ? 0.03 : 0.018))
                 }
             )
             .overlay {
@@ -379,8 +402,8 @@ extension View {
                     .strokeBorder(
                         LinearGradient(
                             colors: [
-                                Color.white.opacity(0.18),
-                                Color.white.opacity(0.05),
+                                Color.white.opacity(colorScheme == .dark ? 0.18 : 0.26),
+                                Color.white.opacity(colorScheme == .dark ? 0.05 : 0.09),
                                 Color.clear
                             ],
                             startPoint: .topLeading,
@@ -391,7 +414,7 @@ extension View {
             }
             .overlay(alignment: .top) {
                 RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                    .strokeBorder(Color.white.opacity(0.11), lineWidth: 2)
+                    .strokeBorder(Color.white.opacity(colorScheme == .dark ? 0.11 : 0.16), lineWidth: 2)
                     .blur(radius: 4)
                     .mask {
                         Rectangle()
@@ -399,41 +422,67 @@ extension View {
                     }
             }
     }
+}
+
+private struct LiquidGlassSurfaceModifier: ViewModifier {
+    @Environment(\.colorScheme) private var colorScheme
+
+    let cornerRadius: CGFloat
+
+    func body(content: Content) -> some View {
+        content
+            .background(
+                ZStack {
+                    RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                        .fill(.ultraThinMaterial)
+                    RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                        .fill(Color.white.opacity(colorScheme == .dark ? 0.038 : 0.07))
+                    RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                        .fill(Color.black.opacity(colorScheme == .dark ? 0.01 : 0.024))
+                    RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                        .fill(Color.accentColor.opacity(colorScheme == .dark ? 0.028 : 0.016))
+                }
+            )
+            .overlay {
+                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                    .strokeBorder(
+                        LinearGradient(
+                            colors: [
+                                Color.white.opacity(colorScheme == .dark ? 0.18 : 0.24),
+                                Color.white.opacity(colorScheme == .dark ? 0.05 : 0.08),
+                                Color.clear
+                            ],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        ),
+                        lineWidth: 1
+                    )
+            }
+            .overlay(alignment: .top) {
+                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                    .strokeBorder(Color.white.opacity(colorScheme == .dark ? 0.1 : 0.14), lineWidth: 2)
+                    .blur(radius: 4)
+                    .mask {
+                        Rectangle()
+                            .frame(height: 16)
+                    }
+            }
+    }
+}
+
+extension View {
+    // Experimental upper-bound Liquid Glass input styling for the branch.
+    // Centralized here so all typed and Scribble-friendly text surfaces can
+    // share one consistent treatment during the exploration pass.
+    func liquidGlassInput(cornerRadius: CGFloat = 14) -> some View {
+        modifier(LiquidGlassInputModifier(cornerRadius: cornerRadius))
+    }
+
+    func liquidGlassInputBackground(cornerRadius: CGFloat = 14) -> some View {
+        modifier(LiquidGlassInputBackgroundModifier(cornerRadius: cornerRadius))
+    }
 
     func liquidGlassSurface(cornerRadius: CGFloat = 14) -> some View {
-        background(
-            ZStack {
-                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                    .fill(.ultraThinMaterial)
-                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                    .fill(Color.white.opacity(0.038))
-                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                    .fill(Color.accentColor.opacity(0.028))
-            }
-        )
-        .overlay {
-            RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                .strokeBorder(
-                    LinearGradient(
-                        colors: [
-                            Color.white.opacity(0.18),
-                            Color.white.opacity(0.05),
-                            Color.clear
-                        ],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    ),
-                    lineWidth: 1
-                )
-        }
-        .overlay(alignment: .top) {
-            RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                .strokeBorder(Color.white.opacity(0.1), lineWidth: 2)
-                .blur(radius: 4)
-                .mask {
-                    Rectangle()
-                        .frame(height: 16)
-                }
-        }
+        modifier(LiquidGlassSurfaceModifier(cornerRadius: cornerRadius))
     }
 }

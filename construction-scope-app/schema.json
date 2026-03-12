@@ -21,7 +21,8 @@
             "draft",
             "sold",
             "in_production",
-            "closed"
+            "closed",
+            "other"
           ],
           "required": true
         },
@@ -154,7 +155,8 @@
           "type": "enum",
           "values": [
             "one_story",
-            "two_story"
+            "two_story",
+            "other"
           ],
           "required": false
         },
@@ -246,7 +248,8 @@
             "flat",
             "low_slope",
             "gable",
-            "pergola"
+            "pergola",
+            "other"
           ],
           "required": false
         },
@@ -255,7 +258,8 @@
           "values": [
             "fascia_mount",
             "wall_mount",
-            "free_standing"
+            "free_standing",
+            "other"
           ],
           "required": false
         },
@@ -272,7 +276,8 @@
           "values": [
             "aluminum",
             "cedar",
-            "steel"
+            "steel",
+            "other"
           ],
           "required": false
         },
@@ -290,7 +295,8 @@
             "insulated_panels",
             "polycarbonate",
             "metal",
-            "shingle"
+            "shingle",
+            "other"
           ],
           "required": false
         },
@@ -301,6 +307,10 @@
         "frameColor": {
           "type": "string",
           "required": false
+        },
+        "notes": {
+          "type": "string",
+          "required": false
         }
       }
     },
@@ -309,11 +319,11 @@
         "enclosureType": {
           "type": "enum",
           "values": [
-            "screen_only",
-            "screen_room_with_door",
+            "screen_enclosure",
             "vinyl_window_enclosure",
             "glass_sunroom",
-            "mixed"
+            "mixed",
+            "other"
           ],
           "required": false
         },
@@ -323,7 +333,8 @@
             "18x14_standard_fiberglass",
             "20x20_no_see_um",
             "18x14_tuff",
-            "20x20_tuff"
+            "20x20_tuff",
+            "other"
           ],
           "required": false
         },
@@ -334,7 +345,8 @@
             "beige",
             "bronze",
             "black",
-            "custom"
+            "khaki",
+            "other"
           ],
           "required": false
         },
@@ -362,7 +374,8 @@
           "type": "enum",
           "values": [
             "pgt_ezebreeze_4track_vinyl",
-            "double_pane_insulated_glass"
+            "double_pane_insulated_glass",
+            "other"
           ],
           "required": false
         },
@@ -371,7 +384,8 @@
           "values": [
             "standard_patio_extrusion",
             "heavy_duty_extrusion",
-            "thermally_broken_insulated"
+            "thermally_broken_insulated",
+            "other"
           ],
           "required": false
         },
@@ -380,7 +394,8 @@
           "values": [
             "clear",
             "low_e",
-            "tinted"
+            "tinted",
+            "other"
           ],
           "required": false
         },
@@ -389,7 +404,8 @@
           "values": [
             "annealed",
             "tempered",
-            "tempered_required_by_code"
+            "tempered_required_by_code",
+            "other"
           ],
           "required": false
         },
@@ -399,7 +415,8 @@
             "none",
             "2x2",
             "2x3",
-            "colonial"
+            "colonial",
+            "other"
           ],
           "required": false
         },
@@ -409,7 +426,8 @@
             "vertical_slide",
             "horizontal_slide",
             "fixed",
-            "casement"
+            "casement",
+            "other"
           ],
           "required": false
         },
@@ -420,7 +438,8 @@
             "beige",
             "bronze",
             "black",
-            "custom"
+            "custom",
+            "other"
           ],
           "required": false
         },
@@ -441,8 +460,13 @@
           "values": [
             "full_height",
             "above_knee_wall",
-            "mixed"
+            "mixed",
+            "other"
           ],
+          "required": false
+        },
+        "notes": {
+          "type": "string",
           "required": false
         }
       }
@@ -455,24 +479,61 @@
             "none",
             "aluminum_kickplate",
             "framed_knee_wall",
-            "insulated_aluminum_panel"
+            "insulated_aluminum_panel",
+            "other"
           ],
           "required": false
         },
         "panelHeight": {
-          "type": "number",
+          "type": "enum",
+          "values": [
+            "16_in",
+            "24_in"
+          ],
           "required": false
         },
         "panelColor": {
           "type": "string",
           "required": false
         },
-        "trimColor": {
+        "linearFootage": {
           "type": "string",
           "required": false
         },
-        "interiorFinish": {
+        "height": {
           "type": "string",
+          "required": false
+        },
+        "interiorFinishColor": {
+          "type": "enum",
+          "values": [
+            "white",
+            "beige",
+            "bronze",
+            "black",
+            "khaki",
+            "other"
+          ],
+          "required": false
+        },
+        "exteriorFinishColor": {
+          "type": "enum",
+          "values": [
+            "white",
+            "beige",
+            "bronze",
+            "black",
+            "khaki",
+            "other"
+          ],
+          "required": false
+        },
+        "framing": {
+          "type": "enum",
+          "values": [
+            "2x4",
+            "2x6"
+          ],
           "required": false
         }
       }
@@ -484,10 +545,50 @@
           "values": [
             "none",
             "hinged_screen",
-            "heavy_duty_aluminum",
+            "pgt_cabana_door",
             "sliding_glass",
-            "french"
+            "other"
           ],
+          "required": false
+        },
+        "style": {
+          "type": "enum",
+          "values": [
+            "french",
+            "single"
+          ],
+          "required": false
+        },
+        "operableSide": {
+          "type": "enum",
+          "values": [
+            "left",
+            "right"
+          ],
+          "required": false
+        },
+        "hingeSide": {
+          "type": "enum",
+          "values": [
+            "left_hinge",
+            "right_hinge"
+          ],
+          "required": false
+        },
+        "width": {
+          "type": "string",
+          "required": false
+        },
+        "height": {
+          "type": "string",
+          "required": false
+        },
+        "color": {
+          "type": "string",
+          "required": false
+        },
+        "dimensions": {
+          "type": "string",
           "required": false
         },
         "notes": {
@@ -508,7 +609,8 @@
             "none",
             "recessed",
             "fan_light",
-            "surface_mount"
+            "surface_mount",
+            "other"
           ],
           "required": false
         },
@@ -578,7 +680,8 @@
             "ledger_required",
             "direct_mount",
             "through_siding_into_framing",
-            "through_masonry_into_structure"
+            "through_masonry_into_structure",
+            "other"
           ],
           "required": false
         },
@@ -636,7 +739,8 @@
             "1.0",
             "1.5",
             "2.0",
-            "custom"
+            "custom",
+            "other"
           ],
           "required": false
         },
@@ -650,7 +754,8 @@
             "direct_to_structural",
             "through_trim_to_structural",
             "trim_cut_back",
-            "spacer_block_required"
+            "spacer_block_required",
+            "other"
           ],
           "required": false
         },
@@ -728,7 +833,8 @@
           "values": [
             "not_ordered",
             "ordered",
-            "delivered"
+            "delivered",
+            "other"
           ],
           "required": false
         },
@@ -737,7 +843,8 @@
           "values": [
             "not_submitted",
             "submitted",
-            "approved"
+            "approved",
+            "other"
           ],
           "required": false
         }

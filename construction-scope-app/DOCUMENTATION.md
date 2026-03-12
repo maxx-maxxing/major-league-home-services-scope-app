@@ -182,8 +182,14 @@
     - replaced chip-like sidebar selection with integrated row emphasis using a slim accent rail, softer pooled material, and no floating checkmark treatment
     - increased separation between the editor header chrome and the card stack below by calming `CardGroup` while giving the header a clearer chrome identity
     - restored a restrained Liquid Glass read to inputs and utility containers through light tint/highlight layering instead of thicker borders or stronger shadows
+  - Schema/UI field alignment pass:
+    - updated the enclosure type taxonomy to use `Screen Enclosure` in place of the previous split `Screen Only` / `Screen Room With Door` choices
+    - added notes fields for `Structural System` and `Windows & Glass` in the schema-backed model, editors, and PDF summary
+    - expanded schema-backed dropdown enums used by section editors so each menu includes an `Other` option
+    - refined `Knee Wall + Doors` so aluminum-panel and framed-knee-wall variants now reveal different schema-backed controls instead of sharing one generic field set
+    - reworked enclosure door options into conditional native pickers so hinged-screen and `PGT Cabana Door` variants reveal their own side/style/dimension fields
 - Production notes are stored in `customerApproval.optionsConfirmedText` (schema-consistent text field already available).
-- `schema.json` was not changed.
+- `schema.json` was updated when dropdown options / notes fields changed.
 
 ## How to Run
 1. Open [ConstructionScopeApp.xcodeproj](/C:/Users/your_/Downloads/construction-scope-app_coderpack_plus/construction-scope-app/ConstructionScopeApp.xcodeproj).

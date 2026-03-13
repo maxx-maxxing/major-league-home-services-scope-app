@@ -1,0 +1,56 @@
+{
+  "" : {
+    "const-values" : "/Users/maxx/Documents/major-league-home-services-scope-app/construction-scope-app/build/ConstructionScopeApp.build/Release-iphoneos/ConstructionScopeApp.build/Objects-normal/arm64/ConstructionScopeApp-primary.swiftconstvalues",
+    "dependencies" : "/Users/maxx/Documents/major-league-home-services-scope-app/construction-scope-app/build/ConstructionScopeApp.build/Release-iphoneos/ConstructionScopeApp.build/Objects-normal/arm64/ConstructionScopeApp-primary.d",
+    "diagnostics" : "/Users/maxx/Documents/major-league-home-services-scope-app/construction-scope-app/build/ConstructionScopeApp.build/Release-iphoneos/ConstructionScopeApp.build/Objects-normal/arm64/ConstructionScopeApp-primary.dia",
+    "emit-module-dependencies" : "/Users/maxx/Documents/major-league-home-services-scope-app/construction-scope-app/build/ConstructionScopeApp.build/Release-iphoneos/ConstructionScopeApp.build/Objects-normal/arm64/ConstructionScopeApp-primary-emit-module.d",
+    "emit-module-diagnostics" : "/Users/maxx/Documents/major-league-home-services-scope-app/construction-scope-app/build/ConstructionScopeApp.build/Release-iphoneos/ConstructionScopeApp.build/Objects-normal/arm64/ConstructionScopeApp-primary-emit-module.dia",
+    "pch" : "/Users/maxx/Documents/major-league-home-services-scope-app/construction-scope-app/build/ConstructionScopeApp.build/Release-iphoneos/ConstructionScopeApp.build/Objects-normal/arm64/ConstructionScopeApp-primary-Bridging-header.pch",
+    "swift-dependencies" : "/Users/maxx/Documents/major-league-home-services-scope-app/construction-scope-app/build/ConstructionScopeApp.build/Release-iphoneos/ConstructionScopeApp.build/Objects-normal/arm64/ConstructionScopeApp-primary.swiftdeps"
+  },
+  "/Users/maxx/Documents/major-league-home-services-scope-app/construction-scope-app/App/ConstructionScopeAppApp.swift" : {
+    "index-unit-output-path" : "/ConstructionScopeApp.build/Release-iphoneos/ConstructionScopeApp.build/Objects-normal/arm64/ConstructionScopeAppApp.o",
+    "llvm-bc" : "/Users/maxx/Documents/major-league-home-services-scope-app/construction-scope-app/build/ConstructionScopeApp.build/Release-iphoneos/ConstructionScopeApp.build/Objects-normal/arm64/ConstructionScopeAppApp.bc",
+    "object" : "/Users/maxx/Documents/major-league-home-services-scope-app/construction-scope-app/build/ConstructionScopeApp.build/Release-iphoneos/ConstructionScopeApp.build/Objects-normal/arm64/ConstructionScopeAppApp.o"
+  },
+  "/Users/maxx/Documents/major-league-home-services-scope-app/construction-scope-app/Components/CardComponents.swift" : {
+    "index-unit-output-path" : "/ConstructionScopeApp.build/Release-iphoneos/ConstructionScopeApp.build/Objects-normal/arm64/CardComponents.o",
+    "llvm-bc" : "/Users/maxx/Documents/major-league-home-services-scope-app/construction-scope-app/build/ConstructionScopeApp.build/Release-iphoneos/ConstructionScopeApp.build/Objects-normal/arm64/CardComponents.bc",
+    "object" : "/Users/maxx/Documents/major-league-home-services-scope-app/construction-scope-app/build/ConstructionScopeApp.build/Release-iphoneos/ConstructionScopeApp.build/Objects-normal/arm64/CardComponents.o"
+  },
+  "/Users/maxx/Documents/major-league-home-services-scope-app/construction-scope-app/Models/SchemaModels.swift" : {
+    "index-unit-output-path" : "/ConstructionScopeApp.build/Release-iphoneos/ConstructionScopeApp.build/Objects-normal/arm64/SchemaModels.o",
+    "llvm-bc" : "/Users/maxx/Documents/major-league-home-services-scope-app/construction-scope-app/build/ConstructionScopeApp.build/Release-iphoneos/ConstructionScopeApp.build/Objects-normal/arm64/SchemaModels.bc",
+    "object" : "/Users/maxx/Documents/major-league-home-services-scope-app/construction-scope-app/build/ConstructionScopeApp.build/Release-iphoneos/ConstructionScopeApp.build/Objects-normal/arm64/SchemaModels.o"
+  },
+  "/Users/maxx/Documents/major-league-home-services-scope-app/construction-scope-app/PDFEngine/PDFPreviewStubView.swift" : {
+    "index-unit-output-path" : "/ConstructionScopeApp.build/Release-iphoneos/ConstructionScopeApp.build/Objects-normal/arm64/PDFPreviewStubView.o",
+    "llvm-bc" : "/Users/maxx/Documents/major-league-home-services-scope-app/construction-scope-app/build/ConstructionScopeApp.build/Release-iphoneos/ConstructionScopeApp.build/Objects-normal/arm64/PDFPreviewStubView.bc",
+    "object" : "/Users/maxx/Documents/major-league-home-services-scope-app/construction-scope-app/build/ConstructionScopeApp.build/Release-iphoneos/ConstructionScopeApp.build/Objects-normal/arm64/PDFPreviewStubView.o"
+  },
+  "/Users/maxx/Documents/major-league-home-services-scope-app/construction-scope-app/Persistence/Persistence.swift" : {
+    "index-unit-output-path" : "/ConstructionScopeApp.build/Release-iphoneos/ConstructionScopeApp.build/Objects-normal/arm64/Persistence.o",
+    "llvm-bc" : "/Users/maxx/Documents/major-league-home-services-scope-app/construction-scope-app/build/ConstructionScopeApp.build/Release-iphoneos/ConstructionScopeApp.build/Objects-normal/arm64/Persistence.bc",
+    "object" : "/Users/maxx/Documents/major-league-home-services-scope-app/construction-scope-app/build/ConstructionScopeApp.build/Release-iphoneos/ConstructionScopeApp.build/Objects-normal/arm64/Persistence.o"
+  },
+  "/Users/maxx/Documents/major-league-home-services-scope-app/construction-scope-app/Views/PencilDrawingSupport.swift" : {
+    "index-unit-output-path" : "/ConstructionScopeApp.build/Release-iphoneos/ConstructionScopeApp.build/Objects-normal/arm64/PencilDrawingSupport.o",
+    "llvm-bc" : "/Users/maxx/Documents/major-league-home-services-scope-app/construction-scope-app/build/ConstructionScopeApp.build/Release-iphoneos/ConstructionScopeApp.build/Objects-normal/arm64/PencilDrawingSupport.bc",
+    "object" : "/Users/maxx/Documents/major-league-home-services-scope-app/construction-scope-app/build/ConstructionScopeApp.build/Release-iphoneos/ConstructionScopeApp.build/Objects-normal/arm64/PencilDrawingSupport.o"
+  },
+  "/Users/maxx/Documents/major-league-home-services-scope-app/construction-scope-app/Views/PhotoAttachmentSupport.swift" : {
+    "index-unit-output-path" : "/ConstructionScopeApp.build/Release-iphoneos/ConstructionScopeApp.build/Objects-normal/arm64/PhotoAttachmentSupport.o",
+    "llvm-bc" : "/Users/maxx/Documents/major-league-home-services-scope-app/construction-scope-app/build/ConstructionScopeApp.build/Release-iphoneos/ConstructionScopeApp.build/Objects-normal/arm64/PhotoAttachmentSupport.bc",
+    "object" : "/Users/maxx/Documents/major-league-home-services-scope-app/construction-scope-app/build/ConstructionScopeApp.build/Release-iphoneos/ConstructionScopeApp.build/Objects-normal/arm64/PhotoAttachmentSupport.o"
+  },
+  "/Users/maxx/Documents/major-league-home-services-scope-app/construction-scope-app/Views/RootNavigationView.swift" : {
+    "index-unit-output-path" : "/ConstructionScopeApp.build/Release-iphoneos/ConstructionScopeApp.build/Objects-normal/arm64/RootNavigationView.o",
+    "llvm-bc" : "/Users/maxx/Documents/major-league-home-services-scope-app/construction-scope-app/build/ConstructionScopeApp.build/Release-iphoneos/ConstructionScopeApp.build/Objects-normal/arm64/RootNavigationView.bc",
+    "object" : "/Users/maxx/Documents/major-league-home-services-scope-app/construction-scope-app/build/ConstructionScopeApp.build/Release-iphoneos/ConstructionScopeApp.build/Objects-normal/arm64/RootNavigationView.o"
+  },
+  "/Users/maxx/Documents/major-league-home-services-scope-app/construction-scope-app/Views/SectionEditors.swift" : {
+    "index-unit-output-path" : "/ConstructionScopeApp.build/Release-iphoneos/ConstructionScopeApp.build/Objects-normal/arm64/SectionEditors.o",
+    "llvm-bc" : "/Users/maxx/Documents/major-league-home-services-scope-app/construction-scope-app/build/ConstructionScopeApp.build/Release-iphoneos/ConstructionScopeApp.build/Objects-normal/arm64/SectionEditors.bc",
+    "object" : "/Users/maxx/Documents/major-league-home-services-scope-app/construction-scope-app/build/ConstructionScopeApp.build/Release-iphoneos/ConstructionScopeApp.build/Objects-normal/arm64/SectionEditors.o"
+  }
+}

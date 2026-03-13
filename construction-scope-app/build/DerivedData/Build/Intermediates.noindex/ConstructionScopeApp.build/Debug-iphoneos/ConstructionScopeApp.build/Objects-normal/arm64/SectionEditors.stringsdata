@@ -1,0 +1,1144 @@
+{
+  "source": "/Users/maxx/Documents/major-league-home-services-scope-app/construction-scope-app/Views/SectionEditors.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "Enter client name",
+        "location": {
+          "startingColumn": 35,
+          "startingLine": 16
+        }
+      },
+      {
+        "comment": "",
+        "key": "Street address",
+        "location": {
+          "startingColumn": 35,
+          "startingLine": 22
+        }
+      },
+      {
+        "comment": "",
+        "key": "City",
+        "location": {
+          "startingColumn": 34,
+          "startingLine": 28
+        }
+      },
+      {
+        "comment": "",
+        "key": "City",
+        "location": {
+          "startingColumn": 39,
+          "startingLine": 30
+        }
+      },
+      {
+        "comment": "",
+        "key": "ZIP",
+        "location": {
+          "startingColumn": 34,
+          "startingLine": 35
+        }
+      },
+      {
+        "comment": "",
+        "key": "ZIP",
+        "location": {
+          "startingColumn": 39,
+          "startingLine": 37
+        }
+      },
+      {
+        "comment": "",
+        "key": "Phone",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 48
+        }
+      },
+      {
+        "comment": "",
+        "key": "Phone",
+        "location": {
+          "startingColumn": 35,
+          "startingLine": 50
+        }
+      },
+      {
+        "comment": "",
+        "key": "Email",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 56
+        }
+      },
+      {
+        "comment": "",
+        "key": "Email",
+        "location": {
+          "startingColumn": 35,
+          "startingLine": 58
+        }
+      },
+      {
+        "comment": "",
+        "key": "Salesperson",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 65
+        }
+      },
+      {
+        "comment": "",
+        "key": "Salesperson",
+        "location": {
+          "startingColumn": 35,
+          "startingLine": 67
+        }
+      },
+      {
+        "comment": "",
+        "key": "Estimator",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 72
+        }
+      },
+      {
+        "comment": "",
+        "key": "Estimator",
+        "location": {
+          "startingColumn": 35,
+          "startingLine": 74
+        }
+      },
+      {
+        "comment": "",
+        "key": "Include Site Visit Date",
+        "location": {
+          "startingColumn": 28,
+          "startingLine": 95
+        }
+      },
+      {
+        "comment": "",
+        "key": "Site Visit Date",
+        "location": {
+          "startingColumn": 29,
+          "startingLine": 100
+        }
+      },
+      {
+        "comment": "",
+        "key": "Project Type",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 83
+        }
+      },
+      {
+        "comment": "",
+        "key": "Project Type",
+        "location": {
+          "startingColumn": 32,
+          "startingLine": 86
+        }
+      },
+      {
+        "comment": "",
+        "key": "Notes",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 110
+        }
+      },
+      {
+        "comment": "",
+        "key": "House Stories",
+        "location": {
+          "startingColumn": 28,
+          "startingLine": 196
+        }
+      },
+      {
+        "comment": "",
+        "key": "Exterior Finish",
+        "location": {
+          "startingColumn": 28,
+          "startingLine": 206
+        }
+      },
+      {
+        "comment": "",
+        "key": "Existing Structure",
+        "location": {
+          "startingColumn": 28,
+          "startingLine": 216
+        }
+      },
+      {
+        "comment": "",
+        "key": "Not Set",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 197
+        }
+      },
+      {
+        "comment": "",
+        "key": "Not Set",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 207
+        }
+      },
+      {
+        "comment": "",
+        "key": "Not Set",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 217
+        }
+      },
+      {
+        "comment": "",
+        "key": "Mark the reference photos that should be captured on site.",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 237
+        }
+      },
+      {
+        "comment": "",
+        "key": "Roof Style",
+        "location": {
+          "startingColumn": 28,
+          "startingLine": 344
+        }
+      },
+      {
+        "comment": "",
+        "key": "Attachment Type",
+        "location": {
+          "startingColumn": 28,
+          "startingLine": 354
+        }
+      },
+      {
+        "comment": "",
+        "key": "Not Set",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 345
+        }
+      },
+      {
+        "comment": "",
+        "key": "Not Set",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 355
+        }
+      },
+      {
+        "comment": "",
+        "key": "Frame Material",
+        "location": {
+          "startingColumn": 28,
+          "startingLine": 451
+        }
+      },
+      {
+        "comment": "",
+        "key": "Post size",
+        "location": {
+          "startingColumn": 31,
+          "startingLine": 460
+        }
+      },
+      {
+        "comment": "",
+        "key": "Beam type",
+        "location": {
+          "startingColumn": 31,
+          "startingLine": 463
+        }
+      },
+      {
+        "comment": "",
+        "key": "Not Set",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 452
+        }
+      },
+      {
+        "comment": "",
+        "key": "Roof System",
+        "location": {
+          "startingColumn": 28,
+          "startingLine": 471
+        }
+      },
+      {
+        "comment": "",
+        "key": "Roof color",
+        "location": {
+          "startingColumn": 31,
+          "startingLine": 480
+        }
+      },
+      {
+        "comment": "",
+        "key": "Frame color",
+        "location": {
+          "startingColumn": 31,
+          "startingLine": 483
+        }
+      },
+      {
+        "comment": "",
+        "key": "Not Set",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 472
+        }
+      },
+      {
+        "comment": "",
+        "key": "Type",
+        "location": {
+          "startingColumn": 24,
+          "startingLine": 573
+        }
+      },
+      {
+        "comment": "",
+        "key": "Not Set",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 574
+        }
+      },
+      {
+        "comment": "",
+        "key": "Screen Wall Type",
+        "location": {
+          "startingColumn": 32,
+          "startingLine": 587
+        }
+      },
+      {
+        "comment": "",
+        "key": "Screen Frame Color",
+        "location": {
+          "startingColumn": 32,
+          "startingLine": 597
+        }
+      },
+      {
+        "comment": "",
+        "key": "Custom or other screen frame color",
+        "location": {
+          "startingColumn": 39,
+          "startingLine": 607
+        }
+      },
+      {
+        "comment": "",
+        "key": "Not Set",
+        "location": {
+          "startingColumn": 34,
+          "startingLine": 588
+        }
+      },
+      {
+        "comment": "",
+        "key": "Not Set",
+        "location": {
+          "startingColumn": 34,
+          "startingLine": 598
+        }
+      },
+      {
+        "comment": "",
+        "key": "Configure Knee Wall",
+        "location": {
+          "startingColumn": 28,
+          "startingLine": 618
+        }
+      },
+      {
+        "comment": "",
+        "key": "Knee Wall Option",
+        "location": {
+          "startingColumn": 32,
+          "startingLine": 622
+        }
+      },
+      {
+        "comment": "",
+        "key": "Panel Height",
+        "location": {
+          "startingColumn": 44,
+          "startingLine": 635
+        }
+      },
+      {
+        "comment": "",
+        "key": "Panel color",
+        "location": {
+          "startingColumn": 43,
+          "startingLine": 646
+        }
+      },
+      {
+        "comment": "",
+        "key": "Linear footage",
+        "location": {
+          "startingColumn": 43,
+          "startingLine": 650
+        }
+      },
+      {
+        "comment": "",
+        "key": "Height",
+        "location": {
+          "startingColumn": 43,
+          "startingLine": 656
+        }
+      },
+      {
+        "comment": "",
+        "key": "Interior Finish/Color",
+        "location": {
+          "startingColumn": 40,
+          "startingLine": 661
+        }
+      },
+      {
+        "comment": "",
+        "key": "Exterior Finish/Color",
+        "location": {
+          "startingColumn": 40,
+          "startingLine": 672
+        }
+      },
+      {
+        "comment": "",
+        "key": "Framing",
+        "location": {
+          "startingColumn": 40,
+          "startingLine": 683
+        }
+      },
+      {
+        "comment": "",
+        "key": "Configure Door Options",
+        "location": {
+          "startingColumn": 28,
+          "startingLine": 698
+        }
+      },
+      {
+        "comment": "",
+        "key": "Door Type",
+        "location": {
+          "startingColumn": 32,
+          "startingLine": 702
+        }
+      },
+      {
+        "comment": "",
+        "key": "Style",
+        "location": {
+          "startingColumn": 36,
+          "startingLine": 713
+        }
+      },
+      {
+        "comment": "",
+        "key": "Operable Side",
+        "location": {
+          "startingColumn": 36,
+          "startingLine": 726
+        }
+      },
+      {
+        "comment": "",
+        "key": "Hinge Side",
+        "location": {
+          "startingColumn": 36,
+          "startingLine": 739
+        }
+      },
+      {
+        "comment": "",
+        "key": "Width",
+        "location": {
+          "startingColumn": 39,
+          "startingLine": 751
+        }
+      },
+      {
+        "comment": "",
+        "key": "Height",
+        "location": {
+          "startingColumn": 39,
+          "startingLine": 755
+        }
+      },
+      {
+        "comment": "",
+        "key": "Pull Side",
+        "location": {
+          "startingColumn": 36,
+          "startingLine": 762
+        }
+      },
+      {
+        "comment": "",
+        "key": "Color",
+        "location": {
+          "startingColumn": 39,
+          "startingLine": 772
+        }
+      },
+      {
+        "comment": "",
+        "key": "Dimensions",
+        "location": {
+          "startingColumn": 39,
+          "startingLine": 776
+        }
+      },
+      {
+        "comment": "",
+        "key": "Not Set",
+        "location": {
+          "startingColumn": 46,
+          "startingLine": 636
+        }
+      },
+      {
+        "comment": "",
+        "key": "Not Set",
+        "location": {
+          "startingColumn": 42,
+          "startingLine": 662
+        }
+      },
+      {
+        "comment": "",
+        "key": "Not Set",
+        "location": {
+          "startingColumn": 42,
+          "startingLine": 673
+        }
+      },
+      {
+        "comment": "",
+        "key": "Not Set",
+        "location": {
+          "startingColumn": 42,
+          "startingLine": 684
+        }
+      },
+      {
+        "comment": "",
+        "key": "Not Set",
+        "location": {
+          "startingColumn": 38,
+          "startingLine": 714
+        }
+      },
+      {
+        "comment": "",
+        "key": "Not Set",
+        "location": {
+          "startingColumn": 38,
+          "startingLine": 727
+        }
+      },
+      {
+        "comment": "",
+        "key": "Not Set",
+        "location": {
+          "startingColumn": 38,
+          "startingLine": 740
+        }
+      },
+      {
+        "comment": "",
+        "key": "Not Set",
+        "location": {
+          "startingColumn": 38,
+          "startingLine": 763
+        }
+      },
+      {
+        "comment": "",
+        "key": "Door Notes",
+        "location": {
+          "startingColumn": 34,
+          "startingLine": 782
+        }
+      },
+      {
+        "comment": "",
+        "key": "Configure Window System",
+        "location": {
+          "startingColumn": 28,
+          "startingLine": 1248
+        }
+      },
+      {
+        "comment": "",
+        "key": "Window Type",
+        "location": {
+          "startingColumn": 32,
+          "startingLine": 1253
+        }
+      },
+      {
+        "comment": "",
+        "key": "Frame System",
+        "location": {
+          "startingColumn": 32,
+          "startingLine": 1264
+        }
+      },
+      {
+        "comment": "",
+        "key": "Not Set",
+        "location": {
+          "startingColumn": 34,
+          "startingLine": 1254
+        }
+      },
+      {
+        "comment": "",
+        "key": "Not Set",
+        "location": {
+          "startingColumn": 34,
+          "startingLine": 1265
+        }
+      },
+      {
+        "comment": "",
+        "key": "Glass Type",
+        "location": {
+          "startingColumn": 32,
+          "startingLine": 1281
+        }
+      },
+      {
+        "comment": "",
+        "key": "Glass Safety",
+        "location": {
+          "startingColumn": 32,
+          "startingLine": 1291
+        }
+      },
+      {
+        "comment": "",
+        "key": "Grid Option",
+        "location": {
+          "startingColumn": 32,
+          "startingLine": 1301
+        }
+      },
+      {
+        "comment": "",
+        "key": "Not Set",
+        "location": {
+          "startingColumn": 34,
+          "startingLine": 1282
+        }
+      },
+      {
+        "comment": "",
+        "key": "Not Set",
+        "location": {
+          "startingColumn": 34,
+          "startingLine": 1292
+        }
+      },
+      {
+        "comment": "",
+        "key": "Not Set",
+        "location": {
+          "startingColumn": 34,
+          "startingLine": 1302
+        }
+      },
+      {
+        "comment": "",
+        "key": "Operation",
+        "location": {
+          "startingColumn": 32,
+          "startingLine": 1316
+        }
+      },
+      {
+        "comment": "",
+        "key": "Frame Color",
+        "location": {
+          "startingColumn": 32,
+          "startingLine": 1326
+        }
+      },
+      {
+        "comment": "",
+        "key": "Custom or other frame color",
+        "location": {
+          "startingColumn": 39,
+          "startingLine": 1336
+        }
+      },
+      {
+        "comment": "",
+        "key": "Window Height",
+        "location": {
+          "startingColumn": 35,
+          "startingLine": 1341
+        }
+      },
+      {
+        "comment": "",
+        "key": "Number of Bays",
+        "location": {
+          "startingColumn": 35,
+          "startingLine": 1346
+        }
+      },
+      {
+        "comment": "",
+        "key": "Configuration",
+        "location": {
+          "startingColumn": 32,
+          "startingLine": 1352
+        }
+      },
+      {
+        "comment": "",
+        "key": "Not Set",
+        "location": {
+          "startingColumn": 34,
+          "startingLine": 1317
+        }
+      },
+      {
+        "comment": "",
+        "key": "Not Set",
+        "location": {
+          "startingColumn": 34,
+          "startingLine": 1327
+        }
+      },
+      {
+        "comment": "",
+        "key": "Not Set",
+        "location": {
+          "startingColumn": 34,
+          "startingLine": 1353
+        }
+      },
+      {
+        "comment": "",
+        "key": "Lighting",
+        "location": {
+          "startingColumn": 28,
+          "startingLine": 1539
+        }
+      },
+      {
+        "comment": "",
+        "key": "Switch locations",
+        "location": {
+          "startingColumn": 31,
+          "startingLine": 1550
+        }
+      },
+      {
+        "comment": "",
+        "key": "Not Set",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 1540
+        }
+      },
+      {
+        "comment": "",
+        "key": "Select all that apply.",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 1557
+        }
+      },
+      {
+        "comment": "",
+        "key": "Downspout locations",
+        "location": {
+          "startingColumn": 31,
+          "startingLine": 1656
+        }
+      },
+      {
+        "comment": "",
+        "key": "House Wall Material",
+        "location": {
+          "startingColumn": 28,
+          "startingLine": 1722
+        }
+      },
+      {
+        "comment": "",
+        "key": "Describe wall material",
+        "location": {
+          "startingColumn": 35,
+          "startingLine": 1732
+        }
+      },
+      {
+        "comment": "",
+        "key": "House Mounting Type",
+        "location": {
+          "startingColumn": 28,
+          "startingLine": 1738
+        }
+      },
+      {
+        "comment": "",
+        "key": "Mount Condition",
+        "location": {
+          "startingColumn": 28,
+          "startingLine": 1748
+        }
+      },
+      {
+        "comment": "",
+        "key": "Not Set",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 1723
+        }
+      },
+      {
+        "comment": "",
+        "key": "Not Set",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 1739
+        }
+      },
+      {
+        "comment": "",
+        "key": "Not Set",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 1749
+        }
+      },
+      {
+        "comment": "",
+        "key": "Post / Column Material",
+        "location": {
+          "startingColumn": 28,
+          "startingLine": 1762
+        }
+      },
+      {
+        "comment": "",
+        "key": "Describe post/column material",
+        "location": {
+          "startingColumn": 35,
+          "startingLine": 1772
+        }
+      },
+      {
+        "comment": "",
+        "key": "Post size",
+        "location": {
+          "startingColumn": 31,
+          "startingLine": 1777
+        }
+      },
+      {
+        "comment": "",
+        "key": "Post spacing",
+        "location": {
+          "startingColumn": 31,
+          "startingLine": 1780
+        }
+      },
+      {
+        "comment": "",
+        "key": "Trim Present",
+        "location": {
+          "startingColumn": 28,
+          "startingLine": 1783
+        }
+      },
+      {
+        "comment": "",
+        "key": "Trim Material",
+        "location": {
+          "startingColumn": 32,
+          "startingLine": 1788
+        }
+      },
+      {
+        "comment": "",
+        "key": "Describe trim material",
+        "location": {
+          "startingColumn": 39,
+          "startingLine": 1799
+        }
+      },
+      {
+        "comment": "",
+        "key": "Trim Thickness",
+        "location": {
+          "startingColumn": 32,
+          "startingLine": 1805
+        }
+      },
+      {
+        "comment": "",
+        "key": "Custom or other trim thickness",
+        "location": {
+          "startingColumn": 39,
+          "startingLine": 1816
+        }
+      },
+      {
+        "comment": "",
+        "key": "Not Set",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 1763
+        }
+      },
+      {
+        "comment": "",
+        "key": "Not Set",
+        "location": {
+          "startingColumn": 34,
+          "startingLine": 1789
+        }
+      },
+      {
+        "comment": "",
+        "key": "Not Set",
+        "location": {
+          "startingColumn": 34,
+          "startingLine": 1806
+        }
+      },
+      {
+        "comment": "",
+        "key": "Select all that apply",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 1828
+        }
+      },
+      {
+        "comment": "",
+        "key": "Trim type",
+        "location": {
+          "startingColumn": 31,
+          "startingLine": 2051
+        }
+      },
+      {
+        "comment": "",
+        "key": "Paint or powder color",
+        "location": {
+          "startingColumn": 31,
+          "startingLine": 2054
+        }
+      },
+      {
+        "comment": "",
+        "key": "Jurisdiction",
+        "location": {
+          "startingColumn": 31,
+          "startingLine": 2123
+        }
+      },
+      {
+        "comment": "",
+        "key": "Status",
+        "location": {
+          "startingColumn": 28,
+          "startingLine": 2195
+        }
+      },
+      {
+        "comment": "",
+        "key": "Job number",
+        "location": {
+          "startingColumn": 31,
+          "startingLine": 2202
+        }
+      },
+      {
+        "comment": "",
+        "key": "Track Production Metadata",
+        "location": {
+          "startingColumn": 28,
+          "startingLine": 2209
+        }
+      },
+      {
+        "comment": "",
+        "key": "Include Start Date",
+        "location": {
+          "startingColumn": 32,
+          "startingLine": 2213
+        }
+      },
+      {
+        "comment": "",
+        "key": "Start Date",
+        "location": {
+          "startingColumn": 33,
+          "startingLine": 2219
+        }
+      },
+      {
+        "comment": "",
+        "key": "Crew lead",
+        "location": {
+          "startingColumn": 35,
+          "startingLine": 2228
+        }
+      },
+      {
+        "comment": "",
+        "key": "Duration estimate",
+        "location": {
+          "startingColumn": 35,
+          "startingLine": 2232
+        }
+      },
+      {
+        "comment": "",
+        "key": "Material Order",
+        "location": {
+          "startingColumn": 32,
+          "startingLine": 2236
+        }
+      },
+      {
+        "comment": "",
+        "key": "Permit Status",
+        "location": {
+          "startingColumn": 32,
+          "startingLine": 2244
+        }
+      },
+      {
+        "comment": "",
+        "key": "Include Notes",
+        "location": {
+          "startingColumn": 28,
+          "startingLine": 2257
+        }
+      },
+      {
+        "comment": "",
+        "key": "Capture customer sign-off with Apple Pencil or touch.",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 2431
+        }
+      },
+      {
+        "comment": "",
+        "key": "Include Signed Date",
+        "location": {
+          "startingColumn": 28,
+          "startingLine": 2438
+        }
+      },
+      {
+        "comment": "",
+        "key": "Signed Date",
+        "location": {
+          "startingColumn": 29,
+          "startingLine": 2443
+        }
+      },
+      {
+        "comment": "",
+        "key": "Clear Signature",
+        "location": {
+          "startingColumn": 28,
+          "startingLine": 2452
+        }
+      },
+      {
+        "comment": "",
+        "key": "Stored as a sketch attachment for Milestone 3.",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 2466
+        }
+      },
+      {
+        "comment": "",
+        "key": "Clear Signature",
+        "location": {
+          "startingColumn": 28,
+          "startingLine": 2473
+        }
+      },
+      {
+        "comment": "",
+        "key": "Use a quick sketch to show site-specific details.",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 2487
+        }
+      },
+      {
+        "comment": "",
+        "key": "Clear Diagram",
+        "location": {
+          "startingColumn": 28,
+          "startingLine": 2494
+        }
+      },
+      {
+        "comment": "",
+        "key": "Not Set",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 2739
+        }
+      },
+      {
+        "comment": "",
+        "key": "Yes",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 2740
+        }
+      },
+      {
+        "comment": "",
+        "key": "No",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 2741
+        }
+      }
+    ]
+  },
+  "version": 1
+}

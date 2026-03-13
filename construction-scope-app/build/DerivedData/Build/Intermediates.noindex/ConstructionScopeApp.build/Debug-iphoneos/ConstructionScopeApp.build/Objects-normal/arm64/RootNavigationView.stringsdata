@@ -1,0 +1,472 @@
+{
+  "source": "/Users/maxx/Documents/major-league-home-services-scope-app/construction-scope-app/Views/RootNavigationView.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "Create a new scope to begin.",
+        "location": {
+          "startingColumn": 55,
+          "startingLine": 279
+        }
+      },
+      {
+        "comment": "",
+        "key": "No Scope Selected",
+        "location": {
+          "startingColumn": 37,
+          "startingLine": 277
+        }
+      },
+      {
+        "comment": "",
+        "key": "Scopes",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 584
+        }
+      },
+      {
+        "comment": "",
+        "key": "Delete Scope?",
+        "location": {
+          "startingColumn": 16,
+          "startingLine": 585
+        }
+      },
+      {
+        "comment": "",
+        "key": "Sections",
+        "location": {
+          "startingColumn": 25,
+          "startingLine": 563
+        }
+      },
+      {
+        "comment": "",
+        "key": "New Scope",
+        "location": {
+          "startingColumn": 23,
+          "startingLine": 481
+        }
+      },
+      {
+        "comment": "",
+        "key": "New Scope",
+        "location": {
+          "startingColumn": 41,
+          "startingLine": 496
+        }
+      },
+      {
+        "comment": "",
+        "key": "Creates a new scope from the template.",
+        "location": {
+          "startingColumn": 40,
+          "startingLine": 497
+        }
+      },
+      {
+        "comment": "",
+        "key": "Scopes",
+        "location": {
+          "startingColumn": 35,
+          "startingLine": 526
+        }
+      },
+      {
+        "comment": "",
+        "key": "Current Scope",
+        "location": {
+          "startingColumn": 34,
+          "startingLine": 546
+        }
+      },
+      {
+        "comment": "",
+        "key": "Selected",
+        "location": {
+          "startingColumn": 74,
+          "startingLine": 575
+        }
+      },
+      {
+        "comment": "",
+        "key": "",
+        "location": {
+          "startingColumn": 87,
+          "startingLine": 575
+        }
+      },
+      {
+        "comment": "",
+        "key": "Cancel",
+        "location": {
+          "startingColumn": 20,
+          "startingLine": 586
+        }
+      },
+      {
+        "comment": "",
+        "key": "Delete",
+        "location": {
+          "startingColumn": 20,
+          "startingLine": 589
+        }
+      },
+      {
+        "comment": "",
+        "key": "This permanently removes the scope and its entered details.",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 595
+        }
+      },
+      {
+        "comment": "",
+        "key": "Selected",
+        "location": {
+          "startingColumn": 42,
+          "startingLine": 753
+        }
+      },
+      {
+        "comment": "",
+        "key": "",
+        "location": {
+          "startingColumn": 55,
+          "startingLine": 753
+        }
+      },
+      {
+        "comment": "",
+        "key": "Opens this scope.",
+        "location": {
+          "startingColumn": 28,
+          "startingLine": 754
+        }
+      },
+      {
+        "comment": "",
+        "key": "1 scope",
+        "location": {
+          "startingColumn": 31,
+          "startingLine": 688
+        }
+      },
+      {
+        "comment": "",
+        "key": "%lld scopes",
+        "location": {
+          "startingColumn": 43,
+          "startingLine": 688
+        }
+      },
+      {
+        "comment": "",
+        "key": "Rename Scope",
+        "location": {
+          "startingColumn": 20,
+          "startingLine": 756
+        }
+      },
+      {
+        "comment": "",
+        "key": "Delete Scope",
+        "location": {
+          "startingColumn": 20,
+          "startingLine": 760
+        }
+      },
+      {
+        "comment": "",
+        "key": "Delete Scope?",
+        "location": {
+          "startingColumn": 16,
+          "startingLine": 847
+        }
+      },
+      {
+        "comment": "",
+        "key": "Scopes",
+        "location": {
+          "startingColumn": 34,
+          "startingLine": 816
+        }
+      },
+      {
+        "comment": "",
+        "key": "New Scope",
+        "location": {
+          "startingColumn": 35,
+          "startingLine": 828
+        }
+      },
+      {
+        "comment": "",
+        "key": "Cancel",
+        "location": {
+          "startingColumn": 20,
+          "startingLine": 848
+        }
+      },
+      {
+        "comment": "",
+        "key": "Delete",
+        "location": {
+          "startingColumn": 20,
+          "startingLine": 851
+        }
+      },
+      {
+        "comment": "",
+        "key": "This permanently removes the scope and its entered details.",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 857
+        }
+      },
+      {
+        "comment": "",
+        "key": "Delete",
+        "location": {
+          "startingColumn": 20,
+          "startingLine": 925
+        }
+      },
+      {
+        "comment": "",
+        "key": "Rename",
+        "location": {
+          "startingColumn": 20,
+          "startingLine": 929
+        }
+      },
+      {
+        "comment": "",
+        "key": "1 scope",
+        "location": {
+          "startingColumn": 31,
+          "startingLine": 949
+        }
+      },
+      {
+        "comment": "",
+        "key": "%lld scopes",
+        "location": {
+          "startingColumn": 43,
+          "startingLine": 949
+        }
+      },
+      {
+        "comment": "",
+        "key": "Choose whether scopes stay in project type sections.",
+        "location": {
+          "startingColumn": 32,
+          "startingLine": 980
+        }
+      },
+      {
+        "comment": "",
+        "key": "Choose how scopes are organized in the list.",
+        "location": {
+          "startingColumn": 32,
+          "startingLine": 995
+        }
+      },
+      {
+        "comment": "",
+        "key": "No Grouping",
+        "location": {
+          "startingColumn": 27,
+          "startingLine": 967
+        }
+      },
+      {
+        "comment": "",
+        "key": "Project Type",
+        "location": {
+          "startingColumn": 27,
+          "startingLine": 973
+        }
+      },
+      {
+        "comment": "",
+        "key": "Name",
+        "location": {
+          "startingColumn": 27,
+          "startingLine": 1081
+        }
+      },
+      {
+        "comment": "",
+        "key": "New Scope",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 1073
+        }
+      },
+      {
+        "comment": "",
+        "key": "This scope will be saved in Scopes.",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 1076
+        }
+      },
+      {
+        "comment": "",
+        "key": "Cancel",
+        "location": {
+          "startingColumn": 28,
+          "startingLine": 1092
+        }
+      },
+      {
+        "comment": "",
+        "key": "Create",
+        "location": {
+          "startingColumn": 28,
+          "startingLine": 1097
+        }
+      },
+      {
+        "comment": "",
+        "key": "Scope Name",
+        "location": {
+          "startingColumn": 31,
+          "startingLine": 1194
+        }
+      },
+      {
+        "comment": "",
+        "key": "Cancel",
+        "location": {
+          "startingColumn": 32,
+          "startingLine": 1205
+        }
+      },
+      {
+        "comment": "",
+        "key": "Save",
+        "location": {
+          "startingColumn": 32,
+          "startingLine": 1210
+        }
+      },
+      {
+        "comment": "",
+        "key": "PDF Export Failed",
+        "location": {
+          "startingColumn": 16,
+          "startingLine": 1404
+        }
+      },
+      {
+        "comment": "",
+        "key": "Current Scope",
+        "location": {
+          "startingColumn": 34,
+          "startingLine": 1278
+        }
+      },
+      {
+        "comment": "",
+        "key": "Preview",
+        "location": {
+          "startingColumn": 41,
+          "startingLine": 1350
+        }
+      },
+      {
+        "comment": "",
+        "key": "Shows a PDF preview and missing required fields.",
+        "location": {
+          "startingColumn": 40,
+          "startingLine": 1351
+        }
+      },
+      {
+        "comment": "",
+        "key": "Export",
+        "location": {
+          "startingColumn": 41,
+          "startingLine": 1360
+        }
+      },
+      {
+        "comment": "",
+        "key": "Generates a flattened PDF and opens the share sheet.",
+        "location": {
+          "startingColumn": 40,
+          "startingLine": 1361
+        }
+      },
+      {
+        "comment": "",
+        "key": "Photos",
+        "location": {
+          "startingColumn": 41,
+          "startingLine": 1370
+        }
+      },
+      {
+        "comment": "",
+        "key": "Manage photo attachments for this scope.",
+        "location": {
+          "startingColumn": 40,
+          "startingLine": 1371
+        }
+      },
+      {
+        "comment": "",
+        "key": "Sketch tools",
+        "location": {
+          "startingColumn": 74,
+          "startingLine": 1378
+        }
+      },
+      {
+        "comment": "",
+        "key": "Open sketch tools",
+        "location": {
+          "startingColumn": 91,
+          "startingLine": 1378
+        }
+      },
+      {
+        "comment": "",
+        "key": "Opens signature and site diagram tools.",
+        "location": {
+          "startingColumn": 40,
+          "startingLine": 1379
+        }
+      },
+      {
+        "comment": "",
+        "key": "OK",
+        "location": {
+          "startingColumn": 20,
+          "startingLine": 1405
+        }
+      },
+      {
+        "comment": "",
+        "key": "Sketch Tools",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 1459
+        }
+      },
+      {
+        "comment": "",
+        "key": "Done",
+        "location": {
+          "startingColumn": 24,
+          "startingLine": 1463
+        }
+      }
+    ]
+  },
+  "version": 1
+}

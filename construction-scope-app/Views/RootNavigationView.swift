@@ -89,21 +89,10 @@ private enum ScopeSortDirection {
     case ascending
     case descending
 
-    mutating func toggle() {
-        self = self == .ascending ? .descending : .ascending
-    }
-
-    var systemImage: String {
+    var label: String {
         switch self {
-        case .ascending: return "arrow.up"
-        case .descending: return "arrow.down"
-        }
-    }
-
-    var accessibilityLabel: String {
-        switch self {
-        case .ascending: return "Ascending sort"
-        case .descending: return "Descending sort"
+        case .ascending: return "Ascending"
+        case .descending: return "Descending"
         }
     }
 }
@@ -193,8 +182,8 @@ struct RootNavigationView: View {
     @State private var selectedScopeID: UUID?
     @State private var selectedSection: ScopeSection = .projectInfo
     @State private var selectedGroupingOption: ScopeGroupingOption = .projectType
-    @State private var selectedSortOption: ScopeSortOption = .recentActivity
-    @State private var sortDirection: ScopeSortDirection = .descending
+    @State private var selectedSortOption: ScopeSortOption? = .recentActivity
+    @State private var sortDirection: ScopeSortDirection? = .descending
     @State private var sidebarRenameScope: JobScope?
     @State private var sidebarRenameDraft = ""
     @State private var sidebarRenameMode: SidebarRenamePromptMode = .existingScope
@@ -212,7 +201,8 @@ struct RootNavigationView: View {
     }
 
     private var visibleScopes: [JobScope] {
-        sortedScopes(scopes, option: selectedSortOption, direction: sortDirection)
+        guard let selectedSortOption else { return scopes }
+        return sortedScopes(scopes, option: selectedSortOption, direction: sortDirection ?? .descending)
     }
 
     private var useCompactNavigation: Bool {
@@ -448,8 +438,8 @@ struct RootNavigationView: View {
 private struct ScopeSidebarView: View {
     let scopes: [JobScope]
     @Binding var selectedGroupingOption: ScopeGroupingOption
-    @Binding var selectedSortOption: ScopeSortOption
-    @Binding var sortDirection: ScopeSortDirection
+    @Binding var selectedSortOption: ScopeSortOption?
+    @Binding var sortDirection: ScopeSortDirection?
     @Binding var selectedScopeID: UUID?
     @Binding var selectedSection: ScopeSection
     let createNewScope: () -> Void
@@ -462,6 +452,7 @@ private struct ScopeSidebarView: View {
     @State private var scopesExpanded = false
     @State private var scopePendingDelete: JobScope?
     @State private var newScopeRowFrame: CGRect = .zero
+    @Namespace private var scopesHeaderChevronNamespace
 
     private var selectedScope: JobScope? {
         scopes.first(where: { $0.id == selectedScopeID })
@@ -515,26 +506,25 @@ private struct ScopeSidebarView: View {
                                 }
                         }
                     )
-            }
 
-            Section {
                 if !scopes.isEmpty {
-                    DisclosureGroup(isExpanded: $scopesExpanded) {
+                    ScopeSidebarHeaderRow(
+                        isExpanded: $scopesExpanded,
+                        selectedGroupingOption: $selectedGroupingOption,
+                        selectedSortOption: $selectedSortOption,
+                        sortDirection: $sortDirection,
+                        folderPulseToken: folderPulseToken,
+                        chevronNamespace: scopesHeaderChevronNamespace
+                    )
+
+                    if scopesExpanded {
                         scopesListContent
-                    } label: {
-                        HStack(spacing: 12) {
-                            Label("Scopes", systemImage: "folder")
-                                .font(.headline)
-                                .symbolEffect(.bounce.byLayer, value: folderPulseToken)
-
-                            Spacer(minLength: 8)
-
-                            ScopeListControlGroup(
-                                selectedGroupingOption: $selectedGroupingOption,
-                                selectedSortOption: $selectedSortOption,
-                                sortDirection: $sortDirection
+                            .transition(
+                                .asymmetric(
+                                    insertion: .opacity.combined(with: .move(edge: .top)),
+                                    removal: .opacity
+                                )
                             )
-                        }
                     }
                 }
             }
@@ -625,7 +615,7 @@ private struct ScopeSidebarView: View {
 
         // Keep selection pooled into the sidebar row itself so it reads like
         // integrated system chrome rather than a floating sticker.
-        HStack(spacing: 10) {
+        HStack(spacing: 6) {
             RoundedRectangle(cornerRadius: 2, style: .continuous)
                 .fill(isSelected ? Color.accentColor.opacity(0.8) : .clear)
                 .frame(width: 3, height: 26)
@@ -765,11 +755,101 @@ private struct ScopeSidebarView: View {
     }
 }
 
+private struct ScopeSidebarHeaderRow: View {
+    private let controlsRevealDelay: TimeInterval = 0.125
+
+    @Binding var isExpanded: Bool
+    @Binding var selectedGroupingOption: ScopeGroupingOption
+    @Binding var selectedSortOption: ScopeSortOption?
+    @Binding var sortDirection: ScopeSortDirection?
+    let folderPulseToken: Int
+    let chevronNamespace: Namespace.ID
+    @State private var controlsVisible = false
+
+    var body: some View {
+        HStack(alignment: .center, spacing: 0) {
+            leadingScopesCluster
+
+            if isExpanded {
+                if controlsVisible {
+                    ScopeListControlGroup(
+                        selectedGroupingOption: $selectedGroupingOption,
+                        selectedSortOption: $selectedSortOption,
+                        sortDirection: $sortDirection
+                    )
+                    .padding(.leading, 12)
+                    .transition(
+                        .asymmetric(
+                            insertion: .opacity.combined(with: .move(edge: .leading)),
+                            removal: .opacity.combined(with: .move(edge: .leading))
+                        )
+                    )
+                    .animation(.snappy(duration: 0.22, extraBounce: 0), value: controlsVisible)
+                }
+
+                Spacer(minLength: 0)
+
+                disclosureButton
+            } else {
+                disclosureButton
+                    .padding(.leading, 2)
+            }
+        }
+        .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+        .onAppear {
+            controlsVisible = isExpanded
+        }
+        .onChange(of: isExpanded) { _, expanded in
+            if expanded {
+                DispatchQueue.main.asyncAfter(deadline: .now() + controlsRevealDelay) {
+                    guard isExpanded else { return }
+                    controlsVisible = true
+                }
+            } else {
+                controlsVisible = false
+            }
+        }
+    }
+
+    private var disclosureButton: some View {
+        Button {
+            withAnimation(.snappy(duration: 0.24, extraBounce: 0)) {
+                isExpanded.toggle()
+            }
+        } label: {
+            Image(systemName: "chevron.right")
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(.secondary)
+                .rotationEffect(.degrees(isExpanded ? 90 : 0))
+                .frame(width: 28, height: 44)
+                .contentShape(Rectangle())
+                .matchedGeometryEffect(id: "scopes-disclosure", in: chevronNamespace)
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(isExpanded ? "Collapse scopes" : "Expand scopes")
+        .accessibilityHint("Shows or hides the scopes list.")
+    }
+
+    private var leadingScopesCluster: some View {
+        HStack(spacing: 10) {
+            Image(systemName: "folder")
+                .font(.headline)
+                .offset(y: -0.5)
+
+            Text("Scopes")
+                .font(.headline)
+        }
+        .symbolEffect(.bounce.byLayer, value: folderPulseToken)
+        .fixedSize(horizontal: true, vertical: false)
+        .layoutPriority(2)
+    }
+}
+
 private struct PhoneScopesListView: View {
     let scopes: [JobScope]
     @Binding var selectedGroupingOption: ScopeGroupingOption
-    @Binding var selectedSortOption: ScopeSortOption
-    @Binding var sortDirection: ScopeSortDirection
+    @Binding var selectedSortOption: ScopeSortOption?
+    @Binding var sortDirection: ScopeSortDirection?
     let createNewScope: () -> JobScope
     let onOpenScope: (JobScope) -> Void
     @ObservedObject var autosave: DebouncedAutosave
@@ -955,11 +1035,11 @@ private struct PhoneProjectTypeHeader: View {
 
 private struct ScopeListControlGroup: View {
     @Binding var selectedGroupingOption: ScopeGroupingOption
-    @Binding var selectedSortOption: ScopeSortOption
-    @Binding var sortDirection: ScopeSortDirection
+    @Binding var selectedSortOption: ScopeSortOption?
+    @Binding var sortDirection: ScopeSortDirection?
 
     var body: some View {
-        ControlGroup {
+        HStack(spacing: 10) {
             Menu {
                 Button {
                     selectedGroupingOption = .none
@@ -968,13 +1048,16 @@ private struct ScopeListControlGroup: View {
                 }
 
                 Button {
-                    selectedGroupingOption = .projectType
+                    selectedGroupingOption = selectedGroupingOption == .projectType ? .none : .projectType
                 } label: {
                     Label("Project Type", systemImage: "square.grid.2x2")
                 }
             } label: {
-                Image(systemName: "square.grid.2x2")
-                    .font(.body.weight(.semibold))
+                ScopeListToolbarLabel(
+                    title: "Group",
+                    systemImage: selectedGroupingOption.systemImage,
+                    tint: selectedGroupingOption == .none ? .secondary : .accentColor
+                )
             }
             .accessibilityLabel(groupingLabel)
             .accessibilityHint("Choose whether scopes stay in project type sections.")
@@ -982,28 +1065,47 @@ private struct ScopeListControlGroup: View {
             Menu {
                 ForEach(ScopeSortOption.allCases) { option in
                     Button {
-                        selectedSortOption = option
+                        if selectedSortOption == option {
+                            selectedSortOption = nil
+                            sortDirection = nil
+                        } else {
+                            selectedSortOption = option
+                        }
                     } label: {
                         Label(option.label, systemImage: option.systemImage)
                     }
                 }
+
+                Divider()
+
+                Button {
+                    guard selectedSortOption != nil else { return }
+                    sortDirection = sortDirection == .ascending ? nil : .ascending
+                } label: {
+                    Label("Ascending", systemImage: "arrow.up")
+                }
+                .disabled(selectedSortOption == nil)
+
+                Button {
+                    guard selectedSortOption != nil else { return }
+                    sortDirection = sortDirection == .descending ? nil : .descending
+                } label: {
+                    Label("Descending", systemImage: "arrow.down")
+                }
+                .disabled(selectedSortOption == nil)
             } label: {
-                Image(systemName: "arrow.up.arrow.down.circle")
-                    .font(.body.weight(.semibold))
+                ScopeListToolbarLabel(
+                    title: "Sort",
+                    systemImage: "arrow.up.arrow.down",
+                    tint: selectedSortOption == nil ? .secondary : .accentColor
+                )
+                .offset(x: -6)
             }
             .accessibilityLabel(selectedSortLabel)
-            .accessibilityHint("Choose how scopes are organized in the list.")
-
-            Button {
-                sortDirection.toggle()
-            } label: {
-                Image(systemName: sortDirection.systemImage)
-                    .font(.body.weight(.semibold))
-                    .frame(minWidth: 28)
-            }
-            .accessibilityLabel(sortDirection.accessibilityLabel)
-            .accessibilityHint(directionHint)
+            .accessibilityHint("Choose how scopes are organized in the list and whether the order is ascending or descending.")
         }
+        .padding(.trailing, 8)
+        .fixedSize(horizontal: true, vertical: false)
     }
 
     private var groupingLabel: String {
@@ -1011,11 +1113,30 @@ private struct ScopeListControlGroup: View {
     }
 
     private var selectedSortLabel: String {
-        "Sort options, current \(selectedSortOption.label)"
-    }
+        if let selectedSortOption {
+            let directionLabel = sortDirection?.label ?? "no order"
+            return "Sort options, current \(selectedSortOption.label), \(directionLabel)"
+        }
 
-    private var directionHint: String {
-        "Toggles between ascending and descending order."
+        return "Sort options, no active sort"
+    }
+}
+
+private struct ScopeListToolbarLabel: View {
+    let title: String
+    let systemImage: String
+    let tint: Color
+
+    var body: some View {
+        HStack(spacing: 5) {
+            Image(systemName: systemImage)
+            Text(title)
+        }
+        .font(.subheadline.weight(.semibold))
+        .foregroundStyle(tint)
+        .padding(.horizontal, 8)
+        .padding(.vertical, 2)
+        .frame(minWidth: 44, minHeight: 36, alignment: .center)
     }
 }
 

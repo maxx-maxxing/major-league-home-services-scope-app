@@ -48,9 +48,9 @@ private enum ScopeSortOption: String, CaseIterable, Identifiable {
     var label: String {
         switch self {
         case .alphabetical: return "Alphabetical"
-        case .jobStatus: return "Job Status"
+        case .jobStatus: return "Status"
         case .createdAt: return "Created Date"
-        case .recentActivity: return "Last Opened/Edited"
+        case .recentActivity: return "Recently Edited"
         }
     }
 
@@ -1044,13 +1044,21 @@ private struct ScopeListControlGroup: View {
                 Button {
                     selectedGroupingOption = .none
                 } label: {
-                    Label("No Grouping", systemImage: "list.bullet")
+                    ScopeMenuSelectionLabel(
+                        title: "No Grouping",
+                        systemImage: "list.bullet",
+                        isSelected: selectedGroupingOption == .none
+                    )
                 }
 
                 Button {
                     selectedGroupingOption = selectedGroupingOption == .projectType ? .none : .projectType
                 } label: {
-                    Label("Project Type", systemImage: "square.grid.2x2")
+                    ScopeMenuSelectionLabel(
+                        title: "Project Type",
+                        systemImage: "square.grid.2x2",
+                        isSelected: selectedGroupingOption == .projectType
+                    )
                 }
             } label: {
                 ScopeListToolbarLabel(
@@ -1072,7 +1080,11 @@ private struct ScopeListControlGroup: View {
                             selectedSortOption = option
                         }
                     } label: {
-                        Label(option.label, systemImage: option.systemImage)
+                        ScopeMenuSelectionLabel(
+                            title: option.label,
+                            systemImage: option.systemImage,
+                            isSelected: selectedSortOption == option
+                        )
                     }
                 }
 
@@ -1082,7 +1094,11 @@ private struct ScopeListControlGroup: View {
                     guard selectedSortOption != nil else { return }
                     sortDirection = sortDirection == .ascending ? nil : .ascending
                 } label: {
-                    Label("Ascending", systemImage: "arrow.up")
+                    ScopeMenuSelectionLabel(
+                        title: "Ascending",
+                        systemImage: "arrow.up",
+                        isSelected: sortDirection == .ascending
+                    )
                 }
                 .disabled(selectedSortOption == nil)
 
@@ -1090,7 +1106,11 @@ private struct ScopeListControlGroup: View {
                     guard selectedSortOption != nil else { return }
                     sortDirection = sortDirection == .descending ? nil : .descending
                 } label: {
-                    Label("Descending", systemImage: "arrow.down")
+                    ScopeMenuSelectionLabel(
+                        title: "Descending",
+                        systemImage: "arrow.down",
+                        isSelected: sortDirection == .descending
+                    )
                 }
                 .disabled(selectedSortOption == nil)
             } label: {
@@ -1137,6 +1157,20 @@ private struct ScopeListToolbarLabel: View {
         .padding(.horizontal, 8)
         .padding(.vertical, 2)
         .frame(minWidth: 44, minHeight: 36, alignment: .center)
+    }
+}
+
+private struct ScopeMenuSelectionLabel: View {
+    let title: String
+    let systemImage: String
+    let isSelected: Bool
+
+    var body: some View {
+        Label(displayTitle, systemImage: systemImage)
+    }
+
+    private var displayTitle: String {
+        isSelected ? "\(title)  ✓" : title
     }
 }
 

@@ -532,7 +532,7 @@ private struct ScopeSidebarView: View {
             if let selectedScope {
                 Section {
                     GlassChromePanel(cornerRadius: 20) {
-                        VStack(alignment: .leading, spacing: 10) {
+                        VStack(alignment: .leading, spacing: 8) {
                             Text("Current Scope")
                                 .font(.footnote.weight(.semibold))
                                 .foregroundStyle(.secondary)
@@ -541,8 +541,17 @@ private struct ScopeSidebarView: View {
                             Text(selectedScope.displayName)
                                 .font(.headline)
 
-                            StatusPill(status: selectedScope.status)
+                            Text(scopeAddressSummary(for: selectedScope))
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
+
+                            if let metadata = scopeMetadataSummary(for: selectedScope) {
+                                Text(metadata)
+                                    .font(.footnote)
+                                    .foregroundStyle(.secondary)
+                            }
                         }
+                        .frame(maxWidth: .infinity, alignment: .leading)
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.horizontal, 2)
@@ -682,7 +691,27 @@ private struct ScopeSidebarView: View {
             Spacer(minLength: 0)
         }
         .padding(.horizontal, 12)
-        .padding(.top, 6)
+        .padding(.top, 0.5)
+    }
+
+    private func scopeAddressSummary(for scope: JobScope) -> String {
+        let address = scope.projectInfo.address.trimmingCharacters(in: .whitespacesAndNewlines)
+        return address.isEmpty ? "No address" : address
+    }
+
+    private func scopeMetadataSummary(for scope: JobScope) -> String? {
+        let parts: [String] = [
+            scope.projectInfo.projectType == .notSet ? nil : scope.projectInfo.projectType.displayName,
+            scope.status.displayName
+        ]
+        .compactMap { value in
+            guard let value else { return nil }
+            let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+            return trimmed.isEmpty ? nil : trimmed
+        }
+
+        guard !parts.isEmpty else { return nil }
+        return parts.joined(separator: " • ")
     }
 
     @ViewBuilder
@@ -703,9 +732,16 @@ private struct ScopeSidebarView: View {
                     Text(scope.displayName)
                         .font(.body.weight(isSelected ? .medium : .regular))
                         .foregroundStyle(.primary)
-                    Text(scope.projectInfo.address.isEmpty ? "No address" : scope.projectInfo.address)
+
+                    Text(scopeAddressSummary(for: scope))
                         .font(.footnote)
                         .foregroundStyle(.secondary)
+
+                    if let metadata = scopeMetadataSummary(for: scope) {
+                        Text(metadata)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
                 }
 
                 Spacer()
@@ -1117,9 +1153,9 @@ private struct ScopeListControlGroup: View {
                 ScopeListToolbarLabel(
                     title: "Sort",
                     systemImage: "arrow.up.arrow.down",
-                    tint: selectedSortOption == nil ? .secondary : .accentColor
+                    tint: selectedSortOption == nil ? .secondary : .accentColor,
+                    contentOffsetX: -6
                 )
-                .offset(x: -6)
             }
             .accessibilityLabel(selectedSortLabel)
             .accessibilityHint("Choose how scopes are organized in the list and whether the order is ascending or descending.")
@@ -1146,6 +1182,7 @@ private struct ScopeListToolbarLabel: View {
     let title: String
     let systemImage: String
     let tint: Color
+    var contentOffsetX: CGFloat = 0
 
     var body: some View {
         HStack(spacing: 5) {
@@ -1154,6 +1191,7 @@ private struct ScopeListToolbarLabel: View {
         }
         .font(.subheadline.weight(.semibold))
         .foregroundStyle(tint)
+        .offset(x: contentOffsetX)
         .padding(.horizontal, 8)
         .padding(.vertical, 2)
         .frame(minWidth: 44, minHeight: 36, alignment: .center)

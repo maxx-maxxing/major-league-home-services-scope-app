@@ -1,4 +1,4 @@
-﻿import SwiftUI
+import SwiftUI
 import SwiftData
 
 @main
@@ -7,8 +7,14 @@ struct ConstructionScopeAppApp: App {
 
     var body: some Scene {
         WindowGroup {
-            RootNavigationView()
+            JobTreadDebugView()
         }
         .modelContainer(persistenceController.container)
+
+#if DEBUG
+        WindowGroup("JobTread Debug") {
+            JobTreadDebugView()
+        }
+#endif
     }
 }

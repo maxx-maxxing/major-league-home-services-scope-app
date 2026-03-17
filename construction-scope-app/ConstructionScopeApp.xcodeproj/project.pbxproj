@@ -16,6 +16,9 @@
 		AA0000010000000000000007 /* SectionEditors.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000010000000000000018 /* SectionEditors.swift */; };
 		AA0000010000000000000008 /* PencilDrawingSupport.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000010000000000000019 /* PencilDrawingSupport.swift */; };
 		AA0000010000000000000009 /* PhotoAttachmentSupport.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000010000000000000020 /* PhotoAttachmentSupport.swift */; };
+		JT0000010000000000000001 /* JobTreadConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = JT0000010000000000000011 /* JobTreadConfig.swift */; };
+		JT0000010000000000000002 /* JobTreadClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = JT0000010000000000000012 /* JobTreadClient.swift */; };
+		JT0000010000000000000003 /* JobTreadDebugView.swift in Sources */ = {isa = PBXBuildFile; fileRef = JT0000010000000000000013 /* JobTreadDebugView.swift */; };
 		DB90FC9F2F6976C300A6516A /* JobTreadSecrets.xcconfig in Resources */ = {isa = PBXBuildFile; fileRef = DB90FC9D2F6976C300A6516A /* JobTreadSecrets.xcconfig */; };
 /* End PBXBuildFile section */
 
@@ -30,6 +33,9 @@
 		AA0000010000000000000018 /* SectionEditors.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SectionEditors.swift; sourceTree = "<group>"; };
 		AA0000010000000000000019 /* PencilDrawingSupport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PencilDrawingSupport.swift; sourceTree = "<group>"; };
 		AA0000010000000000000020 /* PhotoAttachmentSupport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhotoAttachmentSupport.swift; sourceTree = "<group>"; };
+		JT0000010000000000000011 /* JobTreadConfig.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JobTreadConfig.swift; sourceTree = "<group>"; };
+		JT0000010000000000000012 /* JobTreadClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JobTreadClient.swift; sourceTree = "<group>"; };
+		JT0000010000000000000013 /* JobTreadDebugView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JobTreadDebugView.swift; sourceTree = "<group>"; };
 		DB90FC9D2F6976C300A6516A /* JobTreadSecrets.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = JobTreadSecrets.xcconfig; sourceTree = "<group>"; };
 		DB90FCA02F697B0800A6516A /* ConstructionScopeApp-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = "ConstructionScopeApp-Info.plist"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -53,6 +59,7 @@
 				AA0000010000000000000032 /* App */,
 				AA0000010000000000000033 /* Models */,
 				AA0000010000000000000034 /* Persistence */,
+				JT0000010000000000000021 /* Services */,
 				AA0000010000000000000035 /* Views */,
 				AA0000010000000000000036 /* Components */,
 				AA0000010000000000000037 /* Features */,
@@ -93,8 +100,18 @@
 				AA0000010000000000000018 /* SectionEditors.swift */,
 				AA0000010000000000000019 /* PencilDrawingSupport.swift */,
 				AA0000010000000000000020 /* PhotoAttachmentSupport.swift */,
+				JT0000010000000000000013 /* JobTreadDebugView.swift */,
 			);
 			path = Views;
+			sourceTree = "<group>";
+		};
+		JT0000010000000000000021 /* Services */ = {
+			isa = PBXGroup;
+			children = (
+				JT0000010000000000000011 /* JobTreadConfig.swift */,
+				JT0000010000000000000012 /* JobTreadClient.swift */,
+			);
+			path = Services;
 			sourceTree = "<group>";
 		};
 		AA0000010000000000000036 /* Components */ = {
@@ -220,6 +237,9 @@
 				AA0000010000000000000007 /* SectionEditors.swift in Sources */,
 				AA0000010000000000000008 /* PencilDrawingSupport.swift in Sources */,
 				AA0000010000000000000009 /* PhotoAttachmentSupport.swift in Sources */,
+				JT0000010000000000000001 /* JobTreadConfig.swift in Sources */,
+				JT0000010000000000000002 /* JobTreadClient.swift in Sources */,
+				JT0000010000000000000003 /* JobTreadDebugView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

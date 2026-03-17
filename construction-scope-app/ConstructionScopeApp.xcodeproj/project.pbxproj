@@ -16,6 +16,7 @@
 		AA0000010000000000000007 /* SectionEditors.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000010000000000000018 /* SectionEditors.swift */; };
 		AA0000010000000000000008 /* PencilDrawingSupport.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000010000000000000019 /* PencilDrawingSupport.swift */; };
 		AA0000010000000000000009 /* PhotoAttachmentSupport.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000010000000000000020 /* PhotoAttachmentSupport.swift */; };
+		DB90FC9F2F6976C300A6516A /* JobTreadSecrets.xcconfig in Resources */ = {isa = PBXBuildFile; fileRef = DB90FC9D2F6976C300A6516A /* JobTreadSecrets.xcconfig */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -29,6 +30,8 @@
 		AA0000010000000000000018 /* SectionEditors.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SectionEditors.swift; sourceTree = "<group>"; };
 		AA0000010000000000000019 /* PencilDrawingSupport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PencilDrawingSupport.swift; sourceTree = "<group>"; };
 		AA0000010000000000000020 /* PhotoAttachmentSupport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhotoAttachmentSupport.swift; sourceTree = "<group>"; };
+		DB90FC9D2F6976C300A6516A /* JobTreadSecrets.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = JobTreadSecrets.xcconfig; sourceTree = "<group>"; };
+		DB90FCA02F697B0800A6516A /* ConstructionScopeApp-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = "ConstructionScopeApp-Info.plist"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -45,6 +48,8 @@
 		AA0000010000000000000031 = {
 			isa = PBXGroup;
 			children = (
+				DB90FCA02F697B0800A6516A /* ConstructionScopeApp-Info.plist */,
+				DB90FC9E2F6976C300A6516A /* Config */,
 				AA0000010000000000000032 /* App */,
 				AA0000010000000000000033 /* Models */,
 				AA0000010000000000000034 /* Persistence */,
@@ -130,6 +135,14 @@
 			name = Products;
 			sourceTree = "<group>";
 		};
+		DB90FC9E2F6976C300A6516A /* Config */ = {
+			isa = PBXGroup;
+			children = (
+				DB90FC9D2F6976C300A6516A /* JobTreadSecrets.xcconfig */,
+			);
+			path = Config;
+			sourceTree = "<group>";
+		};
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
@@ -187,6 +200,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				DB90FC9F2F6976C300A6516A /* JobTreadSecrets.xcconfig in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -214,6 +228,7 @@
 /* Begin XCBuildConfiguration section */
 		AA0000010000000000000061 /* Debug */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = DB90FC9D2F6976C300A6516A /* JobTreadSecrets.xcconfig */;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				CLANG_ENABLE_MODULES = YES;
@@ -260,12 +275,14 @@
 		};
 		AA0000010000000000000063 /* Debug */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = DB90FC9D2F6976C300A6516A /* JobTreadSecrets.xcconfig */;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = V3WW48T3UH;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "ConstructionScopeApp-Info.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = "Construction Scope";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
@@ -296,6 +313,7 @@
 				DEVELOPMENT_TEAM = V3WW48T3UH;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "ConstructionScopeApp-Info.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = "Construction Scope";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;

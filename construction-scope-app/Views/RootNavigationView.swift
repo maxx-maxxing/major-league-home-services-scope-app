@@ -190,6 +190,7 @@ struct RootNavigationView: View {
     @State private var sidebarRenameDepositing = false
     @State private var sidebarFolderPulseToken = 0
     @State private var sidebarRenameOrigin = CGPoint(x: 28, y: 28)
+    @State private var showingScopeCreationSheet = false
     @StateObject private var autosave = DebouncedAutosave()
 
     private var selectedScope: JobScope? {
@@ -223,6 +224,7 @@ struct RootNavigationView: View {
                         selectedSortOption: $selectedSortOption,
                         sortDirection: $sortDirection,
                         createNewScope: createNewScope,
+                        createScopeFromCustomer: createScopeFromCustomer,
                         onOpenScope: recordScopeOpened,
                         autosave: autosave,
                         renameScope: renameScope,
@@ -300,11 +302,23 @@ struct RootNavigationView: View {
         .onChange(of: scopes.map(\.id)) { _, _ in
             selectFirstScopeIfNeeded()
         }
+        .sheet(isPresented: $showingScopeCreationSheet) {
+            ScopeCreationSheet(
+                onCreateBlankScope: {
+                    let newScope = createNewScope()
+                    if !useCompactNavigation {
+                        beginSidebarRename(for: newScope, mode: .newScope)
+                    }
+                },
+                onCreateScopeFromCustomer: { customer in
+                    _ = createScopeFromCustomer(customer)
+                }
+            )
+        }
     }
 
     private func handleSidebarCreateScope() {
-        let newScope = createNewScope()
-        beginSidebarRename(for: newScope, mode: .newScope)
+        showingScopeCreationSheet = true
     }
 
     private func beginSidebarRename(for scope: JobScope, mode: SidebarRenamePromptMode) {
@@ -355,7 +369,16 @@ struct RootNavigationView: View {
 
     @discardableResult
     private func createNewScope() -> JobScope {
-        let newScope = ScopeTemplate.makeNewScope()
+        persistNewScope(ScopeTemplate.makeNewScope())
+    }
+
+    @discardableResult
+    private func createScopeFromCustomer(_ customer: JobTreadCustomerLookupResult) -> JobScope {
+        persistNewScope(ScopeTemplate.makeScope(linkedCustomer: customer))
+    }
+
+    @discardableResult
+    private func persistNewScope(_ newScope: JobScope) -> JobScope {
         modelContext.insert(newScope)
 
         do {
@@ -887,6 +910,7 @@ private struct PhoneScopesListView: View {
     @Binding var selectedSortOption: ScopeSortOption?
     @Binding var sortDirection: ScopeSortDirection?
     let createNewScope: () -> JobScope
+    let createScopeFromCustomer: (JobTreadCustomerLookupResult) -> JobScope
     let onOpenScope: (JobScope) -> Void
     @ObservedObject var autosave: DebouncedAutosave
     let renameScope: (JobScope, String) -> Void
@@ -896,6 +920,7 @@ private struct PhoneScopesListView: View {
     @State private var renamePromptMode: SidebarRenamePromptMode = .existingScope
     @State private var renameDraft = ""
     @State private var scopePendingDelete: JobScope?
+    @State private var showingScopeCreationSheet = false
 
     private var groupedScopes: [ProjectTypeScopeGroup] {
         groupedScopesByProjectType(scopes)
@@ -972,6 +997,19 @@ private struct PhoneScopesListView: View {
         } message: {
             Text("This permanently removes the scope and its entered details.")
         }
+        .sheet(isPresented: $showingScopeCreationSheet) {
+            ScopeCreationSheet(
+                onCreateBlankScope: {
+                    let newScope = createNewScope()
+                    scopePendingRename = newScope
+                    renameDraft = ""
+                    renamePromptMode = .newScope
+                },
+                onCreateScopeFromCustomer: { customer in
+                    _ = createScopeFromCustomer(customer)
+                }
+            )
+        }
     }
 
     private var deleteAlertPresented: Binding<Bool> {
@@ -986,10 +1024,7 @@ private struct PhoneScopesListView: View {
     }
 
     private func handleCreateScope() {
-        let newScope = createNewScope()
-        scopePendingRename = newScope
-        renameDraft = ""
-        renamePromptMode = .newScope
+        showingScopeCreationSheet = true
     }
 
     private func cancelRenamePrompt() {

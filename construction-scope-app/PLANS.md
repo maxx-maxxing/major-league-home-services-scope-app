@@ -96,10 +96,21 @@ Keep milestones small, testable, and reviewable.
   - Confirm `schema.json` fields/enums used for integration are stable
   - Finalize canonical string/enum mapping table between app model and JobTread objects
   - Confirm required/optional field behavior and default values
+- Milestone 5.1.1 – Linked Customer Model Foundation
+  - Add additive schema/model fields for an optional linked JobTread customer reference
+  - Add additive schema/model fields for an optional future JobTread job reference
+  - Add an optional local scope title distinct from customer name
+  - Add additive sync metadata placeholders without implementing submission flow
+  - Preserve current local `projectInfo` compatibility fields and current scope-creation flow
 - Milestone 5.2 – API Foundation
   - Add secure credential/config handling for JobTread API access
   - Add typed API client + request/response models
   - Add resilient networking (timeouts, retry/backoff, offline queue strategy)
+- Milestone 5.2.1 – Customer Lookup Entry Flow
+  - Add a lightweight JobTread customer search/select UI from the existing `New Scope` entry point
+  - Keep the legacy blank/local scope creation path available as a temporary fallback
+  - Seed newly created scopes with linked JobTread customer metadata plus compatibility `projectInfo` values
+  - Keep lookup logic narrow and modular without implementing sync submission yet
 - Milestone 5.3 – Initial Sync Flow (One-Way)
   - Implement manual `Send to JobTread` action per scope
   - Map core scope entities into JobTread entities (customer/location/job/etc.)

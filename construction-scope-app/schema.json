@@ -1,5 +1,5 @@
 {
-  "version": 1,
+  "version": 2,
   "entities": {
     "JobScope": {
       "fields": {
@@ -32,6 +32,22 @@
         },
         "jobNumber": {
           "type": "string",
+          "required": false
+        },
+        "scopeTitle": {
+          "type": "string",
+          "required": false
+        },
+        "jobTreadCustomer": {
+          "type": "JobTreadCustomerRef",
+          "required": false
+        },
+        "jobTreadJob": {
+          "type": "JobTreadJobRef",
+          "required": false
+        },
+        "jobTreadSync": {
+          "type": "JobTreadSyncMetadata",
           "required": false
         },
         "projectInfo": {
@@ -851,6 +867,80 @@
             "approved",
             "other"
           ],
+          "required": false
+        }
+      }
+    },
+    "JobTreadCustomerRef": {
+      "fields": {
+        "customerID": {
+          "type": "string",
+          "required": true
+        },
+        "displayName": {
+          "type": "string",
+          "required": false
+        },
+        "primaryAddress": {
+          "type": "string",
+          "required": false
+        },
+        "phone": {
+          "type": "string",
+          "required": false
+        },
+        "email": {
+          "type": "string",
+          "required": false
+        },
+        "fetchedAt": {
+          "type": "date",
+          "required": false
+        }
+      }
+    },
+    "JobTreadJobRef": {
+      "fields": {
+        "jobID": {
+          "type": "string",
+          "required": true
+        },
+        "jobNumber": {
+          "type": "string",
+          "required": false
+        },
+        "title": {
+          "type": "string",
+          "required": false
+        },
+        "fetchedAt": {
+          "type": "date",
+          "required": false
+        }
+      }
+    },
+    "JobTreadSyncMetadata": {
+      "fields": {
+        "status": {
+          "type": "enum",
+          "values": [
+            "never_synced",
+            "in_progress",
+            "succeeded",
+            "failed"
+          ],
+          "required": true
+        },
+        "lastAttemptAt": {
+          "type": "date",
+          "required": false
+        },
+        "lastSucceededAt": {
+          "type": "date",
+          "required": false
+        },
+        "lastErrorMessage": {
+          "type": "string",
           "required": false
         }
       }

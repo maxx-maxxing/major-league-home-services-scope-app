@@ -766,6 +766,101 @@ struct ProductionOrderMeta: Codable, Hashable {
     var permitStatus: PermitStatus?
 }
 
+struct JobTreadCustomerLookupResult: Codable, Hashable, Identifiable, Sendable {
+    let customerID: String
+    let displayName: String?
+    let primaryAddress: String?
+    let phone: String?
+    let email: String?
+
+    var id: String { customerID }
+
+    var resolvedDisplayName: String {
+        displayName?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty ?? "Unnamed Customer"
+    }
+
+    var customerReference: JobTreadCustomerRef {
+        JobTreadCustomerRef(
+            customerID: customerID,
+            displayName: displayName,
+            primaryAddress: primaryAddress,
+            phone: phone,
+            email: email,
+            fetchedAt: .now
+        )
+    }
+}
+
+struct JobTreadCustomerRef: Codable, Hashable {
+    var customerID: String
+    var displayName: String?
+    var primaryAddress: String?
+    var phone: String?
+    var email: String?
+    var fetchedAt: Date?
+
+    init(
+        customerID: String,
+        displayName: String? = nil,
+        primaryAddress: String? = nil,
+        phone: String? = nil,
+        email: String? = nil,
+        fetchedAt: Date? = nil
+    ) {
+        self.customerID = customerID
+        self.displayName = displayName
+        self.primaryAddress = primaryAddress
+        self.phone = phone
+        self.email = email
+        self.fetchedAt = fetchedAt
+    }
+}
+
+struct JobTreadJobRef: Codable, Hashable {
+    var jobID: String
+    var jobNumber: String?
+    var title: String?
+    var fetchedAt: Date?
+
+    init(
+        jobID: String,
+        jobNumber: String? = nil,
+        title: String? = nil,
+        fetchedAt: Date? = nil
+    ) {
+        self.jobID = jobID
+        self.jobNumber = jobNumber
+        self.title = title
+        self.fetchedAt = fetchedAt
+    }
+}
+
+enum JobTreadSyncStatus: String, Codable, CaseIterable, SchemaEnumDisplayable {
+    case neverSynced = "never_synced"
+    case inProgress = "in_progress"
+    case succeeded
+    case failed
+}
+
+struct JobTreadSyncMetadata: Codable, Hashable {
+    var status: JobTreadSyncStatus
+    var lastAttemptAt: Date?
+    var lastSucceededAt: Date?
+    var lastErrorMessage: String?
+
+    init(
+        status: JobTreadSyncStatus = .neverSynced,
+        lastAttemptAt: Date? = nil,
+        lastSucceededAt: Date? = nil,
+        lastErrorMessage: String? = nil
+    ) {
+        self.status = status
+        self.lastAttemptAt = lastAttemptAt
+        self.lastSucceededAt = lastSucceededAt
+        self.lastErrorMessage = lastErrorMessage
+    }
+}
+
 struct CustomerApproval: Codable, Hashable {
     var optionsConfirmedText: String?
     var signaturePNGPath: String?
@@ -816,6 +911,10 @@ final class JobScope {
     var updatedAt: Date
     var status: JobStatus
     var jobNumber: String?
+    var scopeTitle: String?
+    var jobTreadCustomer: JobTreadCustomerRef?
+    var jobTreadJob: JobTreadJobRef?
+    var jobTreadSync: JobTreadSyncMetadata?
     var projectInfo: ProjectInfo
     var existingConditions: ExistingConditions?
     var dimensions: Dimensions?
@@ -838,6 +937,10 @@ final class JobScope {
         updatedAt: Date = .now,
         status: JobStatus = .draft,
         jobNumber: String? = nil,
+        scopeTitle: String? = nil,
+        jobTreadCustomer: JobTreadCustomerRef? = nil,
+        jobTreadJob: JobTreadJobRef? = nil,
+        jobTreadSync: JobTreadSyncMetadata? = nil,
         projectInfo: ProjectInfo,
         existingConditions: ExistingConditions? = nil,
         dimensions: Dimensions? = nil,
@@ -859,6 +962,10 @@ final class JobScope {
         self.updatedAt = updatedAt
         self.status = status
         self.jobNumber = jobNumber
+        self.scopeTitle = scopeTitle
+        self.jobTreadCustomer = jobTreadCustomer
+        self.jobTreadJob = jobTreadJob
+        self.jobTreadSync = jobTreadSync
         self.projectInfo = projectInfo
         self.existingConditions = existingConditions
         self.dimensions = dimensions
@@ -875,11 +982,23 @@ final class JobScope {
         self.sketches = sketches
     }
 
+    var resolvedScopeTitle: String? {
+        scopeTitle?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty
+    }
+
+    var resolvedLinkedCustomerName: String? {
+        jobTreadCustomer?.displayName?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty
+    }
+
+    var resolvedProjectClientName: String? {
+        projectInfo.clientName.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty
+    }
+
     var displayName: String {
-        if projectInfo.clientName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            return "Untitled Scope"
-        }
-        return projectInfo.clientName
+        resolvedScopeTitle ??
+            resolvedLinkedCustomerName ??
+            resolvedProjectClientName ??
+            "Untitled Scope"
     }
 }
 
@@ -906,5 +1025,27 @@ enum ScopeTemplate {
             status: lockedTemplate.defaultStatus,
             projectInfo: lockedTemplate.defaultProjectInfo
         )
+    }
+
+    static func makeScope(linkedCustomer customer: JobTreadCustomerLookupResult) -> JobScope {
+        JobScope(
+            status: lockedTemplate.defaultStatus,
+            jobTreadCustomer: customer.customerReference,
+            jobTreadSync: JobTreadSyncMetadata(),
+            projectInfo: ProjectInfo(
+                clientName: customer.displayName?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty ?? "",
+                address: customer.primaryAddress?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty ?? "",
+                phone: customer.phone?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty,
+                email: customer.email?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty,
+                projectType: .notSet,
+                notes: lockedTemplate.defaultProjectInfo.notes
+            )
+        )
+    }
+}
+
+private extension String {
+    var nilIfEmpty: String? {
+        isEmpty ? nil : self
     }
 }

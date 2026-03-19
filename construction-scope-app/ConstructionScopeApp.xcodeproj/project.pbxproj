@@ -16,6 +16,7 @@
 		AA0000010000000000000007 /* SectionEditors.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000010000000000000018 /* SectionEditors.swift */; };
 		AA0000010000000000000008 /* PencilDrawingSupport.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000010000000000000019 /* PencilDrawingSupport.swift */; };
 		AA0000010000000000000009 /* PhotoAttachmentSupport.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000010000000000000020 /* PhotoAttachmentSupport.swift */; };
+		FC0000010000000000000001 /* JobTreadCustomerSelection.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC0000010000000000000011 /* JobTreadCustomerSelection.swift */; };
 		JT0000010000000000000001 /* JobTreadConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = JT0000010000000000000011 /* JobTreadConfig.swift */; };
 		JT0000010000000000000002 /* JobTreadClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = JT0000010000000000000012 /* JobTreadClient.swift */; };
 		JT0000010000000000000003 /* JobTreadDebugView.swift in Sources */ = {isa = PBXBuildFile; fileRef = JT0000010000000000000013 /* JobTreadDebugView.swift */; };
@@ -33,6 +34,7 @@
 		AA0000010000000000000018 /* SectionEditors.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SectionEditors.swift; sourceTree = "<group>"; };
 		AA0000010000000000000019 /* PencilDrawingSupport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PencilDrawingSupport.swift; sourceTree = "<group>"; };
 		AA0000010000000000000020 /* PhotoAttachmentSupport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhotoAttachmentSupport.swift; sourceTree = "<group>"; };
+		FC0000010000000000000011 /* JobTreadCustomerSelection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JobTreadCustomerSelection.swift; sourceTree = "<group>"; };
 		JT0000010000000000000011 /* JobTreadConfig.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JobTreadConfig.swift; sourceTree = "<group>"; };
 		JT0000010000000000000012 /* JobTreadClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JobTreadClient.swift; sourceTree = "<group>"; };
 		JT0000010000000000000013 /* JobTreadDebugView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JobTreadDebugView.swift; sourceTree = "<group>"; };
@@ -125,6 +127,7 @@
 		AA0000010000000000000037 /* Features */ = {
 			isa = PBXGroup;
 			children = (
+				FC0000010000000000000011 /* JobTreadCustomerSelection.swift */,
 			);
 			path = Features;
 			sourceTree = "<group>";
@@ -237,6 +240,7 @@
 				AA0000010000000000000007 /* SectionEditors.swift in Sources */,
 				AA0000010000000000000008 /* PencilDrawingSupport.swift in Sources */,
 				AA0000010000000000000009 /* PhotoAttachmentSupport.swift in Sources */,
+				FC0000010000000000000001 /* JobTreadCustomerSelection.swift in Sources */,
 				JT0000010000000000000001 /* JobTreadConfig.swift in Sources */,
 				JT0000010000000000000002 /* JobTreadClient.swift in Sources */,
 				JT0000010000000000000003 /* JobTreadDebugView.swift in Sources */,

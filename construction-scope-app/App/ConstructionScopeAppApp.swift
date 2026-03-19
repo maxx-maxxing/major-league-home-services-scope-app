@@ -7,7 +7,7 @@ struct ConstructionScopeAppApp: App {
 
     var body: some Scene {
         WindowGroup {
-            JobTreadDebugView()
+            RootNavigationView()
         }
         .modelContainer(persistenceController.container)
 

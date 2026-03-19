@@ -10,6 +10,8 @@
 - Milestone 3: Implemented (PencilKit signature + sketch capture)
 - Milestone 4: Implemented (flattened PDF preview + export)
 - Milestone 5: Not started
+- Milestone 5.1.1: Implemented (linked JobTread model foundation)
+- Milestone 5.2.1: Implemented (customer lookup entry flow)
 - Milestone 6: Implemented (photo attachment flow + PDF photo appendix)
 - Milestone 7.1: In progress (interaction animation polish)
 - Milestone 7.2: In progress (acceptance closeout)
@@ -210,6 +212,43 @@
     - preserved the selected sort order within each project-type section when grouping is enabled
 - Production notes are stored in `customerApproval.optionsConfirmedText` (schema-consistent text field already available).
 - `schema.json` was updated when dropdown options / notes fields changed.
+- Milestone 5.1.1 linked-customer model foundation:
+  - Added additive `JobScope` metadata for:
+    - `scopeTitle`
+    - `jobTreadCustomer`
+    - `jobTreadJob`
+    - `jobTreadSync`
+  - Added schema/model value types for:
+    - `JobTreadCustomerRef`
+    - `JobTreadJobRef`
+    - `JobTreadSyncMetadata`
+    - `JobTreadSyncStatus`
+  - Preserved existing `projectInfo.clientName` and related project/contact fields as compatibility fields.
+  - Updated `JobScope.displayName` resolution order to prefer:
+    - local `scopeTitle`
+    - linked JobTread customer display name
+    - legacy `projectInfo.clientName`
+    - `Untitled Scope`
+  - No customer search UI, workflow replacement, or sync submission was added in this phase.
+  - Compatibility assumption:
+    - existing persisted scopes should continue to load because the newly introduced fields are optional and current UI still writes through the legacy `projectInfo` path.
+- Milestone 5.2.1 customer lookup entry flow:
+  - Added a lightweight `New Scope` sheet that supports:
+    - searching/selecting an existing JobTread customer
+    - a temporary blank local scope fallback
+  - The existing app shell and section editor workflow remain intact.
+  - Selecting a JobTread customer now seeds a new scope with:
+    - `jobTreadCustomer`
+    - `jobTreadSync = .neverSynced`
+    - compatibility `projectInfo` values for client name, address, phone, and email when available
+  - Added a narrow customer-search view model isolated to the new selection flow instead of spreading lookup state through `RootNavigationView`.
+  - Added a narrow `JobTreadClient.searchCustomers` service entry point for lookup only; no sync submission or job creation flow was added.
+  - Temporary compatibility decisions:
+    - blank/local scope creation still exists as a fallback path
+    - selected-customer scopes still populate legacy `projectInfo` fields so current editors and PDF/export behavior continue to work
+    - `projectInfo` remains transitional compatibility data, not the intended long-term customer source of truth
+  - API note:
+    - the JobTread docs landing page confirms the open API, but the live docs content was not readable from this environment, so the customer lookup query is implemented as a narrow best-effort assumption that should be verified against the official docs in the next integration pass
 
 ## How to Run
 1. Open [ConstructionScopeApp.xcodeproj](/C:/Users/your_/Downloads/construction-scope-app_coderpack_plus/construction-scope-app/ConstructionScopeApp.xcodeproj).

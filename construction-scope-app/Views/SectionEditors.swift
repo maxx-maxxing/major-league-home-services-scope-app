@@ -40,7 +40,7 @@ struct ProjectInfoEditorView: View {
                                 Text(linkedCustomerName)
                                     .font(.body.weight(.medium))
 
-                                Text("Customer-owned fields below are read-only and come from JobTread.")
+                                Text("Customer name and address fields below are read-only and come from JobTread.")
                                     .font(.footnote)
                                     .foregroundStyle(.secondary)
 
@@ -146,26 +146,21 @@ struct ProjectInfoEditorView: View {
 
             CardGroup(title: "Contact") {
                 VStack(spacing: 12) {
-                    if hasLinkedCustomer {
-                        ReadOnlyProjectField(title: "Phone", value: scope.projectInfo.phone, placeholder: "Not provided")
-                        ReadOnlyProjectField(title: "Email", value: scope.projectInfo.email, placeholder: "Not provided")
-                    } else {
-                        VStack(alignment: .leading, spacing: 6) {
-                            Text("Phone")
-                                .font(.body)
-                            TextField("Phone", text: optionalStringBinding(\.phone))
-                                .liquidGlassInput()
-                                .keyboardType(.phonePad)
-                        }
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text("Phone")
+                            .font(.body)
+                        TextField("Phone", text: optionalStringBinding(\.phone))
+                            .liquidGlassInput()
+                            .keyboardType(.phonePad)
+                    }
 
-                        VStack(alignment: .leading, spacing: 6) {
-                            Text("Email")
-                                .font(.body)
-                            TextField("Email", text: optionalStringBinding(\.email))
-                                .liquidGlassInput()
-                                .keyboardType(.emailAddress)
-                                .textInputAutocapitalization(.never)
-                        }
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text("Email")
+                            .font(.body)
+                        TextField("Email", text: optionalStringBinding(\.email))
+                            .liquidGlassInput()
+                            .keyboardType(.emailAddress)
+                            .textInputAutocapitalization(.never)
                     }
 
                     VStack(alignment: .leading, spacing: 6) {
@@ -3233,4 +3228,3 @@ private func emptyCustomerApproval() -> CustomerApproval {
         signedDate: nil
     )
 }
-

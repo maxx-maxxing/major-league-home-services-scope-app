@@ -266,8 +266,6 @@
     - city
     - state
     - ZIP
-    - phone
-    - email
   - Local scope-owned fields remain editable:
     - `scopeTitle`
     - project type
@@ -279,9 +277,11 @@
   - Added a `Refresh from JobTread` action on linked scopes that reuses the existing customer-detail fetch by linked customer ID.
   - Refresh now overwrites only the JobTread-owned hydrated compatibility fields and the linked-customer metadata cache; it does not touch local scope-owned fields.
   - The existing search/select creation flow and blank local fallback remain unchanged.
-  - Current query limitation:
-    - the verified customer-detail query in this phase hydrates customer name and location fields
-    - phone/email remain read-only when linked because they are JobTread-sourced compatibility fields, but the current refresh path does not fetch new phone/email values without expanding the doc-verified query shape
+  - Phone/email remain locally editable in this phase because the currently verified customer-detail query only hydrates customer name and location fields.
+  - Validation target for this pass:
+    - linked-scope creation still works
+    - partial live customer search still works
+    - refresh succeeds without changing local scope-owned fields
 - Milestone 5.2.20 linked customer phone/email hydration verification:
   - Re-checked the repo’s local source-of-truth evidence for phone/email hydration before changing the existing detail query:
     - current verified detail lookup remains `organization.accounts` by customer ID
@@ -295,13 +295,21 @@
     - the uploaded docs/schema evidence in this repo still does not cleanly expose a doc-supported `account` or related `contact` phone/email field on the verified linked-customer hydration path
     - no query expansion was implemented in this pass because doing so would require guessing unsupported GraphQL fields or object relationships
   - Preserved behavior:
-    - linked customer phone/email remain read-only when a scope is linked
+    - linked customer phone/email remain locally editable when a scope is linked
     - existing search/select flow is unchanged
     - existing address hydration and `Refresh from JobTread` behavior are unchanged
   - Follow-up requirement:
     - only expand phone/email hydration after the exact supported field path and object are verified from JobTread docs or a fresh schema probe
 
 ## Validation Notes
+- 2026-03-23:
+  - Successful build:
+    - `xcodebuild -project ConstructionScopeApp.xcodeproj -scheme ConstructionScopeApp -sdk iphonesimulator -configuration Debug build CODE_SIGNING_ALLOWED=NO -derivedDataPath /tmp/construction-scope-app-codex-build`
+  - Result:
+    - build succeeded when rerun outside the sandbox so SwiftData macros and simulator tooling could execute normally
+  - Scope of validation:
+    - confirmed the linked-customer Project Information UI changes compile cleanly
+    - confirmed the existing linked-customer refresh flow still compiles on the current scheme
 - 2026-03-23:
   - Attempted build:
     - `xcodebuild -project ConstructionScopeApp.xcodeproj -scheme ConstructionScopeApp -sdk iphonesimulator -configuration Debug build CODE_SIGNING_ALLOWED=NO -derivedDataPath build/CodexDerivedDataLocal`

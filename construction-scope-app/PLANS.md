@@ -184,6 +184,20 @@ Keep milestones small, testable, and reviewable.
   - Treat hydrated JobTread customer compatibility fields as read-only in the Project Information UI once a scope is linked
   - Add a manual refresh action that reuses the existing doc-supported customer-detail query by linked customer ID
   - Overwrite only JobTread-owned hydrated fields during refresh and preserve local scope-owned fields and the blank local fallback path
+  - Keep the locked field set limited to the verified hydrated customer fields:
+    - customer name
+    - street address
+    - city
+    - state
+    - ZIP
+  - Preserve local editability for scope-owned fields including:
+    - scope title
+    - scope/project notes
+    - project type
+    - salesperson / estimator
+    - site visit date
+    - section measurements and production data
+  - Do not newly lock phone/email until a doc-supported refresh/hydration path for those fields is confirmed
 - Milestone 5.2.20 – Linked Customer Phone/Email Hydration Verification
   - Verify a doc-supported field path for linked customer phone/email before expanding the current customer-detail query
   - Do not guess unsupported `account` / `contact` fields on the existing `organization.accounts` detail lookup

@@ -9,11 +9,39 @@ struct ProjectInfoEditorView: View {
 
     var body: some View {
         VStack(spacing: 16) {
-            CardGroup(title: "Client") {
+            CardGroup(title: "Scope") {
+                VStack(alignment: .leading, spacing: 12) {
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text("Scope Title")
+                            .font(.body)
+                        TextField("Enter scope title", text: scopeTitleBinding)
+                            .liquidGlassInput()
+                    }
+
+                    Text("This local title is shown in the scope list and editor headers.")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                }
+            }
+
+            if let linkedCustomerName = scope.resolvedLinkedCustomerName {
+                CardGroup(title: "Linked Customer") {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text(linkedCustomerName)
+                            .font(.body.weight(.medium))
+
+                        Text("This scope remains linked to the selected JobTread customer.")
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
+
+            CardGroup(title: "Customer") {
                 VStack(spacing: 12) {
                     VStack(alignment: .leading, spacing: 6) {
-                        RequiredLabel(text: "Client Name")
-                        TextField("Enter client name", text: requiredStringBinding(\.clientName))
+                        RequiredLabel(text: "Customer Name")
+                        TextField("Enter customer name", text: requiredStringBinding(\.clientName))
                             .liquidGlassInput()
                     }
 
@@ -38,6 +66,12 @@ struct ProjectInfoEditorView: View {
                                 .liquidGlassInput()
                                 .keyboardType(.numberPad)
                         }
+                    }
+
+                    if scope.jobTreadCustomer != nil {
+                        Text("Customer fields remain available for current forms and PDF compatibility.")
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
                     }
                 }
             }
@@ -125,6 +159,16 @@ struct ProjectInfoEditorView: View {
             get: { scope.projectInfo.projectType },
             set: { newValue in
                 updateProjectInfo { $0.projectType = newValue }
+            }
+        )
+    }
+
+    private var scopeTitleBinding: Binding<String> {
+        Binding(
+            get: { scope.resolvedScopeTitle ?? "" },
+            set: { newValue in
+                scope.setLocalScopeTitle(newValue)
+                autosave.scheduleSave(for: scope)
             }
         )
     }

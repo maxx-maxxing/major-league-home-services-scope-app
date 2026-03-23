@@ -93,13 +93,16 @@ extension JobTreadClient: JobTreadCustomerSearching {
             searchText: trimmedQuery,
             limit: limit
         )
+        logCustomerSearchRequest(requestBody)
         let envelope: JobTreadCustomerSearchEnvelope = try await send(requestBody)
 
         if !envelope.errors.isEmpty {
             throw JobTreadClientError.apiErrors(envelope.errors.map(\.message))
         }
 
-        return envelope.customers?.nodes.map(\.lookupResult) ?? []
+        let results = envelope.organization?.accounts?.nodes.map(\.lookupResult) ?? []
+        print("[JobTread] customer search results: \(results.count) for query '\(trimmedQuery)'")
+        return results
     }
 }
 
@@ -123,6 +126,16 @@ private extension JobTreadClient {
         }
 
         return try decoder.decode(ResponseBody.self, from: data)
+    }
+
+    func logCustomerSearchRequest(_ requestBody: JobTreadCustomerSearchRequest) {
+        guard let data = try? encoder.encode(requestBody),
+              let json = String(data: data, encoding: .utf8) else {
+            print("[JobTread] customer search request: <encoding failed>")
+            return
+        }
+
+        print("[JobTread] customer search request: \(json)")
     }
 }
 
@@ -168,14 +181,12 @@ private struct JobTreadCustomerSearchRequest: Encodable {
 
 private struct JobTreadCustomerSearchQuery: Encodable {
     let context: JobTreadCustomerSearchContext
-    let customers: JobTreadCustomersSelection
+    let organization: JobTreadCustomerSearchOrganizationSelection
 
     init(grantKey: String, organizationID: String, searchText: String, limit: Int) {
-        context = JobTreadCustomerSearchContext(
-            grantKey: grantKey,
-            organizationID: organizationID
-        )
-        customers = JobTreadCustomersSelection(
+        context = JobTreadCustomerSearchContext(grantKey: grantKey)
+        organization = JobTreadCustomerSearchOrganizationSelection(
+            organizationID: organizationID,
             searchText: searchText,
             limit: limit
         )
@@ -183,18 +194,12 @@ private struct JobTreadCustomerSearchQuery: Encodable {
 
     enum CodingKeys: String, CodingKey {
         case context = "$"
-        case customers
+        case organization
     }
 }
 
 private struct JobTreadCustomerSearchContext: Encodable {
     let grantKey: String
-    let organizationID: String
-
-    enum CodingKeys: String, CodingKey {
-        case grantKey
-        case organizationID = "organizationId"
-    }
 }
 
 private struct JobTreadCurrentGrantSelection: Encodable {
@@ -202,9 +207,28 @@ private struct JobTreadCurrentGrantSelection: Encodable {
     let user = JobTreadUserSelection()
 }
 
-private struct JobTreadCustomersSelection: Encodable {
+private struct JobTreadCustomerSearchOrganizationSelection: Encodable {
+    let options: JobTreadOrganizationSelectionOptions
+    let accounts: JobTreadAccountsSelection
+
+    init(organizationID: String, searchText: String, limit: Int) {
+        options = JobTreadOrganizationSelectionOptions(id: organizationID)
+        accounts = JobTreadAccountsSelection(searchText: searchText, limit: limit)
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case options = "$"
+        case accounts
+    }
+}
+
+private struct JobTreadOrganizationSelectionOptions: Encodable {
+    let id: String
+}
+
+private struct JobTreadAccountsSelection: Encodable {
     let options: JobTreadCustomerSearchOptions
-    let nodes = JobTreadCustomerSelection()
+    let nodes = JobTreadAccountSelection()
 
     init(searchText: String, limit: Int) {
         options = JobTreadCustomerSearchOptions(searchText: searchText, limit: limit)
@@ -217,22 +241,54 @@ private struct JobTreadCustomersSelection: Encodable {
 }
 
 private struct JobTreadCustomerSearchOptions: Encodable {
-    let search: String
-    let first: Int
+    let whereClause: JobTreadAccountWhereClause
+    let size: Int
 
     init(searchText: String, limit: Int) {
-        search = searchText
-        first = limit
+        whereClause = JobTreadAccountWhereClause(searchText: searchText)
+        size = limit
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case whereClause = "where"
+        case size
     }
 }
 
-private struct JobTreadCustomerSelection: Encodable {
+private struct JobTreadAccountWhereClause: Encodable {
+    let and: [JobTreadAccountWhereCondition]
+
+    init(searchText: String) {
+        and = [
+            JobTreadAccountWhereCondition(field: "name", comparison: "=", value: searchText),
+            JobTreadAccountWhereCondition(field: "type", comparison: "=", value: "customer")
+        ]
+    }
+}
+
+private struct JobTreadAccountWhereCondition: Encodable {
+    let field: String
+    let comparison: String
+    let value: String
+
+    init(field: String, comparison: String, value: String) {
+        self.field = field
+        self.comparison = comparison
+        self.value = value
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.unkeyedContainer()
+        try container.encode(field)
+        try container.encode(comparison)
+        try container.encode(value)
+    }
+}
+
+private struct JobTreadAccountSelection: Encodable {
     let id = JobTreadEmptySelection()
-    let displayName = JobTreadEmptySelection()
     let name = JobTreadEmptySelection()
-    let address = JobTreadEmptySelection()
-    let phone = JobTreadEmptySelection()
-    let email = JobTreadEmptySelection()
+    let type = JobTreadEmptySelection()
 }
 
 private struct JobTreadUserSelection: Encodable {
@@ -284,16 +340,16 @@ private struct JobTreadCurrentGrantEnvelope: Decodable {
 }
 
 private struct JobTreadCustomerSearchEnvelope: Decodable {
-    let customers: JobTreadCustomerConnection?
+    let organization: JobTreadCustomerSearchOrganizationNode?
     let errors: [JobTreadAPIError]
 
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
 
         if let dataContainer = try? container.nestedContainer(keyedBy: DataCodingKeys.self, forKey: .data) {
-            customers = try dataContainer.decodeIfPresent(JobTreadCustomerConnection.self, forKey: .customers)
+            organization = try dataContainer.decodeIfPresent(JobTreadCustomerSearchOrganizationNode.self, forKey: .organization)
         } else {
-            customers = try container.decodeIfPresent(JobTreadCustomerConnection.self, forKey: .customers)
+            organization = try container.decodeIfPresent(JobTreadCustomerSearchOrganizationNode.self, forKey: .organization)
         }
 
         errors = try container.decodeIfPresent([JobTreadAPIError].self, forKey: .errors) ?? []
@@ -301,34 +357,36 @@ private struct JobTreadCustomerSearchEnvelope: Decodable {
 
     private enum CodingKeys: String, CodingKey {
         case data
-        case customers
+        case organization
         case errors
     }
 
     private enum DataCodingKeys: String, CodingKey {
-        case customers
+        case organization
     }
 }
 
-private struct JobTreadCustomerConnection: Decodable {
-    let nodes: [JobTreadCustomerNode]
+private struct JobTreadCustomerSearchOrganizationNode: Decodable {
+    let accounts: JobTreadAccountConnection?
 }
 
-private struct JobTreadCustomerNode: Decodable {
+private struct JobTreadAccountConnection: Decodable {
+    let nodes: [JobTreadAccountNode]
+}
+
+private struct JobTreadAccountNode: Decodable {
     let id: String
-    let displayName: String?
     let name: String?
-    let address: String?
-    let phone: String?
-    let email: String?
+    let type: String?
 
     var lookupResult: JobTreadCustomerLookupResult {
         JobTreadCustomerLookupResult(
             customerID: id,
-            displayName: displayName ?? name,
-            primaryAddress: address,
-            phone: phone,
-            email: email
+            displayName: name,
+            accountType: type,
+            primaryAddress: nil,
+            phone: nil,
+            email: nil
         )
     }
 }

@@ -12,6 +12,11 @@
 - Milestone 5: Not started
 - Milestone 5.1.1: Implemented (linked JobTread model foundation)
 - Milestone 5.2.1: Implemented (customer lookup entry flow)
+- Milestone 5.2.2: Implemented (local scope title separation)
+- Milestone 5.2.3: Implemented (naming UI clarification)
+- Milestone 5.2.4: Implemented (export + validation naming cleanup)
+- Milestone 5.2.5: Implemented (customer lookup query fix)
+- Milestone 5.2.6: Implemented (search field reduction)
 - Milestone 6: Implemented (photo attachment flow + PDF photo appendix)
 - Milestone 7.1: In progress (interaction animation polish)
 - Milestone 7.2: In progress (acceptance closeout)
@@ -249,6 +254,115 @@
     - `projectInfo` remains transitional compatibility data, not the intended long-term customer source of truth
   - API note:
     - the JobTread docs landing page confirms the open API, but the live docs content was not readable from this environment, so the customer lookup query is implemented as a narrow best-effort assumption that should be verified against the official docs in the next integration pass
+- Milestone 5.2.2 local scope title separation:
+  - Scope rename now writes to `scopeTitle` instead of `projectInfo.clientName`.
+  - Blank local scope naming now also resolves through the same rename flow, so new local names land in `scopeTitle`.
+  - Linked JobTread customer identity remains separate:
+    - selecting a JobTread customer still seeds compatibility `projectInfo` contact fields
+    - later rename actions no longer overwrite that seeded customer name
+  - Current list/detail title surfaces continue to use `JobScope.displayName`, which now cleanly resolves in this order:
+    - `scopeTitle`
+    - linked JobTread customer display name
+    - compatibility `projectInfo.clientName`
+    - `Untitled Scope`
+  - Temporary compatibility decision:
+    - `projectInfo.clientName` remains in place for current editors, PDF required-field checks, and export/header behavior, but it is no longer the canonical editable scope-title field
+- Milestone 5.2.3 naming UI clarification:
+  - The `Project Information` editor now exposes an explicit `Scope Title` field backed by `scopeTitle`.
+  - The legacy `projectInfo.clientName` field is still present, but the UI now presents it as `Customer Name` instead of the apparent scope title.
+  - JobTread-linked scopes now surface the linked customer separately in the editor so customer identity remains visible without implying it is the editable local scope title.
+  - Current-scope chrome in the sidebar and section editor now shows a separate `Customer:` line when the displayed scope title differs from the resolved customer identity.
+  - Temporary compatibility decision:
+    - `projectInfo.clientName` remains editable for current forms/PDF/export compatibility, but it is no longer presented as the primary local scope naming surface
+- Milestone 5.2.4 export + validation naming cleanup:
+  - PDF/export logic now resolves document identity intentionally instead of reading `projectInfo.clientName` directly in multiple places.
+  - The PDF header now uses:
+    - local scope title when available for the document title
+    - resolved customer identity on a separate `Customer:` line
+    - address / project type / job number as before
+  - Page 1 `Project Information` now distinguishes:
+    - `Scope Title`
+    - `Customer`
+    - address/contact/project fields
+  - Missing required field warnings for preview/export now validate resolved customer identity rather than only `projectInfo.clientName`.
+  - Export filenames now prefer the resolved local scope title token, then fall back to resolved customer identity, then `Scope`.
+  - Temporary compatibility decision:
+    - `projectInfo.clientName` still participates as a fallback through the shared resolution helpers, so legacy/local scopes continue to export without needing an immediate data migration
+- Milestone 5.2.5 customer lookup query fix:
+  - Replaced the invalid root-level JobTread customer search query (`customers`) with an `organization.accounts` query shape in the service layer.
+  - Added account filtering for customer records in the outgoing lookup request.
+  - Preserved the existing `New Scope` customer-selection UI and the seeded-scope creation flow.
+  - Added targeted debug logging for:
+    - the encoded outgoing customer search request body
+    - the mapped result count returned for a search term
+  - Query-shape assumption:
+    - based on the uploaded docs and runtime error, customer lookup is implemented as `organization.accounts` with a type filter of `customer`
+    - the implementation assumes JobTread supports `search`, `first`, and `filter.type.equalTo = "customer"` on the `accounts` connection
+    - if JobTread requires a different filter operator name, the request log now makes the exact payload easy to inspect and adjust without changing the UI flow
+- Milestone 5.2.6 search field reduction:
+  - Reduced `organization.accounts.nodes` customer search fields to the safest doc-supported account-list set:
+    - `id`
+    - `name`
+    - `type`
+  - Removed guessed contact/location fields from the account-list query, including:
+    - `email`
+    - `phone`
+    - `address`
+    - `displayName`
+  - Preserved the existing `Create from JobTread Customer` UI path and seeded-scope creation flow.
+  - Current search-result seeding now carries safe customer identity only; address/phone/email remain empty until a separate doc-supported detail lookup is added.
+  - Temporary assumption:
+    - account-list search is for selection only, not full customer/contact hydration
+    - if richer customer seeding is needed, it should be implemented as a second request after selection rather than overfetching unsupported account-list fields
+- Milestone 5.2.7 search argument shape fix:
+  - Removed the unsupported `first` argument from the `organization.accounts` customer lookup request after runtime validation showed JobTread rejects that field option.
+  - Preserved the current `organization.accounts` path, `search` term, `filter.type.equalTo = "customer"`, and minimal result node fields:
+    - `id`
+    - `name`
+    - `type`
+  - Temporary assumption:
+    - based on the uploaded docs plus the HTTP 400 response, `organization.accounts` does not use Relay-style `first` pagination
+    - the existing `limit` parameter is now only a client-side API surface placeholder until JobTread's supported pagination or result-limiting shape is confirmed
+- Milestone 5.2.8 search `where` alignment:
+  - Replaced the invalid `filter` argument on `organization.accounts` with the doc-supported `where` structure.
+  - The outgoing request now uses:
+    - `where = { "and": [ ["name", "contains", "<search text>"], ["type", "=", "customer"] ] }`
+    - `size = <limit>`
+    - `page = 1`
+  - Preserved the minimal result node fields:
+    - `id`
+    - `name`
+    - `type`
+  - Preserved the current customer-selection UI and seeded-scope flow.
+  - Temporary assumption:
+    - because the uploaded docs show exact `where` examples and `size` / `page` pagination, customer name search is implemented with a doc-style `["name", "contains", query]` condition plus `["type", "=", "customer"]`
+    - if JobTread requires a different name operator than `contains`, the request log remains the quickest way to confirm and adjust the service-layer payload without touching the UI flow
+- Milestone 5.2.9 exact-match Pave condition fix:
+  - Replaced the invalid fuzzy-search operator assumption with the exact doc-supported Pave array condition form for customer lookup.
+  - The outgoing request now uses:
+    - `where = { "and": [ ["name", "=", "<search text>"], ["type", "=", "customer"] ] }`
+    - `size = <limit>`
+  - Preserved the minimal result node fields:
+    - `id`
+    - `name`
+    - `type`
+  - Preserved the existing customer-selection UI and seeded-scope flow.
+  - Temporary assumption:
+    - fuzzy/partial-name matching is deferred until exact-match lookup is confirmed against the live JobTread schema
+    - if JobTread supports array-style `like`, that should be added in a follow-up pass only after exact-match search is working reliably
+- Milestone 5.2.10 initial paging token fix:
+  - Removed `page` from the initial `organization.accounts` customer search request after runtime validation showed a hardcoded first-page value is invalid.
+  - The outgoing request now uses:
+    - `where = { "and": [ ["name", "=", "<search text>"], ["type", "=", "customer"] ] }`
+    - `size = <limit>`
+  - Preserved the minimal result node fields:
+    - `id`
+    - `name`
+    - `type`
+  - Preserved the existing customer-selection UI and seeded-scope flow.
+  - Temporary assumption:
+    - based on the uploaded docs, `page` is only for subsequent-page tokens such as `nextPage` / `previousPage`, not the initial search request
+    - if initial lookup still needs to omit `size`, that should be the next narrowing step rather than guessing any paging semantics
 
 ## How to Run
 1. Open [ConstructionScopeApp.xcodeproj](/C:/Users/your_/Downloads/construction-scope-app_coderpack_plus/construction-scope-app/ConstructionScopeApp.xcodeproj).
@@ -312,6 +426,24 @@
   - `xcodebuild -project ConstructionScopeApp.xcodeproj -scheme ConstructionScopeApp -destination 'generic/platform=iOS' -derivedDataPath /tmp/ConstructionScopeAppDerived CODE_SIGNING_ALLOWED=NO build`
 - Unsandboxed `xcodebuild` validation succeeded again on March 11, 2026 after the Apple-correctness refinement pass using:
   - `xcodebuild -project ConstructionScopeApp.xcodeproj -scheme ConstructionScopeApp -destination 'generic/platform=iOS' -derivedDataPath /tmp/ConstructionScopeAppDerived CODE_SIGNING_ALLOWED=NO build`
+- Unsandboxed `xcodebuild` validation succeeded on March 20, 2026 after Milestone 5.2.2 local scope title separation using:
+  - `xcodebuild -project ConstructionScopeApp.xcodeproj -scheme ConstructionScopeApp -destination 'generic/platform=iOS Simulator' -derivedDataPath /tmp/ConstructionScopeAppPhase3Derived CODE_SIGNING_ALLOWED=NO build`
+- Unsandboxed `xcodebuild` validation succeeded on March 20, 2026 after Milestone 5.2.3 naming UI clarification using:
+  - `xcodebuild -project ConstructionScopeApp.xcodeproj -scheme ConstructionScopeApp -destination 'generic/platform=iOS Simulator' -derivedDataPath /tmp/ConstructionScopeAppPhase4Derived CODE_SIGNING_ALLOWED=NO build`
+- Unsandboxed `xcodebuild` validation succeeded on March 20, 2026 after Milestone 5.2.4 export + validation naming cleanup using:
+  - `xcodebuild -project ConstructionScopeApp.xcodeproj -scheme ConstructionScopeApp -destination 'generic/platform=iOS Simulator' -derivedDataPath /tmp/ConstructionScopeAppPhase5Derived CODE_SIGNING_ALLOWED=NO build`
+- Unsandboxed `xcodebuild` validation succeeded on March 20, 2026 after Milestone 5.2.5 customer lookup query fix using:
+  - `xcodebuild -project ConstructionScopeApp.xcodeproj -scheme ConstructionScopeApp -destination 'generic/platform=iOS Simulator' -derivedDataPath /tmp/ConstructionScopeAppPhase6Derived CODE_SIGNING_ALLOWED=NO build`
+- Unsandboxed `xcodebuild` validation succeeded on March 20, 2026 after Milestone 5.2.6 search field reduction using:
+  - `xcodebuild -project ConstructionScopeApp.xcodeproj -scheme ConstructionScopeApp -destination 'generic/platform=iOS Simulator' -derivedDataPath /tmp/ConstructionScopeAppPhase7Derived CODE_SIGNING_ALLOWED=NO build`
+- Unsandboxed `xcodebuild` validation succeeded on March 20, 2026 after Milestone 5.2.7 search argument shape fix using:
+  - `xcodebuild -project ConstructionScopeApp.xcodeproj -scheme ConstructionScopeApp -destination 'generic/platform=iOS Simulator' -derivedDataPath /tmp/ConstructionScopeAppPhase8Derived CODE_SIGNING_ALLOWED=NO build`
+- Unsandboxed `xcodebuild` validation succeeded on March 20, 2026 after Milestone 5.2.8 search `where` alignment using:
+  - `xcodebuild -project ConstructionScopeApp.xcodeproj -scheme ConstructionScopeApp -destination 'generic/platform=iOS Simulator' -derivedDataPath /tmp/ConstructionScopeAppPhase9Derived CODE_SIGNING_ALLOWED=NO build`
+- Unsandboxed `xcodebuild` validation succeeded on March 20, 2026 after Milestone 5.2.9 exact-match Pave condition fix using:
+  - `xcodebuild -project ConstructionScopeApp.xcodeproj -scheme ConstructionScopeApp -destination 'generic/platform=iOS Simulator' -derivedDataPath /tmp/ConstructionScopeAppPhase10Derived CODE_SIGNING_ALLOWED=NO build`
+- Unsandboxed `xcodebuild` validation succeeded on March 23, 2026 after Milestone 5.2.10 initial paging token fix using:
+  - `xcodebuild -project ConstructionScopeApp.xcodeproj -scheme ConstructionScopeApp -destination 'generic/platform=iOS Simulator' -derivedDataPath /tmp/ConstructionScopeAppPhase11Derived CODE_SIGNING_ALLOWED=NO build`
 - Simulator runtime validation on March 10, 2026:
   - built for `iPad Pro 11-inch (M5)` simulator
   - installed successfully with `simctl`

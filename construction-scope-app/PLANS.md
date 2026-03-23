@@ -111,6 +111,42 @@ Keep milestones small, testable, and reviewable.
   - Keep the legacy blank/local scope creation path available as a temporary fallback
   - Seed newly created scopes with linked JobTread customer metadata plus compatibility `projectInfo` values
   - Keep lookup logic narrow and modular without implementing sync submission yet
+- Milestone 5.2.2 – Local Scope Title Separation
+  - Move rename and blank-scope naming flows to the additive `scopeTitle` field
+  - Keep linked JobTread customer identity separate from editable local scope naming
+  - Preserve seeded `projectInfo` compatibility values for current editors, required-field checks, and PDF/export behavior
+- Milestone 5.2.3 – Naming UI Clarification
+  - Expose an explicit local `Scope Title` field in the visible UI
+  - Stop presenting `projectInfo.clientName` as if it were the canonical editable scope title
+  - Surface linked JobTread customer identity separately where it clarifies the current scope context
+- Milestone 5.2.4 – Export + Validation Naming Cleanup
+  - Update PDF/export header and summary rows to distinguish local scope title from customer identity
+  - Update export missing-field checks to validate resolved customer identity rather than only `projectInfo.clientName`
+  - Preserve `projectInfo.clientName` as a compatibility fallback for legacy/local scopes
+- Milestone 5.2.5 – Customer Lookup Query Fix
+  - Replace the invalid root-level JobTread customer lookup query with the doc-supported `organization.accounts` path
+  - Apply customer filtering in the service layer without changing the existing selection UI flow
+  - Add targeted request/response debug logging for customer lookup
+- Milestone 5.2.6 – Search Field Reduction
+  - Restrict customer search results to doc-supported `organization.accounts.nodes` fields only
+  - Stop guessing contact/location fields from the account list query
+  - Preserve scope creation by seeding only safe customer identity data until a separate detail lookup exists
+- Milestone 5.2.7 – Search Argument Shape Fix
+  - Remove unsupported `first` pagination from `organization.accounts` customer search
+  - Preserve the minimal result field set and existing customer-selection UI flow
+  - Keep request shaping aligned with the uploaded JobTread schema/runtime validation feedback
+- Milestone 5.2.8 – Search `where` Alignment
+  - Replace invalid `filter` usage with the doc-supported `where` shape on `organization.accounts`
+  - Use doc-supported `size` / `page` pagination fields instead of Relay-style assumptions
+  - Preserve minimal account-list fields and the existing selection/seeding flow
+- Milestone 5.2.9 – Exact-Match Pave Condition Fix
+  - Replace the invalid fuzzy-search operator assumption with the exact doc-supported array predicate shape
+  - Make exact customer-name lookup work first before attempting fuzzy matching
+  - Preserve the existing selection UI and seeded-scope flow
+- Milestone 5.2.10 – Initial Paging Token Fix
+  - Remove `page` from the initial `organization.accounts` customer search request
+  - Keep the initial lookup aligned with the non-paginated doc examples: `where`, optional `size`, and `nodes`
+  - Defer `page` usage until a real paging token is returned by `nextPage` / `previousPage`
 - Milestone 5.3 – Initial Sync Flow (One-Way)
   - Implement manual `Send to JobTread` action per scope
   - Map core scope entities into JobTread entities (customer/location/job/etc.)

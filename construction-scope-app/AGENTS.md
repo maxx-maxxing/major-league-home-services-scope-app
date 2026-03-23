@@ -55,3 +55,9 @@ When a request spans multiple files or more than ~30 minutes of work:
 1) Update `PLANS.md` first (propose milestones)
 2) Implement milestone-by-milestone following `IMPLEMENT.md`
 3) Update `DOCUMENTATION.md` as you go
+
+## JobTread Integration Rules
+- JobTread is the source of truth for customer records
+- Avoid creating duplicate customers locally
+- Integration work should preserve offline-first behavior where possible
+- Architectural changes should be documented in `PLANS.md` and `DOCUMENTATION.md`

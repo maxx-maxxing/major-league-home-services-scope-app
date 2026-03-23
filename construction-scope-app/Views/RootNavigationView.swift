@@ -397,10 +397,7 @@ struct RootNavigationView: View {
         let trimmed = newName.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return }
 
-        var projectInfo = scope.projectInfo
-        projectInfo.clientName = trimmed
-        scope.projectInfo = projectInfo
-        scope.updatedAt = .now
+        scope.setLocalScopeTitle(trimmed)
 
         do {
             try modelContext.save()
@@ -563,6 +560,13 @@ private struct ScopeSidebarView: View {
 
                             Text(selectedScope.displayName)
                                 .font(.headline)
+
+                            if selectedScope.showsSeparateCustomerIdentity,
+                               let customerName = selectedScope.resolvedCustomerDisplayName {
+                                Text("Customer: \(customerName)")
+                                    .font(.subheadline)
+                                    .foregroundStyle(.secondary)
+                            }
 
                             Text(scopeAddressSummary(for: selectedScope))
                                 .font(.subheadline)
@@ -975,7 +979,7 @@ private struct PhoneScopesListView: View {
             if scopePendingRename != nil {
                 ScopeRenameOverlay(
                     title: "Rename Scope",
-                    message: "Update the project name shown in your scope list.",
+                    message: "Update the local scope title shown in your scope list.",
                     text: $renameDraft,
                     isSaving: false,
                     saveDisabled: renameDraft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
@@ -1512,6 +1516,14 @@ struct SectionEditorView: View {
                                 .font(.title3)
                                 .foregroundStyle(.primary)
                                 .contentTransition(.opacity)
+
+                            if scope.showsSeparateCustomerIdentity,
+                               let customerName = scope.resolvedCustomerDisplayName {
+                                Text("Customer: \(customerName)")
+                                    .font(.subheadline)
+                                    .foregroundStyle(.secondary)
+                                    .contentTransition(.opacity)
+                            }
 
                             Text(section.rawValue)
                                 .font(.subheadline)

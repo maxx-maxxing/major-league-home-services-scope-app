@@ -112,11 +112,11 @@ struct ScopeCreationSheet: View {
                         Text("Matching Customers")
                     }
                 } else if viewModel.hasSearched && !viewModel.isLoading && viewModel.errorMessage == nil {
-                    Section {
+                Section {
                         ContentUnavailableView(
                             "No Customers Found",
                             systemImage: "person.crop.circle.badge.xmark",
-                            description: Text("Try a different name, phone, or address search.")
+                            description: Text("Try a different customer name search.")
                         )
                     }
                 }

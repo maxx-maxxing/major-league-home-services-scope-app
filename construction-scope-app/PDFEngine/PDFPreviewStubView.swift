@@ -170,20 +170,22 @@ enum ScopePDFExporter {
     }
 
     private static func drawHeader(in context: CGContext, rect: CGRect, scope: JobScope) {
-        let title = scope.projectInfo.clientName.nilIfBlank ?? "Untitled Scope"
+        let title = scope.resolvedDocumentTitle
+        let customerName = scope.resolvedExportCustomerName ?? "Not set"
         let address = scope.projectInfo.address.nilIfBlank ?? "No address"
         let type = scope.projectInfo.projectType.displayName
         let jobNumber = scope.jobNumber ?? "N/A"
 
         drawText(title, font: .boldSystemFont(ofSize: 18), in: CGRect(x: 40, y: 34, width: rect.width - 80, height: 22), context: context)
-        drawText(address, font: .systemFont(ofSize: 11), in: CGRect(x: 40, y: 58, width: rect.width - 80, height: 16), context: context)
-        drawText("Project Type: \(type)", font: .systemFont(ofSize: 10), in: CGRect(x: 40, y: 74, width: 260, height: 14), context: context)
-        drawText("Job #: \(jobNumber)", font: .systemFont(ofSize: 10), in: CGRect(x: rect.width - 180, y: 74, width: 140, height: 14), context: context, alignment: .right)
+        drawText("Customer: \(customerName)", font: .systemFont(ofSize: 11), in: CGRect(x: 40, y: 58, width: rect.width - 80, height: 16), context: context)
+        drawText(address, font: .systemFont(ofSize: 11), in: CGRect(x: 40, y: 72, width: rect.width - 80, height: 16), context: context)
+        drawText("Project Type: \(type)", font: .systemFont(ofSize: 10), in: CGRect(x: 40, y: 88, width: 260, height: 14), context: context)
+        drawText("Job #: \(jobNumber)", font: .systemFont(ofSize: 10), in: CGRect(x: rect.width - 180, y: 88, width: 140, height: 14), context: context, alignment: .right)
 
         context.setStrokeColor(UIColor.separator.cgColor)
         context.setLineWidth(1)
-        context.move(to: CGPoint(x: 40, y: 94))
-        context.addLine(to: CGPoint(x: rect.width - 40, y: 94))
+        context.move(to: CGPoint(x: 40, y: 108))
+        context.addLine(to: CGPoint(x: rect.width - 40, y: 108))
         context.strokePath()
     }
 
@@ -194,9 +196,9 @@ enum ScopePDFExporter {
     }
 
     private static func drawPageContent(in context: CGContext, rect: CGRect, title: String, sections: [PDFSection]) {
-        drawText(title, font: .boldSystemFont(ofSize: 16), in: CGRect(x: 40, y: 108, width: rect.width - 80, height: 20), context: context)
+        drawText(title, font: .boldSystemFont(ofSize: 16), in: CGRect(x: 40, y: 122, width: rect.width - 80, height: 20), context: context)
 
-        var y: CGFloat = 134
+        var y: CGFloat = 148
         for section in sections {
             if y > rect.height - 150 { break }
             drawText(section.title, font: .boldSystemFont(ofSize: 12), in: CGRect(x: 40, y: y, width: rect.width - 80, height: 16), context: context)
@@ -227,7 +229,8 @@ enum ScopePDFExporter {
             "Page 1: Job Header + Project Info + Key Dimensions",
             [
                 PDFSection(title: "Project Information", rows: [
-                    .init(label: "Client", value: project.clientName.nilIfBlank ?? "Not set"),
+                    .init(label: "Scope Title", value: scope.resolvedScopeTitle ?? "Not set"),
+                    .init(label: "Customer", value: scope.resolvedExportCustomerName ?? "Not set"),
                     .init(label: "Address", value: project.address.nilIfBlank ?? "Not set"),
                     .init(label: "City / ZIP", value: combinedValue(project.city, project.zip)),
                     .init(label: "Phone", value: project.phone?.nilIfBlank ?? "Not set"),
@@ -464,19 +467,17 @@ enum ScopePDFExporter {
 
     private static func missingRequiredFields(for scope: JobScope) -> [String] {
         var missing: [String] = []
-        if scope.projectInfo.clientName.nilIfBlank == nil { missing.append("Project Info: Client Name") }
+        if scope.resolvedExportCustomerName == nil { missing.append("Project Info: Customer Name") }
         if scope.projectInfo.address.nilIfBlank == nil { missing.append("Project Info: Address") }
         return missing
     }
 
     private static func makeFilename(for scope: JobScope) -> String {
-        let client = (scope.projectInfo.clientName.nilIfBlank ?? "Client")
-            .components(separatedBy: .whitespacesAndNewlines)
-            .last ?? "Client"
+        let identity = scope.resolvedExportIdentityToken.replacingOccurrences(of: " ", with: "")
         let address = (scope.projectInfo.address.nilIfBlank ?? "Address")
             .replacingOccurrences(of: " ", with: "")
         let projectType = scope.projectInfo.projectType.displayName.replacingOccurrences(of: " ", with: "")
-        return "\(sanitize(client))-\(sanitize(address))-\(sanitize(projectType))-Scope"
+        return "\(sanitize(identity))-\(sanitize(address))-\(sanitize(projectType))-Scope"
     }
 
     private static func sanitize(_ value: String) -> String {

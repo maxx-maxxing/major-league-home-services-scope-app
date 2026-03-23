@@ -769,6 +769,7 @@ struct ProductionOrderMeta: Codable, Hashable {
 struct JobTreadCustomerLookupResult: Codable, Hashable, Identifiable, Sendable {
     let customerID: String
     let displayName: String?
+    let accountType: String?
     let primaryAddress: String?
     let phone: String?
     let email: String?
@@ -783,6 +784,7 @@ struct JobTreadCustomerLookupResult: Codable, Hashable, Identifiable, Sendable {
         JobTreadCustomerRef(
             customerID: customerID,
             displayName: displayName,
+            accountType: accountType,
             primaryAddress: primaryAddress,
             phone: phone,
             email: email,
@@ -794,6 +796,7 @@ struct JobTreadCustomerLookupResult: Codable, Hashable, Identifiable, Sendable {
 struct JobTreadCustomerRef: Codable, Hashable {
     var customerID: String
     var displayName: String?
+    var accountType: String?
     var primaryAddress: String?
     var phone: String?
     var email: String?
@@ -802,6 +805,7 @@ struct JobTreadCustomerRef: Codable, Hashable {
     init(
         customerID: String,
         displayName: String? = nil,
+        accountType: String? = nil,
         primaryAddress: String? = nil,
         phone: String? = nil,
         email: String? = nil,
@@ -809,6 +813,7 @@ struct JobTreadCustomerRef: Codable, Hashable {
     ) {
         self.customerID = customerID
         self.displayName = displayName
+        self.accountType = accountType
         self.primaryAddress = primaryAddress
         self.phone = phone
         self.email = email
@@ -994,11 +999,37 @@ final class JobScope {
         projectInfo.clientName.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty
     }
 
+    var resolvedCustomerDisplayName: String? {
+        resolvedLinkedCustomerName ?? resolvedProjectClientName
+    }
+
+    var resolvedDocumentTitle: String {
+        resolvedScopeTitle ?? resolvedCustomerDisplayName ?? "Untitled Scope"
+    }
+
+    var resolvedExportCustomerName: String? {
+        resolvedCustomerDisplayName
+    }
+
+    var resolvedExportIdentityToken: String {
+        resolvedScopeTitle ?? resolvedCustomerDisplayName ?? "Scope"
+    }
+
     var displayName: String {
         resolvedScopeTitle ??
             resolvedLinkedCustomerName ??
             resolvedProjectClientName ??
             "Untitled Scope"
+    }
+
+    var showsSeparateCustomerIdentity: Bool {
+        guard let customerName = resolvedCustomerDisplayName else { return false }
+        return customerName.localizedCaseInsensitiveCompare(displayName) != .orderedSame
+    }
+
+    func setLocalScopeTitle(_ newTitle: String) {
+        scopeTitle = newTitle.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty
+        updatedAt = .now
     }
 }
 

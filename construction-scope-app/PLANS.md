@@ -180,6 +180,14 @@ Keep milestones small, testable, and reviewable.
   - Remove only a standalone trailing city suffix from a street line when the same city is already hydrated separately
   - Do not strip city-like words from the middle of a street name or from unrelated valid street names
   - Preserve the current linked-customer search/select and hydration behavior for already-correct address cases
+- Milestone 5.2.19 – Linked Customer Read-Only + Refresh
+  - Treat hydrated JobTread customer compatibility fields as read-only in the Project Information UI once a scope is linked
+  - Add a manual refresh action that reuses the existing doc-supported customer-detail query by linked customer ID
+  - Overwrite only JobTread-owned hydrated fields during refresh and preserve local scope-owned fields and the blank local fallback path
+- Milestone 5.2.20 – Linked Customer Phone/Email Hydration Verification
+  - Verify a doc-supported field path for linked customer phone/email before expanding the current customer-detail query
+  - Do not guess unsupported `account` / `contact` fields on the existing `organization.accounts` detail lookup
+  - If a clean field path is later confirmed, route phone/email through the same read-only hydration and refresh flow used for other JobTread-owned customer fields
 - Milestone 5.3 – Initial Sync Flow (One-Way)
   - Implement manual `Send to JobTread` action per scope
   - Map core scope entities into JobTread entities (customer/location/job/etc.)

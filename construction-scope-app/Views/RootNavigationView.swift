@@ -472,12 +472,7 @@ struct RootNavigationView: View {
                         return
                     }
 
-                    scope.applyLinkedCustomerHydration(
-                        primaryAddress: detail.primaryAddress,
-                        city: detail.city,
-                        state: detail.state,
-                        zip: detail.postalCode
-                    )
+                    scope.applyLinkedCustomerHydration(detail)
 
                     do {
                         try modelContext.save()
@@ -1525,6 +1520,8 @@ private struct PhoneSectionListView: View {
 }
 
 struct SectionEditorView: View {
+    @Environment(\.modelContext) private var modelContext
+
     let scope: JobScope
     let section: ScopeSection
     @ObservedObject var autosave: DebouncedAutosave
@@ -1538,6 +1535,11 @@ struct SectionEditorView: View {
     @State private var previewActionToken = 0
     @State private var exportActionToken = 0
     @State private var photoActionToken = 0
+    @State private var isRefreshingLinkedCustomer = false
+    @State private var linkedCustomerRefreshMessage: String?
+    @State private var linkedCustomerRefreshErrorMessage: String?
+
+    private let customerDetailFetcher: JobTreadCustomerDetailFetching = JobTreadClient()
 
     var body: some View {
         ScrollView {
@@ -1578,7 +1580,14 @@ struct SectionEditorView: View {
 
                 switch section {
                 case .projectInfo:
-                    ProjectInfoEditorView(scope: scope, autosave: autosave)
+                    ProjectInfoEditorView(
+                        scope: scope,
+                        autosave: autosave,
+                        refreshLinkedCustomer: refreshLinkedCustomer,
+                        isRefreshingLinkedCustomer: isRefreshingLinkedCustomer,
+                        linkedCustomerRefreshMessage: linkedCustomerRefreshMessage,
+                        linkedCustomerRefreshErrorMessage: linkedCustomerRefreshErrorMessage
+                    )
                 case .existingConditions:
                     ExistingConditionsEditorView(scope: scope, autosave: autosave)
                 case .dimensions:
@@ -1718,6 +1727,46 @@ struct SectionEditorView: View {
             showingShareSheet = true
         } catch {
             errorMessage = error.localizedDescription
+        }
+    }
+
+    private func refreshLinkedCustomer() {
+        guard let linkedCustomer = scope.jobTreadCustomer else { return }
+
+        linkedCustomerRefreshMessage = nil
+        linkedCustomerRefreshErrorMessage = nil
+        isRefreshingLinkedCustomer = true
+
+        Task {
+            do {
+                guard let detail = try await customerDetailFetcher.fetchCustomerDetails(customerID: linkedCustomer.customerID) else {
+                    await MainActor.run {
+                        linkedCustomerRefreshErrorMessage = "JobTread did not return customer details for this linked scope."
+                        isRefreshingLinkedCustomer = false
+                    }
+                    return
+                }
+
+                await MainActor.run {
+                    scope.applyLinkedCustomerHydration(detail)
+                    autosave.scheduleSave(for: scope)
+
+                    do {
+                        try modelContext.save()
+                        linkedCustomerRefreshMessage = "Customer details refreshed from JobTread."
+                    } catch {
+                        assertionFailure("Failed to save refreshed customer details: \(error)")
+                        linkedCustomerRefreshErrorMessage = "Refreshed customer details could not be saved locally."
+                    }
+
+                    isRefreshingLinkedCustomer = false
+                }
+            } catch {
+                await MainActor.run {
+                    linkedCustomerRefreshErrorMessage = error.localizedDescription
+                    isRefreshingLinkedCustomer = false
+                }
+            }
         }
     }
 }

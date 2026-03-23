@@ -21,6 +21,7 @@
 - Milestone 5.2.16: Implemented (street-address hydration cleanup)
 - Milestone 5.2.17: Implemented (linked address contamination repair)
 - Milestone 5.2.18: Implemented (trailing city suffix cleanup)
+- Milestone 5.2.19: Implemented (linked customer read-only + refresh)
 - Milestone 6: Implemented (photo attachment flow + PDF photo appendix)
 - Milestone 7.1: In progress (interaction animation polish)
 - Milestone 7.2: In progress (acceptance closeout)
@@ -258,6 +259,58 @@
     - `projectInfo` remains transitional compatibility data, not the intended long-term customer source of truth
   - API note:
     - the JobTread docs landing page confirms the open API, but the live docs content was not readable from this environment, so the customer lookup query is implemented as a narrow best-effort assumption that should be verified against the official docs in the next integration pass
+- Milestone 5.2.19 linked customer read-only + refresh:
+  - Linked scopes now treat JobTread-owned customer compatibility fields as read-only in `Project Information`:
+    - customer name
+    - street address
+    - city
+    - state
+    - ZIP
+    - phone
+    - email
+  - Local scope-owned fields remain editable:
+    - `scopeTitle`
+    - project type
+    - salesperson
+    - estimator
+    - site visit date
+    - project notes
+    - downstream scope sections / measurements / production notes / attachments
+  - Added a `Refresh from JobTread` action on linked scopes that reuses the existing customer-detail fetch by linked customer ID.
+  - Refresh now overwrites only the JobTread-owned hydrated compatibility fields and the linked-customer metadata cache; it does not touch local scope-owned fields.
+  - The existing search/select creation flow and blank local fallback remain unchanged.
+  - Current query limitation:
+    - the verified customer-detail query in this phase hydrates customer name and location fields
+    - phone/email remain read-only when linked because they are JobTread-sourced compatibility fields, but the current refresh path does not fetch new phone/email values without expanding the doc-verified query shape
+- Milestone 5.2.20 linked customer phone/email hydration verification:
+  - Re-checked the repo’s local source-of-truth evidence for phone/email hydration before changing the existing detail query:
+    - current verified detail lookup remains `organization.accounts` by customer ID
+    - recorded live schema validation in this repo still only confirms:
+      - `schema.account.object.primaryLocation`
+      - `schema.location.object.address`
+      - `schema.location.object.city`
+      - `schema.location.object.state`
+      - `schema.location.object.postalCode`
+  - Current conclusion:
+    - the uploaded docs/schema evidence in this repo still does not cleanly expose a doc-supported `account` or related `contact` phone/email field on the verified linked-customer hydration path
+    - no query expansion was implemented in this pass because doing so would require guessing unsupported GraphQL fields or object relationships
+  - Preserved behavior:
+    - linked customer phone/email remain read-only when a scope is linked
+    - existing search/select flow is unchanged
+    - existing address hydration and `Refresh from JobTread` behavior are unchanged
+  - Follow-up requirement:
+    - only expand phone/email hydration after the exact supported field path and object are verified from JobTread docs or a fresh schema probe
+
+## Validation Notes
+- 2026-03-23:
+  - Attempted build:
+    - `xcodebuild -project ConstructionScopeApp.xcodeproj -scheme ConstructionScopeApp -sdk iphonesimulator -configuration Debug build CODE_SIGNING_ALLOWED=NO -derivedDataPath build/CodexDerivedDataLocal`
+  - Result:
+    - build could not be fully validated in this sandbox because Xcode’s SwiftData macro plugin failed before normal compilation with:
+      - `SwiftDataMacros.PersistentModelMacro ... produced malformed response`
+      - `SwiftDataMacros.QueryMacro ... produced malformed response`
+  - Interpretation:
+    - the observed failure is environment/tooling-related rather than a targeted compile error in the edited JobTread read-only/refresh code path
 - Milestone 5.2.2 local scope title separation:
   - Scope rename now writes to `scopeTitle` instead of `projectInfo.clientName`.
   - Blank local scope naming now also resolves through the same rename flow, so new local names land in `scopeTitle`.

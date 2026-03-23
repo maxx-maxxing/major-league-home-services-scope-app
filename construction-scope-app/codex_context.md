@@ -1,7 +1,7 @@
 Read codex_context.md before making changes.
 
 Current app phase:
-JobTread-first workflow implementation and refinement.
+JobTread-first workflow implementation is now working end-to-end at the customer selection level. Current focus is locking down JobTread-owned data semantics and refresh behavior.
 
 What is already true:
 - SwiftUI iPad construction scope app exists
@@ -15,26 +15,31 @@ What is already true:
   - jobTreadJob
   - jobTreadSync
 - Scope naming has been separated from customer identity
-- A JobTread customer search/select creation path exists
-- Exact full-name JobTread customer lookup currently works
-- Selecting a matching JobTread customer creates a linked scope
-- Current seeded customer data is intentionally minimal/safe
+- JobTread customer search/select creation path exists
+- Live partial-name JobTread customer search works
+- Selecting a JobTread customer creates a linked scope
+- Selected-customer hydration populates customer/project fields
+- Street-address normalization is working in tested cases
 
 Current architectural direction:
 - JobTread is the source of truth for customer records
 - The app should not create duplicate customers
+- JobTread-sourced customer fields should be treated as read-only in the app
+- If JobTread data changes upstream, the app should support a refresh/sync action to rehydrate those fields into the local scope
 - Intended workflow:
   1. Search/select existing JobTread customer
   2. Capture scope details in the app
-  3. Sync relevant scope/job data back to JobTread
-  4. Support estimate/bid generation later
+  3. Keep JobTread-owned customer data read-only
+  4. Allow refresh from JobTread for linked customer fields
+  5. Sync relevant scope/job data back to JobTread later
+  6. Support estimate/bid generation later
 
 Current priorities:
-1. Improve JobTread customer search from exact full-name match to practical partial-name lookup
-2. Refine the customer selection UX, likely toward live/typeahead results
-3. Hydrate additional selected-customer details through doc-supported follow-up queries
-4. Preserve compatibility with current forms/PDF flow while reducing transitional field dependence
-5. Implement sync back to JobTread only after customer lookup/selection is solid
+1. Make JobTread-owned linked customer fields read-only in the app
+2. Add a "Refresh from JobTread" / similar action for linked customer data
+3. Preserve editability for local scope-owned fields only
+4. Keep search/select and hydration flow stable
+5. Implement outbound sync only after read-only/refresh semantics are solid
 
 Editing rules:
 - Follow READ → PLAN → EDIT

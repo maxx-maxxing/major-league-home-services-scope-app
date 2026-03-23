@@ -1,4 +1,4 @@
-﻿
+
 import SwiftUI
 import SwiftData
 import PencilKit
@@ -6,6 +6,14 @@ import PencilKit
 struct ProjectInfoEditorView: View {
     let scope: JobScope
     @ObservedObject var autosave: DebouncedAutosave
+    let refreshLinkedCustomer: (() -> Void)?
+    let isRefreshingLinkedCustomer: Bool
+    let linkedCustomerRefreshMessage: String?
+    let linkedCustomerRefreshErrorMessage: String?
+
+    private var hasLinkedCustomer: Bool {
+        scope.hasLinkedJobTreadCustomer
+    }
 
     var body: some View {
         VStack(spacing: 16) {
@@ -27,86 +35,137 @@ struct ProjectInfoEditorView: View {
             if let linkedCustomerName = scope.resolvedLinkedCustomerName {
                 CardGroup(title: "Linked Customer") {
                     VStack(alignment: .leading, spacing: 8) {
-                        Text(linkedCustomerName)
-                            .font(.body.weight(.medium))
+                        HStack(alignment: .top, spacing: 12) {
+                            VStack(alignment: .leading, spacing: 8) {
+                                Text(linkedCustomerName)
+                                    .font(.body.weight(.medium))
 
-                        Text("This scope remains linked to the selected JobTread customer.")
-                            .font(.footnote)
-                            .foregroundStyle(.secondary)
+                                Text("Customer-owned fields below are read-only and come from JobTread.")
+                                    .font(.footnote)
+                                    .foregroundStyle(.secondary)
+
+                                if let fetchedAt = scope.jobTreadCustomer?.fetchedAt {
+                                    Text("Last synced \(fetchedAt.formatted(date: .abbreviated, time: .shortened))")
+                                        .font(.footnote)
+                                        .foregroundStyle(.secondary)
+                                }
+                            }
+
+                            Spacer(minLength: 12)
+
+                            if let refreshLinkedCustomer {
+                                Button {
+                                    refreshLinkedCustomer()
+                                } label: {
+                                    if isRefreshingLinkedCustomer {
+                                        ProgressView()
+                                            .frame(minWidth: 120, minHeight: 44)
+                                    } else {
+                                        Label("Refresh from JobTread", systemImage: "arrow.clockwise")
+                                            .frame(minHeight: 44)
+                                    }
+                                }
+                                .buttonStyle(.bordered)
+                                .disabled(isRefreshingLinkedCustomer)
+                            }
+                        }
+
+                        if let linkedCustomerRefreshMessage {
+                            Text(linkedCustomerRefreshMessage)
+                                .font(.footnote)
+                                .foregroundStyle(.secondary)
+                        }
+
+                        if let linkedCustomerRefreshErrorMessage {
+                            Text(linkedCustomerRefreshErrorMessage)
+                                .font(.footnote)
+                                .foregroundStyle(.red)
+                        }
                     }
                 }
             }
 
             CardGroup(title: "Customer") {
                 VStack(spacing: 12) {
-                    VStack(alignment: .leading, spacing: 6) {
-                        RequiredLabel(text: "Customer Name")
-                        TextField("Enter customer name", text: requiredStringBinding(\.clientName))
-                            .liquidGlassInput()
-                    }
+                    if hasLinkedCustomer {
+                        ReadOnlyProjectField(title: "Customer Name", value: scope.projectInfo.clientName, placeholder: "No customer name")
 
-                    VStack(alignment: .leading, spacing: 6) {
-                        RequiredLabel(text: "Address")
-                        TextField("Street address", text: requiredStringBinding(\.address))
-                            .liquidGlassInput()
+                        ReadOnlyProjectField(title: "Address", value: scope.projectInfo.address, placeholder: "No street address")
 
                         if scope.shouldShowMissingLinkedStreetAddressHint {
                             Text("JobTread provided city/state/ZIP, but no usable street address line.")
                                 .font(.footnote)
                                 .foregroundStyle(.secondary)
                         }
-                    }
 
-                    HStack(spacing: 12) {
+                        HStack(spacing: 12) {
+                            ReadOnlyProjectField(title: "City", value: scope.projectInfo.city, placeholder: "Not provided")
+                            ReadOnlyProjectField(title: "State", value: scope.projectInfo.state, placeholder: "Not provided")
+                            ReadOnlyProjectField(title: "ZIP", value: scope.projectInfo.zip, placeholder: "Not provided")
+                        }
+                    } else {
                         VStack(alignment: .leading, spacing: 6) {
-                            Text("City")
-                                .font(.body)
-                            TextField("City", text: optionalStringBinding(\.city))
+                            RequiredLabel(text: "Customer Name")
+                            TextField("Enter customer name", text: requiredStringBinding(\.clientName))
                                 .liquidGlassInput()
                         }
 
                         VStack(alignment: .leading, spacing: 6) {
-                            Text("State")
-                                .font(.body)
-                            TextField("State", text: optionalStringBinding(\.state))
+                            RequiredLabel(text: "Address")
+                            TextField("Street address", text: requiredStringBinding(\.address))
                                 .liquidGlassInput()
-                                .textInputAutocapitalization(.characters)
                         }
 
-                        VStack(alignment: .leading, spacing: 6) {
-                            Text("ZIP")
-                                .font(.body)
-                            TextField("ZIP", text: optionalStringBinding(\.zip))
-                                .liquidGlassInput()
-                                .keyboardType(.numberPad)
-                        }
-                    }
+                        HStack(spacing: 12) {
+                            VStack(alignment: .leading, spacing: 6) {
+                                Text("City")
+                                    .font(.body)
+                                TextField("City", text: optionalStringBinding(\.city))
+                                    .liquidGlassInput()
+                            }
 
-                    if scope.jobTreadCustomer != nil {
-                        Text("Customer fields remain available for current forms and PDF compatibility.")
-                            .font(.footnote)
-                            .foregroundStyle(.secondary)
+                            VStack(alignment: .leading, spacing: 6) {
+                                Text("State")
+                                    .font(.body)
+                                TextField("State", text: optionalStringBinding(\.state))
+                                    .liquidGlassInput()
+                                    .textInputAutocapitalization(.characters)
+                            }
+
+                            VStack(alignment: .leading, spacing: 6) {
+                                Text("ZIP")
+                                    .font(.body)
+                                TextField("ZIP", text: optionalStringBinding(\.zip))
+                                    .liquidGlassInput()
+                                    .keyboardType(.numberPad)
+                            }
+                        }
                     }
                 }
             }
 
             CardGroup(title: "Contact") {
                 VStack(spacing: 12) {
-                    VStack(alignment: .leading, spacing: 6) {
-                        Text("Phone")
-                            .font(.body)
-                        TextField("Phone", text: optionalStringBinding(\.phone))
-                            .liquidGlassInput()
-                            .keyboardType(.phonePad)
-                    }
+                    if hasLinkedCustomer {
+                        ReadOnlyProjectField(title: "Phone", value: scope.projectInfo.phone, placeholder: "Not provided")
+                        ReadOnlyProjectField(title: "Email", value: scope.projectInfo.email, placeholder: "Not provided")
+                    } else {
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text("Phone")
+                                .font(.body)
+                            TextField("Phone", text: optionalStringBinding(\.phone))
+                                .liquidGlassInput()
+                                .keyboardType(.phonePad)
+                        }
 
-                    VStack(alignment: .leading, spacing: 6) {
-                        Text("Email")
-                            .font(.body)
-                        TextField("Email", text: optionalStringBinding(\.email))
-                            .liquidGlassInput()
-                            .keyboardType(.emailAddress)
-                            .textInputAutocapitalization(.never)
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text("Email")
+                                .font(.body)
+                            TextField("Email", text: optionalStringBinding(\.email))
+                                .liquidGlassInput()
+                                .keyboardType(.emailAddress)
+                                .textInputAutocapitalization(.never)
+                        }
                     }
 
                     VStack(alignment: .leading, spacing: 6) {
@@ -239,6 +298,39 @@ struct ProjectInfoEditorView: View {
         update(&info)
         scope.projectInfo = info
         autosave.scheduleSave(for: scope)
+    }
+}
+
+private struct ReadOnlyProjectField: View {
+    let title: String
+    let value: String?
+    let placeholder: String
+
+    init(title: String, value: String?, placeholder: String) {
+        self.title = title
+        let trimmed = value?.trimmingCharacters(in: .whitespacesAndNewlines)
+        self.value = (trimmed?.isEmpty == true) ? nil : trimmed
+        self.placeholder = placeholder
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(title)
+                .font(.body)
+
+            HStack(spacing: 8) {
+                Text(value ?? placeholder)
+                    .foregroundStyle(value == nil ? .secondary : .primary)
+                    .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+
+                Image(systemName: "lock.fill")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 6)
+            .liquidGlassInputBackground(cornerRadius: 14)
+        }
     }
 }
 

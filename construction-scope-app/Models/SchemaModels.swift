@@ -1055,18 +1055,21 @@ final class JobScope {
         updatedAt = .now
     }
 
-    func applyLinkedCustomerHydration(
-        primaryAddress: String?,
-        city: String?,
-        state: String?,
-        zip: String?
-    ) {
-        let trimmedAddress = primaryAddress?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty
-        let trimmedCity = city?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty
-        let trimmedState = state?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty
-        let trimmedZIP = zip?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty
+    var hasLinkedJobTreadCustomer: Bool {
+        jobTreadCustomer != nil
+    }
+
+    func applyLinkedCustomerHydration(_ detail: JobTreadCustomerDetail) {
+        let trimmedName = detail.displayName?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty
+        let trimmedAddress = detail.primaryAddress?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty
+        let trimmedAccountType = detail.accountType?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty
+        let trimmedCity = detail.city?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty
+        let trimmedState = detail.state?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty
+        let trimmedZIP = detail.postalCode?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty
 
         if jobTreadCustomer != nil {
+            jobTreadCustomer?.displayName = trimmedName
+            jobTreadCustomer?.accountType = trimmedAccountType
             jobTreadCustomer?.primaryAddress = trimmedAddress
             jobTreadCustomer?.city = trimmedCity
             jobTreadCustomer?.state = trimmedState
@@ -1074,65 +1077,12 @@ final class JobScope {
             jobTreadCustomer?.fetchedAt = .now
         }
 
-        let existingAddress = projectInfo.address.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty
-        let existingAddressIsContaminated = Self.isContaminatedLinkedStreetAddress(
-            existingAddress,
-            city: trimmedCity,
-            state: trimmedState,
-            zip: trimmedZIP
-        )
-
-        if existingAddress == nil || existingAddressIsContaminated {
-            projectInfo.address = trimmedAddress ?? ""
-        }
-
-        if projectInfo.city?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty == nil {
-            projectInfo.city = trimmedCity
-        }
-
-        if projectInfo.state?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty == nil {
-            projectInfo.state = trimmedState
-        }
-
-        if projectInfo.zip?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty == nil {
-            projectInfo.zip = trimmedZIP
-        }
-
+        projectInfo.clientName = trimmedName ?? ""
+        projectInfo.address = trimmedAddress ?? ""
+        projectInfo.city = trimmedCity
+        projectInfo.state = trimmedState
+        projectInfo.zip = trimmedZIP
         updatedAt = .now
-    }
-
-    private static func isContaminatedLinkedStreetAddress(
-        _ address: String?,
-        city: String?,
-        state: String?,
-        zip: String?
-    ) -> Bool {
-        guard let address = address?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty else {
-            return false
-        }
-
-        let normalizedAddress = address.lowercased()
-
-        if normalizedAddress.contains("usa") || normalizedAddress.contains("united states") {
-            return true
-        }
-
-        if let zip = zip?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty?.lowercased(),
-           normalizedAddress.contains(zip) {
-            return true
-        }
-
-        if let city = city?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty?.lowercased(),
-           normalizedAddress.contains(city) {
-            return true
-        }
-
-        if let state = state?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty?.lowercased(),
-           normalizedAddress.contains(state) {
-            return true
-        }
-
-        return false
     }
 }
 

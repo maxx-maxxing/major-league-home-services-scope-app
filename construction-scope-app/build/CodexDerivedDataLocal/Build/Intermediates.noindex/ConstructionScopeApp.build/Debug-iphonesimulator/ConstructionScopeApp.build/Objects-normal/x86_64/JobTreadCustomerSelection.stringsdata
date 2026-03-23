@@ -1,0 +1,128 @@
+{
+  "source": "/Users/maxx/Documents/major-league-home-services-scope-app/construction-scope-app/Features/JobTreadCustomerSelection.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "New Scope",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 232
+        }
+      },
+      {
+        "comment": "",
+        "key": "Search for an existing JobTread customer, then create a new scope linked to that record.",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 137
+        }
+      },
+      {
+        "comment": "",
+        "key": "Type at least %lld characters to see live matches, or submit a full exact name.",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 163
+        }
+      },
+      {
+        "comment": "",
+        "key": "Search",
+        "location": {
+          "startingColumn": 32,
+          "startingLine": 154
+        }
+      },
+      {
+        "comment": "",
+        "key": "Search JobTread customers",
+        "location": {
+          "startingColumn": 39,
+          "startingLine": 143
+        }
+      },
+      {
+        "comment": "",
+        "key": "Searching JobTread...",
+        "location": {
+          "startingColumn": 34,
+          "startingLine": 171
+        }
+      },
+      {
+        "comment": "",
+        "key": "Create from JobTread Customer",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 177
+        }
+      },
+      {
+        "comment": "",
+        "key": "Lookup Error",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 186
+        }
+      },
+      {
+        "comment": "",
+        "key": "Matching Customers",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 202
+        }
+      },
+      {
+        "comment": "",
+        "key": "Try a different customer name search.",
+        "location": {
+          "startingColumn": 47,
+          "startingLine": 209
+        }
+      },
+      {
+        "comment": "",
+        "key": "No Customers Found",
+        "location": {
+          "startingColumn": 29,
+          "startingLine": 207
+        }
+      },
+      {
+        "comment": "",
+        "key": "Temporary fallback when JobTread lookup is unavailable or when you need to start from a blank scope.",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 223
+        }
+      },
+      {
+        "comment": "",
+        "key": "Blank Local Scope",
+        "location": {
+          "startingColumn": 31,
+          "startingLine": 219
+        }
+      },
+      {
+        "comment": "",
+        "key": "Temporary Fallback",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 227
+        }
+      },
+      {
+        "comment": "",
+        "key": "Cancel",
+        "location": {
+          "startingColumn": 28,
+          "startingLine": 236
+        }
+      }
+    ]
+  },
+  "version": 1
+}

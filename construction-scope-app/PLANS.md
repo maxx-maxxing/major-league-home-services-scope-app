@@ -163,6 +163,11 @@ Keep milestones small, testable, and reviewable.
   - Replace ineffective `contains` matching with the most likely supported Pave-style `like` operator on `name`
   - Try bounded wildcard forms before exact fallback so runtime behavior can confirm whether partial-name lookup is supported
   - Preserve the stable exact-match baseline and current live-search UX while testing operator support
+- Milestone 5.2.15 – Post-Selection Customer Detail Hydration
+  - Keep the existing `organization.accounts` search query minimal for live customer lookup results
+  - After customer selection, run a second doc-supported `organization.accounts` lookup by selected customer ID
+  - Hydrate only verified account-detail fields, preferring `primaryLocation` data for scope compatibility fields
+  - Preserve immediate linked-scope creation, blank local fallback, and the current partial-search flow
 - Milestone 5.3 – Initial Sync Flow (One-Way)
   - Implement manual `Send to JobTread` action per scope
   - Map core scope entities into JobTread entities (customer/location/job/etc.)

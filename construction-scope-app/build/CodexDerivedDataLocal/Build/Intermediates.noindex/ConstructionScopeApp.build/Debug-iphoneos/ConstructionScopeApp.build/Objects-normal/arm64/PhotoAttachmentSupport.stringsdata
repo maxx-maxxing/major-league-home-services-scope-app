@@ -1,0 +1,88 @@
+{
+  "source": "/Users/maxx/Documents/major-league-home-services-scope-app/construction-scope-app/Views/PhotoAttachmentSupport.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "Photos",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 71
+        }
+      },
+      {
+        "comment": "",
+        "key": "Photo Import Failed",
+        "location": {
+          "startingColumn": 20,
+          "startingLine": 100
+        }
+      },
+      {
+        "comment": "",
+        "key": "Add scope photos from the photo library. They will be stored locally and included in the PDF appendix.",
+        "location": {
+          "startingColumn": 47,
+          "startingLine": 63
+        }
+      },
+      {
+        "comment": "",
+        "key": "No Photos Yet",
+        "location": {
+          "startingColumn": 29,
+          "startingLine": 61
+        }
+      },
+      {
+        "comment": "",
+        "key": "Added %@",
+        "location": {
+          "startingColumn": 46,
+          "startingLine": 43
+        }
+      },
+      {
+        "comment": "",
+        "key": "Caption",
+        "location": {
+          "startingColumn": 51,
+          "startingLine": 40
+        }
+      },
+      {
+        "comment": "",
+        "key": "Delete Photo",
+        "location": {
+          "startingColumn": 48,
+          "startingLine": 47
+        }
+      },
+      {
+        "comment": "",
+        "key": "Done",
+        "location": {
+          "startingColumn": 28,
+          "startingLine": 75
+        }
+      },
+      {
+        "comment": "",
+        "key": "Add Photos",
+        "location": {
+          "startingColumn": 35,
+          "startingLine": 90
+        }
+      },
+      {
+        "comment": "",
+        "key": "OK",
+        "location": {
+          "startingColumn": 24,
+          "startingLine": 101
+        }
+      }
+    ]
+  },
+  "version": 1
+}

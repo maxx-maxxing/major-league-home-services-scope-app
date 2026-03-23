@@ -1,0 +1,48 @@
+{
+  "source": "/Users/maxx/Documents/major-league-home-services-scope-app/construction-scope-app/Views/JobTreadDebugView.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "JobTread Debug",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 39
+        }
+      },
+      {
+        "comment": "",
+        "key": "Connectivity Test",
+        "location": {
+          "startingColumn": 25,
+          "startingLine": 13
+        }
+      },
+      {
+        "comment": "",
+        "key": "Runs the JobTread `currentGrant` query using the Info.plist-backed debug configuration.",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 14
+        }
+      },
+      {
+        "comment": "",
+        "key": "Fetch Current Grant",
+        "location": {
+          "startingColumn": 31,
+          "startingLine": 21
+        }
+      },
+      {
+        "comment": "",
+        "key": "Status",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 26
+        }
+      }
+    ]
+  },
+  "version": 1
+}

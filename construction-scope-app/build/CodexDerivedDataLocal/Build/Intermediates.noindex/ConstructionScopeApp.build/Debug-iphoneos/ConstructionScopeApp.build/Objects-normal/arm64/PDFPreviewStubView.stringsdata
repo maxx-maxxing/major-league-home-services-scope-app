@@ -1,0 +1,64 @@
+{
+  "source": "/Users/maxx/Documents/major-league-home-services-scope-app/construction-scope-app/PDFEngine/PDFPreviewStubView.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "PDF Preview",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 54
+        }
+      },
+      {
+        "comment": "",
+        "key": "Generating Preview",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 50
+        }
+      },
+      {
+        "comment": "",
+        "key": "Preview Unavailable",
+        "location": {
+          "startingColumn": 21,
+          "startingLine": 45
+        }
+      },
+      {
+        "comment": "",
+        "key": "Missing Required Fields",
+        "location": {
+          "startingColumn": 38,
+          "startingLine": 22
+        }
+      },
+      {
+        "comment": "",
+        "key": "• %@",
+        "location": {
+          "startingColumn": 42,
+          "startingLine": 26
+        }
+      },
+      {
+        "comment": "",
+        "key": "Done",
+        "location": {
+          "startingColumn": 24,
+          "startingLine": 58
+        }
+      },
+      {
+        "comment": "",
+        "key": "Share PDF",
+        "location": {
+          "startingColumn": 27,
+          "startingLine": 67
+        }
+      }
+    ]
+  },
+  "version": 1
+}

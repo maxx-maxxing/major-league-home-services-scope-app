@@ -193,6 +193,8 @@ struct RootNavigationView: View {
     @State private var showingScopeCreationSheet = false
     @StateObject private var autosave = DebouncedAutosave()
 
+    private let customerDetailFetcher: JobTreadCustomerDetailFetching = JobTreadClient()
+
     private var selectedScope: JobScope? {
         scopes.first(where: { $0.id == selectedScopeID })
     }
@@ -374,7 +376,9 @@ struct RootNavigationView: View {
 
     @discardableResult
     private func createScopeFromCustomer(_ customer: JobTreadCustomerLookupResult) -> JobScope {
-        persistNewScope(ScopeTemplate.makeScope(linkedCustomer: customer))
+        let newScope = persistNewScope(ScopeTemplate.makeScope(linkedCustomer: customer))
+        hydrateScopeFromSelectedCustomer(scopeID: newScope.id, customerID: customer.customerID)
+        return newScope
     }
 
     @discardableResult
@@ -451,6 +455,40 @@ struct RootNavigationView: View {
             try modelContext.save()
         } catch {
             assertionFailure("Failed to record scope access: \(error)")
+        }
+    }
+
+    private func hydrateScopeFromSelectedCustomer(scopeID: UUID, customerID: String) {
+        Task {
+            do {
+                guard let detail = try await customerDetailFetcher.fetchCustomerDetails(customerID: customerID) else {
+                    print("[JobTread] customer detail hydration skipped scopeID='\(scopeID)' customerID='\(customerID)' reason=not-found")
+                    return
+                }
+
+                await MainActor.run {
+                    guard let scope = scopes.first(where: { $0.id == scopeID }) else {
+                        print("[JobTread] customer detail hydration skipped scopeID='\(scopeID)' customerID='\(customerID)' reason=scope-missing")
+                        return
+                    }
+
+                    scope.applyLinkedCustomerHydration(
+                        primaryAddress: detail.primaryAddress,
+                        city: detail.city,
+                        state: detail.state,
+                        zip: detail.postalCode
+                    )
+
+                    do {
+                        try modelContext.save()
+                        print("[JobTread] customer detail hydration applied scopeID='\(scopeID)' customerID='\(customerID)'")
+                    } catch {
+                        assertionFailure("Failed to save hydrated customer details: \(error)")
+                    }
+                }
+            } catch {
+                print("[JobTread] customer detail hydration failed scopeID='\(scopeID)' customerID='\(customerID)': \(error.localizedDescription)")
+            }
         }
     }
 }

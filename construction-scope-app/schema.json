@@ -126,6 +126,10 @@
           "type": "string",
           "required": false
         },
+        "state": {
+          "type": "string",
+          "required": false
+        },
         "zip": {
           "type": "string",
           "required": false
@@ -882,6 +886,18 @@
           "required": false
         },
         "primaryAddress": {
+          "type": "string",
+          "required": false
+        },
+        "city": {
+          "type": "string",
+          "required": false
+        },
+        "state": {
+          "type": "string",
+          "required": false
+        },
+        "postalCode": {
           "type": "string",
           "required": false
         },

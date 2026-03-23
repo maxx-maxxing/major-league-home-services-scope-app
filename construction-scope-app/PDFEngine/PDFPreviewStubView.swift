@@ -232,7 +232,7 @@ enum ScopePDFExporter {
                     .init(label: "Scope Title", value: scope.resolvedScopeTitle ?? "Not set"),
                     .init(label: "Customer", value: scope.resolvedExportCustomerName ?? "Not set"),
                     .init(label: "Address", value: project.address.nilIfBlank ?? "Not set"),
-                    .init(label: "City / ZIP", value: combinedValue(project.city, project.zip)),
+                    .init(label: "City / State / ZIP", value: combinedValue(project.city, project.state, project.zip)),
                     .init(label: "Phone", value: project.phone?.nilIfBlank ?? "Not set"),
                     .init(label: "Email", value: project.email?.nilIfBlank ?? "Not set"),
                     .init(label: "Salesperson", value: project.salesperson?.nilIfBlank ?? "Not set"),
@@ -540,8 +540,8 @@ enum ScopePDFExporter {
         value?.formatted(date: .abbreviated, time: .omitted) ?? "Not set"
     }
 
-    private static func combinedValue(_ left: String?, _ right: String?) -> String {
-        let values = [left?.nilIfBlank, right?.nilIfBlank].compactMap { $0 }
+    private static func combinedValue(_ values: String?...) -> String {
+        let values = values.compactMap { $0?.nilIfBlank }
         return values.isEmpty ? "Not set" : values.joined(separator: " / ")
     }
 

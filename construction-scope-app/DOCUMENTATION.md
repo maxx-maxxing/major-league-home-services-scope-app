@@ -17,6 +17,7 @@
 - Milestone 5.2.4: Implemented (export + validation naming cleanup)
 - Milestone 5.2.5: Implemented (customer lookup query fix)
 - Milestone 5.2.6: Implemented (search field reduction)
+- Milestone 5.2.15: Implemented (post-selection customer detail hydration)
 - Milestone 6: Implemented (photo attachment flow + PDF photo appendix)
 - Milestone 7.1: In progress (interaction animation polish)
 - Milestone 7.2: In progress (acceptance closeout)
@@ -465,6 +466,51 @@
   - Validation:
     - `xcodebuild -project ConstructionScopeApp.xcodeproj -scheme ConstructionScopeApp -destination 'generic/platform=iOS' -derivedDataPath build/CodexDerivedDataLocal CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO build`
     - build succeeded after the `like` operator partial-search probe
+- Milestone 5.2.15 post-selection customer detail hydration:
+  - Preserved the existing live search query as the minimal selection path:
+    - `organization.accounts`
+    - `where` customer-name filter
+    - result node fields remain:
+      - `id`
+      - `name`
+      - `type`
+  - Added a second doc-supported detail lookup after customer selection using:
+    - `organization.accounts`
+    - `where = { "and": [ ["id", "=", "<customer id>"], ["type", "=", "customer"] ] }`
+    - `size = 1`
+  - Verified against the live JobTread schema/runtime that the safe hydration fields are:
+    - `primaryLocation.address`
+    - `primaryLocation.city`
+    - `primaryLocation.state`
+    - `primaryLocation.postalCode`
+    - `primaryLocation.formattedAddress`
+  - Added a `locations(size: 1)` fallback in the detail query when `primaryLocation` is absent.
+  - Scope-creation behavior remains unchanged:
+    - selecting a search result still creates the linked scope immediately
+    - the blank local fallback remains unchanged
+    - customer detail hydration runs afterward and fails closed without blocking creation
+  - Scope compatibility mapping now fills only blank local fields so the async hydration pass does not overwrite user edits already made in the form:
+    - `projectInfo.address`
+    - `projectInfo.city`
+    - `projectInfo.state`
+    - `projectInfo.zip`
+  - Added additive persisted linked-customer metadata for hydrated location detail:
+    - `jobTreadCustomer.city`
+    - `jobTreadCustomer.state`
+    - `jobTreadCustomer.postalCode`
+  - Did not hydrate phone/email in this pass because the live schema inspection did not expose doc-supported `account` or `contact` phone/email fields on this lookup path.
+  - UI/export follow-up included in the same narrow pass:
+    - added `ProjectInfo.state` to the schema-backed form
+    - updated the PDF project-info row from `City / ZIP` to `City / State / ZIP`
+  - Validation:
+    - live schema probe confirmed:
+      - `schema.account.object.primaryLocation`
+      - `schema.location.object.address`
+      - `schema.location.object.city`
+      - `schema.location.object.state`
+      - `schema.location.object.postalCode`
+    - `xcodebuild -project ConstructionScopeApp.xcodeproj -scheme ConstructionScopeApp -destination 'generic/platform=iOS' -derivedDataPath build/CodexDerivedDataLocal CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO build`
+    - build succeeded after the hydration changes
 
 ## How to Run
 1. Open [ConstructionScopeApp.xcodeproj](/C:/Users/your_/Downloads/construction-scope-app_coderpack_plus/construction-scope-app/ConstructionScopeApp.xcodeproj).

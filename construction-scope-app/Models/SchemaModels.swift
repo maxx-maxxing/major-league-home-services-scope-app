@@ -447,6 +447,7 @@ struct ProjectInfo: Codable, Hashable {
     var clientName: String
     var address: String
     var city: String?
+    var state: String?
     var zip: String?
     var phone: String?
     var email: String?
@@ -460,6 +461,7 @@ struct ProjectInfo: Codable, Hashable {
         clientName: String = "",
         address: String = "",
         city: String? = nil,
+        state: String? = nil,
         zip: String? = nil,
         phone: String? = nil,
         email: String? = nil,
@@ -472,6 +474,7 @@ struct ProjectInfo: Codable, Hashable {
         self.clientName = clientName
         self.address = address
         self.city = city
+        self.state = state
         self.zip = zip
         self.phone = phone
         self.email = email
@@ -798,6 +801,9 @@ struct JobTreadCustomerRef: Codable, Hashable {
     var displayName: String?
     var accountType: String?
     var primaryAddress: String?
+    var city: String?
+    var state: String?
+    var postalCode: String?
     var phone: String?
     var email: String?
     var fetchedAt: Date?
@@ -807,6 +813,9 @@ struct JobTreadCustomerRef: Codable, Hashable {
         displayName: String? = nil,
         accountType: String? = nil,
         primaryAddress: String? = nil,
+        city: String? = nil,
+        state: String? = nil,
+        postalCode: String? = nil,
         phone: String? = nil,
         email: String? = nil,
         fetchedAt: Date? = nil
@@ -815,6 +824,9 @@ struct JobTreadCustomerRef: Codable, Hashable {
         self.displayName = displayName
         self.accountType = accountType
         self.primaryAddress = primaryAddress
+        self.city = city
+        self.state = state
+        self.postalCode = postalCode
         self.phone = phone
         self.email = email
         self.fetchedAt = fetchedAt
@@ -1029,6 +1041,45 @@ final class JobScope {
 
     func setLocalScopeTitle(_ newTitle: String) {
         scopeTitle = newTitle.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty
+        updatedAt = .now
+    }
+
+    func applyLinkedCustomerHydration(
+        primaryAddress: String?,
+        city: String?,
+        state: String?,
+        zip: String?
+    ) {
+        let trimmedAddress = primaryAddress?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty
+        let trimmedCity = city?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty
+        let trimmedState = state?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty
+        let trimmedZIP = zip?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty
+
+        if jobTreadCustomer != nil {
+            jobTreadCustomer?.primaryAddress = trimmedAddress
+            jobTreadCustomer?.city = trimmedCity
+            jobTreadCustomer?.state = trimmedState
+            jobTreadCustomer?.postalCode = trimmedZIP
+            jobTreadCustomer?.fetchedAt = .now
+        }
+
+        if projectInfo.address.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty == nil,
+           let trimmedAddress {
+            projectInfo.address = trimmedAddress
+        }
+
+        if projectInfo.city?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty == nil {
+            projectInfo.city = trimmedCity
+        }
+
+        if projectInfo.state?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty == nil {
+            projectInfo.state = trimmedState
+        }
+
+        if projectInfo.zip?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty == nil {
+            projectInfo.zip = trimmedZIP
+        }
+
         updatedAt = .now
     }
 }

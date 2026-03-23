@@ -60,6 +60,14 @@ struct ProjectInfoEditorView: View {
                         }
 
                         VStack(alignment: .leading, spacing: 6) {
+                            Text("State")
+                                .font(.body)
+                            TextField("State", text: optionalStringBinding(\.state))
+                                .liquidGlassInput()
+                                .textInputAutocapitalization(.characters)
+                        }
+
+                        VStack(alignment: .leading, spacing: 6) {
                             Text("ZIP")
                                 .font(.body)
                             TextField("ZIP", text: optionalStringBinding(\.zip))

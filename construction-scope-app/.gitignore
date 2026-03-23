@@ -1,1 +1,22 @@
 Config/JobTreadSecrets.xcconfig
+
+# macOS
+.DS_Store
+
+# Xcode build products / derived data
+build/
+DerivedData/
+.build/
+
+# Xcode user-specific files
+*.xcuserstate
+xcuserdata/
+*.xcworkspace/xcuserdata/
+*.xcodeproj/xcuserdata/
+
+# Logs
+*.log
+
+# Local env files
+.env
+.env.*

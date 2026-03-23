@@ -1,7 +1,7 @@
 Read codex_context.md before making changes.
 
 Current app phase:
-JobTread-first workflow implementation is now working end-to-end at the customer selection level. Current focus is locking down JobTread-owned data semantics and refresh behavior.
+JobTread-first customer linking flow is working. Current focus is solidifying JobTread-owned field semantics and preparing the first safe sync-back workflow.
 
 What is already true:
 - SwiftUI iPad construction scope app exists
@@ -18,28 +18,34 @@ What is already true:
 - JobTread customer search/select creation path exists
 - Live partial-name JobTread customer search works
 - Selecting a JobTread customer creates a linked scope
-- Selected-customer hydration populates customer/project fields
-- Street-address normalization is working in tested cases
+- Linked-customer hydration works for verified fields
+- Street-address normalization works in tested cases
+- JobTread-sourced customer fields should be treated as read-only in the app
+- Refresh/re-hydration from JobTread is the intended pattern for upstream customer changes
+
+Known limitation:
+- Phone/email hydration is currently deferred because the current verified JobTread query path for those fields is not confirmed from the available docs/schema
 
 Current architectural direction:
 - JobTread is the source of truth for customer records
 - The app should not create duplicate customers
-- JobTread-sourced customer fields should be treated as read-only in the app
-- If JobTread data changes upstream, the app should support a refresh/sync action to rehydrate those fields into the local scope
+- The app should not edit JobTread-owned customer master data locally
+- Linked JobTread customer fields should be read-only
+- If JobTread customer data changes upstream, the app should support refreshing those fields into the linked local scope
 - Intended workflow:
   1. Search/select existing JobTread customer
   2. Capture scope details in the app
-  3. Keep JobTread-owned customer data read-only
-  4. Allow refresh from JobTread for linked customer fields
+  3. Keep JobTread-owned customer fields read-only
+  4. Refresh JobTread-owned customer fields on demand
   5. Sync relevant scope/job data back to JobTread later
   6. Support estimate/bid generation later
 
 Current priorities:
-1. Make JobTread-owned linked customer fields read-only in the app
-2. Add a "Refresh from JobTread" / similar action for linked customer data
-3. Preserve editability for local scope-owned fields only
-4. Keep search/select and hydration flow stable
-5. Implement outbound sync only after read-only/refresh semantics are solid
+1. Finish/polish read-only + refresh behavior for linked customer fields
+2. Keep customer hydration stable and conservative
+3. Do not force unsupported phone/email hydration
+4. Begin the first safe one-way scope/job sync-back flow for linked scopes
+5. Preserve current working search/select/hydration behavior
 
 Editing rules:
 - Follow READ → PLAN → EDIT

@@ -40,7 +40,7 @@ struct ProjectInfoEditorView: View {
                                 Text(linkedCustomerName)
                                     .font(.body.weight(.medium))
 
-                                Text("Customer name and address fields below are read-only and come from JobTread.")
+                                Text("Verified JobTread-owned customer fields below are read-only and refresh from JobTread. Phone and email remain local editable fields for now.")
                                     .font(.footnote)
                                     .foregroundStyle(.secondary)
 
@@ -85,7 +85,7 @@ struct ProjectInfoEditorView: View {
                 }
             }
 
-            CardGroup(title: "Customer") {
+            CardGroup(title: hasLinkedCustomer ? "Customer (JobTread)" : "Customer") {
                 VStack(spacing: 12) {
                     if hasLinkedCustomer {
                         ReadOnlyProjectField(title: "Customer Name", value: scope.projectInfo.clientName, placeholder: "No customer name")
@@ -144,8 +144,15 @@ struct ProjectInfoEditorView: View {
                 }
             }
 
-            CardGroup(title: "Contact") {
+            CardGroup(title: hasLinkedCustomer ? "Contact (Local)" : "Contact") {
                 VStack(spacing: 12) {
+                    if hasLinkedCustomer {
+                        Text("Phone and email stay editable locally until their JobTread ownership path is verified.")
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+
                     VStack(alignment: .leading, spacing: 6) {
                         Text("Phone")
                             .font(.body)

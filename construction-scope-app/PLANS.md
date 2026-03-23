@@ -202,6 +202,30 @@ Keep milestones small, testable, and reviewable.
   - Verify a doc-supported field path for linked customer phone/email before expanding the current customer-detail query
   - Do not guess unsupported `account` / `contact` fields on the existing `organization.accounts` detail lookup
   - If a clean field path is later confirmed, route phone/email through the same read-only hydration and refresh flow used for other JobTread-owned customer fields
+- Milestone 5.2.21 – Linked Customer Ownership UX Clarification
+  - Keep the verified JobTread-owned fields visually grouped as read-only when a scope is linked:
+    - customer name
+    - street address
+    - city
+    - state
+    - ZIP
+  - Keep phone/email visually grouped with local editable contact fields until a doc-supported JobTread ownership path is confirmed
+  - Preserve the existing `Refresh from JobTread` behavior so it continues to affect only the verified hydrated fields
+- Milestone 5.2.22 – Account Phone/Email Probe
+  - Reuse a known linked customer/account ID from the current working flow for a narrow live probe
+  - Verify whether the current `organization.accounts` detail lookup supports direct `phone` / `email` fields on `nodes`
+  - Verify whether `organization.accounts.nodes.customFieldValues` is accepted and whether it carries phone/email-like data for the same known accounts
+  - Do not expand production hydration until the exact supported object and field path is verified
+- Milestone 5.2.23 – Linked Customer Ownership Stabilization
+  - Preserve the existing local ownership UX work in `Views/SectionEditors.swift` and avoid broad view rewrites
+  - Confirm the linked-customer refresh path continues to update only the verified JobTread-owned fields:
+    - customer name
+    - street address
+    - city
+    - state
+    - ZIP
+  - Leave phone/email editable as local scope-owned fields for now
+  - Validate the pass with a clean compile without touching partial search or linked-scope creation
 - Milestone 5.3 – Initial Sync Flow (One-Way)
   - Implement manual `Send to JobTread` action per scope
   - Map core scope entities into JobTread entities (customer/location/job/etc.)

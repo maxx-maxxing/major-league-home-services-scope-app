@@ -22,6 +22,9 @@
 - Milestone 5.2.17: Implemented (linked address contamination repair)
 - Milestone 5.2.18: Implemented (trailing city suffix cleanup)
 - Milestone 5.2.19: Implemented (linked customer read-only + refresh)
+- Milestone 5.2.21: Implemented (linked customer ownership UX clarification)
+- Milestone 5.2.22: Verified (account phone/email probe)
+- Milestone 5.2.23: Implemented (linked customer ownership stabilization)
 - Milestone 6: Implemented (photo attachment flow + PDF photo appendix)
 - Milestone 7.1: In progress (interaction animation polish)
 - Milestone 7.2: In progress (acceptance closeout)
@@ -300,16 +303,78 @@
     - existing address hydration and `Refresh from JobTread` behavior are unchanged
   - Follow-up requirement:
     - only expand phone/email hydration after the exact supported field path and object are verified from JobTread docs or a fresh schema probe
+- Milestone 5.2.21 linked customer ownership UX clarification:
+  - Clarified the `Project Information` editor so linked scopes visually separate:
+    - verified JobTread-owned read-only customer fields
+    - local editable contact fields
+  - Updated the linked-customer explainer copy to state that only the verified customer name/address/city/state/ZIP fields are JobTread-owned in this phase.
+  - Retitled the linked customer field groups to make ownership explicit in the UI:
+    - `Customer (JobTread)`
+    - `Contact (Local)`
+  - Added local-contact helper copy so phone/email remain clearly editable and are not implied to refresh from JobTread yet.
+  - Preserved behavior:
+    - `Refresh from JobTread` still reuses the existing linked-customer detail fetch
+    - refresh still only writes the verified hydrated fields handled by `applyLinkedCustomerHydration`
+    - no JobTread phone/email query or hydration path was added in this pass
+- Milestone 5.2.22 account phone/email probe:
+  - Probe setup:
+    - identified the safest probe point as the existing debug/integration boundary rather than the production hydration path:
+      - `JobTreadClient` remains the narrow service boundary
+      - `JobTreadDebugView` would be the right place for any future dev-only interactive probe UI
+    - no app code change was required for this pass because a one-off live probe against the existing Pave endpoint was sufficient
+    - recovered two known customer/account IDs from the current simulator app data / WAL tied to linked-scope customer names:
+      - `22MiQcAS5B8Q` (`Arjun Dasgupta`)
+      - `22PBFuL3N4UD` (`Arterberry Cooke`)
+  - Live probe results on the current verified customer-detail path:
+    - direct account field probe on `organization.accounts.nodes.phone` returned HTTP `400` for both known IDs with:
+      - `The field "phone" does not exist at "organization"."accounts"."nodes"`
+    - direct account field probe on `organization.accounts.nodes.email` returned HTTP `400` for both known IDs with:
+      - `The field "email" does not exist at "organization"."accounts"."nodes"`
+    - `organization.accounts.nodes.customFieldValues` was accepted for both known IDs and returned HTTP `200`
+    - `customFieldValues` was empty for both tested accounts:
+      - `{}`
+  - Current conclusion:
+    - the current verified `organization.accounts` detail lookup is not a safe direct source for `phone` or `email`
+    - `customFieldValues` exists on this account path, but the tested live accounts did not contain phone/email-like values there
+    - no related contact probe was added in this pass because the available docs/runtime evidence in repo still does not clearly expose a supported contact relationship from the current account-detail lookup
+  - Preserved behavior:
+    - production search/select/hydration flow is unchanged
+    - no phone/email hydration was added
+    - no production logging or probe UI was added
+  - Follow-up requirement:
+    - only proceed with phone/email implementation after verifying a different doc-supported object/relationship path, most likely via an explicit contact-relationship probe backed by fresh schema/runtime evidence
+- Milestone 5.2.23 linked customer ownership stabilization:
+  - Preserved the current local `Views/SectionEditors.swift` ownership UX changes instead of rewriting the view.
+  - Re-verified the linked-customer hydration and refresh path:
+    - `RootNavigationView.refreshLinkedCustomer()`
+    - `JobScope.applyLinkedCustomerHydration(_:)`
+  - Confirmed refresh still only updates the verified JobTread-owned compatibility fields:
+    - `projectInfo.clientName`
+    - `projectInfo.address`
+    - `projectInfo.city`
+    - `projectInfo.state`
+    - `projectInfo.zip`
+  - Confirmed phone/email remain local editable fields in the `Project Information` UI and are not refreshed from JobTread.
+  - Tightened the refresh success copy so it explicitly states that only verified customer fields were refreshed.
+  - Preserved behavior:
+    - partial-name customer search remains unchanged
+    - linked-customer scope creation remains unchanged
+    - blank local scope creation remains unchanged
+    - no phone/email hydration was added
+    - no outbound sync work was started
 
 ## Validation Notes
 - 2026-03-23:
   - Successful build:
     - `xcodebuild -project ConstructionScopeApp.xcodeproj -scheme ConstructionScopeApp -sdk iphonesimulator -configuration Debug build CODE_SIGNING_ALLOWED=NO -derivedDataPath /tmp/construction-scope-app-codex-build`
+    - `xcodebuild -project ConstructionScopeApp.xcodeproj -scheme ConstructionScopeApp -destination 'generic/platform=iOS Simulator' -derivedDataPath /tmp/ConstructionScopeAppOwnershipDerived CODE_SIGNING_ALLOWED=NO build`
   - Result:
     - build succeeded when rerun outside the sandbox so SwiftData macros and simulator tooling could execute normally
+    - build succeeded for the linked-customer ownership stabilization pass
   - Scope of validation:
     - confirmed the linked-customer Project Information UI changes compile cleanly
     - confirmed the existing linked-customer refresh flow still compiles on the current scheme
+    - confirmed the ownership split remains limited to verified customer fields for refresh semantics
 - 2026-03-23:
   - Attempted build:
     - `xcodebuild -project ConstructionScopeApp.xcodeproj -scheme ConstructionScopeApp -sdk iphonesimulator -configuration Debug build CODE_SIGNING_ALLOWED=NO -derivedDataPath build/CodexDerivedDataLocal`

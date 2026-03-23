@@ -363,6 +363,108 @@
   - Temporary assumption:
     - based on the uploaded docs, `page` is only for subsequent-page tokens such as `nextPage` / `previousPage`, not the initial search request
     - if initial lookup still needs to omit `size`, that should be the next narrowing step rather than guessing any paging semantics
+- Milestone 5.2.11 partial customer search refinement:
+  - Updated JobTread customer lookup to try a partial-name request first while preserving the confirmed exact full-name request as fallback.
+  - The outgoing request now attempts:
+    - `where = { "and": [ ["name", "contains", "<search text>"], ["type", "=", "customer"] ] }`
+    - `size = <limit>`
+  - If that partial lookup returns no matches or the operator is rejected at runtime, the service falls back to the existing exact-match request:
+    - `where = { "and": [ ["name", "=", "<search text>"], ["type", "=", "customer"] ] }`
+    - `size = <limit>`
+  - Preserved the same minimal `organization.accounts.nodes` result fields:
+    - `id`
+    - `name`
+    - `type`
+  - Refined the `Create from JobTread Customer` sheet toward a safer typeahead flow:
+    - live lookup now runs with a short debounce while typing
+    - live lookup starts at 2 characters to avoid noisy one-character searches
+    - explicit submit/search still works and still routes through the same service fallback path
+    - selecting a customer still creates the same linked scope type, and the blank local fallback remains intact
+  - Temporary assumptions:
+    - based on the uploaded JobTread docs/schema guidance already captured in this repo, `contains` is the safest doc-aligned partial-name operator to try on the array-based `where` clause for `organization.accounts`
+    - if JobTread uses a different partial-match operator in production, the request log now makes the attempted `contains` payload visible and the existing exact `=` path still preserves the confirmed full-name flow
+  - Validation:
+    - `xcodebuild -project ConstructionScopeApp.xcodeproj -scheme ConstructionScopeApp -destination 'generic/platform=iOS' -derivedDataPath build/CodexDerivedDataLocal CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO build`
+    - build succeeded after the search refinement changes
+- Milestone 5.2.12 search regression recovery:
+  - Recovered the confirmed-good exact full-name customer lookup path as the primary service behavior while debugging the later partial-search regression.
+  - Root cause:
+    - the debounced live-search task was calling `search()`
+    - `search()` immediately cancelled `scheduledSearchTask`
+    - when the running task cancelled itself, later cancellation guards could exit before clearing `isLoading`
+    - this left the UI stuck on `Searching JobTread...` with no results and no error even though the request flow was no longer progressing correctly
+  - Service recovery:
+    - removed partial-search-first behavior from the active search path for now
+    - restored exact-match lookup as:
+      - `where = { "and": [ ["name", "=", "<search text>"], ["type", "=", "customer"] ] }`
+      - `size = <limit>`
+    - added targeted JobTread logs for:
+      - request start
+      - request payload
+      - response count
+      - API errors / thrown failures
+  - View-model recovery:
+    - stopped cancelling the currently running search from inside `search()`
+    - made loading cleanup unconditional through `defer`
+    - preserved stale-search guards so older responses do not overwrite newer state
+    - added targeted view-model logs for:
+      - search submission / scheduling
+      - loading start
+      - success / failure
+      - loading clear
+      - reset / stale-search suppression
+  - Preserved behavior:
+    - selecting a result still creates a linked scope
+    - blank local fallback path remains unchanged
+    - typeahead scheduling remains available, but it now uses the exact-match baseline until partial search is reintroduced safely
+  - Validation:
+    - `xcodebuild -project ConstructionScopeApp.xcodeproj -scheme ConstructionScopeApp -destination 'generic/platform=iOS' -derivedDataPath build/CodexDerivedDataLocal CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO build`
+    - build succeeded after the regression recovery changes
+- Milestone 5.2.13 safe partial search reintroduction:
+  - Reintroduced partial-name customer lookup in the service layer while preserving the recovered exact-match baseline as fallback.
+  - Active request order now is:
+    - first attempt `where = { "and": [ ["name", "contains", "<search text>"], ["type", "=", "customer"] ] }`
+    - if that returns no results, fall back to `where = { "and": [ ["name", "=", "<search text>"], ["type", "=", "customer"] ] }`
+    - if the partial request throws, fall back to the same exact-match request
+  - Preserved the same minimal `organization.accounts.nodes` result fields:
+    - `id`
+    - `name`
+    - `type`
+  - Safety guard:
+    - added an 8-second request timeout so a stalled partial request cannot block the exact fallback path indefinitely
+  - Preserved behavior:
+    - existing live/debounced search scheduling remains unchanged
+    - loading-state cleanup remains in the view model recovery path from Milestone 5.2.12
+    - selecting a customer still creates a linked scope
+    - blank local fallback remains unchanged
+  - Temporary assumptions:
+    - based on the uploaded JobTread docs/schema guidance already captured in this repo, `contains` remains the safest doc-supported partial-name operator to try on the array-based `where` clause for `organization.accounts`
+    - if the live JobTread environment rejects `contains`, the exact `=` fallback still preserves the confirmed working baseline
+  - Validation:
+    - `xcodebuild -project ConstructionScopeApp.xcodeproj -scheme ConstructionScopeApp -destination 'generic/platform=iOS' -derivedDataPath build/CodexDerivedDataLocal CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO build`
+    - build succeeded after the safe partial-search reintroduction
+- Milestone 5.2.14 `like` operator partial search probe:
+  - Replaced the ineffective live-environment `contains` partial lookup attempt with `like`-based wildcard attempts in the service layer.
+  - Active partial attempt order now is:
+    - prefix wildcard: `where = { "and": [ ["name", "like", "<query>%"], ["type", "=", "customer"] ] }`
+    - contains-style wildcard: `where = { "and": [ ["name", "like", "%<query>%"], ["type", "=", "customer"] ] }`
+    - exact fallback: `where = { "and": [ ["name", "=", "<query>"], ["type", "=", "customer"] ] }`
+  - Added targeted logs for each partial attempt showing:
+    - which operator/path was attempted
+    - the wildcard value sent
+    - the result count or thrown error
+    - when exact fallback runs
+  - Preserved behavior:
+    - UI scheduling and loading cleanup are unchanged from the stable recovery pass
+    - selecting a customer still creates a linked scope
+    - blank local fallback remains unchanged
+  - Temporary assumptions:
+    - runtime behavior indicates `contains` is not producing usable matches for `organization.accounts.name` even though the request shape is accepted
+    - based on prior runtime parser guidance, `like` is the next most likely supported Pave operator for partial string matching on `name`
+    - if both wildcard `like` attempts still return no matches in the live environment, the exact `=` fallback remains the confirmed working baseline and the live environment may not support partial-name lookup on this field
+  - Validation:
+    - `xcodebuild -project ConstructionScopeApp.xcodeproj -scheme ConstructionScopeApp -destination 'generic/platform=iOS' -derivedDataPath build/CodexDerivedDataLocal CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO build`
+    - build succeeded after the `like` operator partial-search probe
 
 ## How to Run
 1. Open [ConstructionScopeApp.xcodeproj](/C:/Users/your_/Downloads/construction-scope-app_coderpack_plus/construction-scope-app/ConstructionScopeApp.xcodeproj).

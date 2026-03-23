@@ -147,6 +147,22 @@ Keep milestones small, testable, and reviewable.
   - Remove `page` from the initial `organization.accounts` customer search request
   - Keep the initial lookup aligned with the non-paginated doc examples: `where`, optional `size`, and `nodes`
   - Defer `page` usage until a real paging token is returned by `nextPage` / `previousPage`
+- Milestone 5.2.11 – Partial Customer Search Refinement
+  - Add doc-aligned partial-name lookup on `organization.accounts` using the existing array-based `where` shape
+  - Preserve the confirmed exact full-name lookup path as a fallback when partial search returns no results or the partial operator is rejected
+  - Refine the selection sheet toward debounced live/typeahead results without changing linked-scope creation or the blank local fallback
+- Milestone 5.2.12 – Search Regression Recovery
+  - Restore the confirmed exact-match JobTread customer lookup path as the primary working baseline
+  - Ensure customer search loading state always resolves on success, empty results, error, and cancellation
+  - Add targeted request / response / loading debug logging before revisiting partial-search behavior
+- Milestone 5.2.13 – Safe Partial Search Reintroduction
+  - Reintroduce doc-aligned partial-name lookup on `organization.accounts` using the existing array-based `where` syntax
+  - Preserve exact `=` lookup as the fallback whenever partial search returns no results or fails
+  - Ensure partial lookup cannot block the exact fallback path indefinitely
+- Milestone 5.2.14 – `like` Operator Partial Search Probe
+  - Replace ineffective `contains` matching with the most likely supported Pave-style `like` operator on `name`
+  - Try bounded wildcard forms before exact fallback so runtime behavior can confirm whether partial-name lookup is supported
+  - Preserve the stable exact-match baseline and current live-search UX while testing operator support
 - Milestone 5.3 – Initial Sync Flow (One-Way)
   - Implement manual `Send to JobTread` action per scope
   - Map core scope entities into JobTread entities (customer/location/job/etc.)

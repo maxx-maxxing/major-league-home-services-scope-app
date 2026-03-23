@@ -49,6 +49,8 @@ struct JobTreadOrganization: Decodable, Sendable {
 }
 
 struct JobTreadClient {
+    private static let requestTimeout: TimeInterval = 8
+
     private let session: URLSession
     private let config: JobTreadConfig
     private let decoder: JSONDecoder
@@ -87,29 +89,79 @@ extension JobTreadClient: JobTreadCustomerSearching {
         let trimmedQuery = query.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmedQuery.isEmpty else { return [] }
 
-        let requestBody = JobTreadCustomerSearchRequest(
-            grantKey: config.apiKey,
-            organizationID: config.organizationID,
-            searchText: trimmedQuery,
-            limit: limit
-        )
-        logCustomerSearchRequest(requestBody)
-        let envelope: JobTreadCustomerSearchEnvelope = try await send(requestBody)
+        print("[JobTread] customer search start query='\(trimmedQuery)' mode=like-then-exact limit=\(limit)")
 
-        if !envelope.errors.isEmpty {
-            throw JobTreadClientError.apiErrors(envelope.errors.map(\.message))
+        let partialAttempts: [JobTreadPartialSearchAttempt] = [
+            .prefixLike(trimmedQuery),
+            .containsLike(trimmedQuery)
+        ]
+
+        for attempt in partialAttempts {
+            do {
+                let partialResults = try await performCustomerSearch(
+                    matching: attempt.value,
+                    limit: limit,
+                    nameComparison: attempt.comparison
+                )
+
+                print("[JobTread] partial attempt complete operator=\(attempt.label) query='\(attempt.value)' results=\(partialResults.count)")
+
+                if !partialResults.isEmpty {
+                    print("[JobTread] customer search complete query='\(trimmedQuery)' mode=\(attempt.label) results=\(partialResults.count)")
+                    return partialResults
+                }
+            } catch {
+                print("[JobTread] partial attempt failed operator=\(attempt.label) query='\(attempt.value)' error='\(error.localizedDescription)'")
+            }
         }
 
-        let results = envelope.organization?.accounts?.nodes.map(\.lookupResult) ?? []
-        print("[JobTread] customer search results: \(results.count) for query '\(trimmedQuery)'")
-        return results
+        print("[JobTread] customer search fallback query='\(trimmedQuery)' reason=no successful partial-like match")
+        let exactResults = try await performCustomerSearch(
+            matching: trimmedQuery,
+            limit: limit,
+            nameComparison: .equalTo
+        )
+        print("[JobTread] customer search complete query='\(trimmedQuery)' mode=exact-fallback results=\(exactResults.count)")
+        return exactResults
     }
 }
 
 private extension JobTreadClient {
+    func performCustomerSearch(
+        matching query: String,
+        limit: Int,
+        nameComparison: JobTreadNameComparison
+    ) async throws -> [JobTreadCustomerLookupResult] {
+        let requestBody = JobTreadCustomerSearchRequest(
+            grantKey: config.apiKey,
+            organizationID: config.organizationID,
+            searchText: query,
+            limit: limit,
+            nameComparison: nameComparison
+        )
+        logCustomerSearchRequest(requestBody, nameComparison: nameComparison)
+        do {
+            let envelope: JobTreadCustomerSearchEnvelope = try await send(requestBody)
+
+            if !envelope.errors.isEmpty {
+                let messages = envelope.errors.map(\.message)
+                print("[JobTread] customer search api errors mode=\(nameComparison.rawValue) query='\(query)': \(messages.joined(separator: " | "))")
+                throw JobTreadClientError.apiErrors(messages)
+            }
+
+            let results = envelope.organization?.accounts?.nodes.map(\.lookupResult) ?? []
+            print("[JobTread] customer search response mode=\(nameComparison.rawValue) query='\(query)' results=\(results.count)")
+            return results
+        } catch {
+            print("[JobTread] customer search failed mode=\(nameComparison.rawValue) query='\(query)': \(error.localizedDescription)")
+            throw error
+        }
+    }
+
     func send<RequestBody: Encodable, ResponseBody: Decodable>(_ requestBody: RequestBody) async throws -> ResponseBody {
         var request = URLRequest(url: config.baseURL)
         request.httpMethod = "POST"
+        request.timeoutInterval = Self.requestTimeout
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue("application/json", forHTTPHeaderField: "Accept")
         request.httpBody = try encoder.encode(requestBody)
@@ -128,14 +180,31 @@ private extension JobTreadClient {
         return try decoder.decode(ResponseBody.self, from: data)
     }
 
-    func logCustomerSearchRequest(_ requestBody: JobTreadCustomerSearchRequest) {
+    func logCustomerSearchRequest(
+        _ requestBody: JobTreadCustomerSearchRequest,
+        nameComparison: JobTreadNameComparison
+    ) {
         guard let data = try? encoder.encode(requestBody),
               let json = String(data: data, encoding: .utf8) else {
             print("[JobTread] customer search request: <encoding failed>")
             return
         }
 
-        print("[JobTread] customer search request: \(json)")
+        print("[JobTread] customer search request (\(nameComparison.rawValue)): \(json)")
+    }
+}
+
+private struct JobTreadPartialSearchAttempt {
+    let comparison: JobTreadNameComparison
+    let value: String
+    let label: String
+
+    static func prefixLike(_ query: String) -> Self {
+        Self(comparison: .like, value: "\(query)%", label: "like-prefix")
+    }
+
+    static func containsLike(_ query: String) -> Self {
+        Self(comparison: .like, value: "%\(query)%", label: "like-contains")
     }
 }
 
@@ -169,12 +238,19 @@ private struct JobTreadGrantContext: Encodable {
 private struct JobTreadCustomerSearchRequest: Encodable {
     let query: JobTreadCustomerSearchQuery
 
-    init(grantKey: String, organizationID: String, searchText: String, limit: Int) {
+    init(
+        grantKey: String,
+        organizationID: String,
+        searchText: String,
+        limit: Int,
+        nameComparison: JobTreadNameComparison
+    ) {
         query = JobTreadCustomerSearchQuery(
             grantKey: grantKey,
             organizationID: organizationID,
             searchText: searchText,
-            limit: limit
+            limit: limit,
+            nameComparison: nameComparison
         )
     }
 }
@@ -183,12 +259,19 @@ private struct JobTreadCustomerSearchQuery: Encodable {
     let context: JobTreadCustomerSearchContext
     let organization: JobTreadCustomerSearchOrganizationSelection
 
-    init(grantKey: String, organizationID: String, searchText: String, limit: Int) {
+    init(
+        grantKey: String,
+        organizationID: String,
+        searchText: String,
+        limit: Int,
+        nameComparison: JobTreadNameComparison
+    ) {
         context = JobTreadCustomerSearchContext(grantKey: grantKey)
         organization = JobTreadCustomerSearchOrganizationSelection(
             organizationID: organizationID,
             searchText: searchText,
-            limit: limit
+            limit: limit,
+            nameComparison: nameComparison
         )
     }
 
@@ -211,9 +294,18 @@ private struct JobTreadCustomerSearchOrganizationSelection: Encodable {
     let options: JobTreadOrganizationSelectionOptions
     let accounts: JobTreadAccountsSelection
 
-    init(organizationID: String, searchText: String, limit: Int) {
+    init(
+        organizationID: String,
+        searchText: String,
+        limit: Int,
+        nameComparison: JobTreadNameComparison
+    ) {
         options = JobTreadOrganizationSelectionOptions(id: organizationID)
-        accounts = JobTreadAccountsSelection(searchText: searchText, limit: limit)
+        accounts = JobTreadAccountsSelection(
+            searchText: searchText,
+            limit: limit,
+            nameComparison: nameComparison
+        )
     }
 
     enum CodingKeys: String, CodingKey {
@@ -230,8 +322,12 @@ private struct JobTreadAccountsSelection: Encodable {
     let options: JobTreadCustomerSearchOptions
     let nodes = JobTreadAccountSelection()
 
-    init(searchText: String, limit: Int) {
-        options = JobTreadCustomerSearchOptions(searchText: searchText, limit: limit)
+    init(searchText: String, limit: Int, nameComparison: JobTreadNameComparison) {
+        options = JobTreadCustomerSearchOptions(
+            searchText: searchText,
+            limit: limit,
+            nameComparison: nameComparison
+        )
     }
 
     enum CodingKeys: String, CodingKey {
@@ -244,8 +340,11 @@ private struct JobTreadCustomerSearchOptions: Encodable {
     let whereClause: JobTreadAccountWhereClause
     let size: Int
 
-    init(searchText: String, limit: Int) {
-        whereClause = JobTreadAccountWhereClause(searchText: searchText)
+    init(searchText: String, limit: Int, nameComparison: JobTreadNameComparison) {
+        whereClause = JobTreadAccountWhereClause(
+            searchText: searchText,
+            nameComparison: nameComparison
+        )
         size = limit
     }
 
@@ -258,12 +357,22 @@ private struct JobTreadCustomerSearchOptions: Encodable {
 private struct JobTreadAccountWhereClause: Encodable {
     let and: [JobTreadAccountWhereCondition]
 
-    init(searchText: String) {
+    init(searchText: String, nameComparison: JobTreadNameComparison) {
         and = [
-            JobTreadAccountWhereCondition(field: "name", comparison: "=", value: searchText),
+            JobTreadAccountWhereCondition(
+                field: "name",
+                comparison: nameComparison.rawValue,
+                value: searchText
+            ),
             JobTreadAccountWhereCondition(field: "type", comparison: "=", value: "customer")
         ]
     }
+}
+
+private enum JobTreadNameComparison: String {
+    case contains
+    case like
+    case equalTo = "="
 }
 
 private struct JobTreadAccountWhereCondition: Encodable {

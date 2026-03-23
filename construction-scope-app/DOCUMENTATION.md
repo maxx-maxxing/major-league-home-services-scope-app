@@ -18,6 +18,9 @@
 - Milestone 5.2.5: Implemented (customer lookup query fix)
 - Milestone 5.2.6: Implemented (search field reduction)
 - Milestone 5.2.15: Implemented (post-selection customer detail hydration)
+- Milestone 5.2.16: Implemented (street-address hydration cleanup)
+- Milestone 5.2.17: Implemented (linked address contamination repair)
+- Milestone 5.2.18: Implemented (trailing city suffix cleanup)
 - Milestone 6: Implemented (photo attachment flow + PDF photo appendix)
 - Milestone 7.1: In progress (interaction animation polish)
 - Milestone 7.2: In progress (acceptance closeout)
@@ -556,6 +559,18 @@
   - whether the glass treatment now overwhelms dense form-editing contexts
   - whether the background luminosity is still comfortable in Light/Dark mode for extended use
   - which parts of the extreme treatment should be kept, reduced, or removed entirely
+- Milestone 5.2.16 street-address hydration cleanup:
+  - Adjusted JobTread detail mapping so scope street address no longer prefers `formattedAddress`.
+  - Street hydration now prefers the dedicated `address` field and only recovers the first formatted segment when the remaining segments clearly match separately hydrated city/state/ZIP/country parts.
+  - Added a subtle linked-customer note in the project info editor when JobTread provided city/state/ZIP but no usable street line.
+- Milestone 5.2.17 linked address contamination repair:
+  - Tightened JobTread address extraction so a supposed street-line value is discarded when it still contains separately hydrated city/state/ZIP/country text.
+  - Updated linked-customer hydration to repair existing contaminated `projectInfo.address` values when customer details are fetched again.
+  - Existing linked scopes with previously persisted full formatted addresses will correct on re-hydration; there is no broad migration pass yet.
+- Milestone 5.2.18 trailing city suffix cleanup:
+  - Added a conservative suffix-only trim for cases where a standalone city token remains at the end of the street line.
+  - The trim only applies when the trailing token exactly matches the separately hydrated city and sits on a trailing whitespace boundary.
+  - Middle-of-string words and unrelated street names are left unchanged.
 - Unsandboxed `xcodebuild` validation succeeded on March 10, 2026 using:
   - `xcodebuild -project ConstructionScopeApp.xcodeproj -scheme ConstructionScopeApp -destination 'generic/platform=iOS' -derivedDataPath /tmp/ConstructionScopeAppDerived CODE_SIGNING_ALLOWED=NO build`
 - Unsandboxed `xcodebuild` validation succeeded again on March 11, 2026 after Milestone 7.2 acceptance fixes using:
@@ -592,6 +607,12 @@
   - `xcodebuild -project ConstructionScopeApp.xcodeproj -scheme ConstructionScopeApp -destination 'generic/platform=iOS Simulator' -derivedDataPath /tmp/ConstructionScopeAppPhase10Derived CODE_SIGNING_ALLOWED=NO build`
 - Unsandboxed `xcodebuild` validation succeeded on March 23, 2026 after Milestone 5.2.10 initial paging token fix using:
   - `xcodebuild -project ConstructionScopeApp.xcodeproj -scheme ConstructionScopeApp -destination 'generic/platform=iOS Simulator' -derivedDataPath /tmp/ConstructionScopeAppPhase11Derived CODE_SIGNING_ALLOWED=NO build`
+- Unsandboxed `xcodebuild` validation succeeded on March 23, 2026 after Milestone 5.2.16 street-address hydration cleanup using:
+  - `xcodebuild -project ConstructionScopeApp.xcodeproj -scheme ConstructionScopeApp -destination 'generic/platform=iOS Simulator' -derivedDataPath /tmp/ConstructionScopeAppAddressFixDerived CODE_SIGNING_ALLOWED=NO build`
+- Unsandboxed `xcodebuild` validation succeeded on March 23, 2026 after Milestone 5.2.17 linked address contamination repair using:
+  - `xcodebuild -project ConstructionScopeApp.xcodeproj -scheme ConstructionScopeApp -destination 'generic/platform=iOS Simulator' -derivedDataPath /tmp/ConstructionScopeAppAddressRepairDerived CODE_SIGNING_ALLOWED=NO build`
+- Unsandboxed `xcodebuild` validation succeeded on March 23, 2026 after Milestone 5.2.18 trailing city suffix cleanup using:
+  - `xcodebuild -project ConstructionScopeApp.xcodeproj -scheme ConstructionScopeApp -destination 'generic/platform=iOS Simulator' -derivedDataPath /tmp/ConstructionScopeAppAddressSuffixDerived CODE_SIGNING_ALLOWED=NO build`
 - Simulator runtime validation on March 10, 2026:
   - built for `iPad Pro 11-inch (M5)` simulator
   - installed successfully with `simctl`

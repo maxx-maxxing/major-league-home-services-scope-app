@@ -49,6 +49,12 @@ struct ProjectInfoEditorView: View {
                         RequiredLabel(text: "Address")
                         TextField("Street address", text: requiredStringBinding(\.address))
                             .liquidGlassInput()
+
+                        if scope.shouldShowMissingLinkedStreetAddressHint {
+                            Text("JobTread provided city/state/ZIP, but no usable street address line.")
+                                .font(.footnote)
+                                .foregroundStyle(.secondary)
+                        }
                     }
 
                     HStack(spacing: 12) {

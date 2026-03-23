@@ -168,6 +168,18 @@ Keep milestones small, testable, and reviewable.
   - After customer selection, run a second doc-supported `organization.accounts` lookup by selected customer ID
   - Hydrate only verified account-detail fields, preferring `primaryLocation` data for scope compatibility fields
   - Preserve immediate linked-scope creation, blank local fallback, and the current partial-search flow
+- Milestone 5.2.16 – Street Address Hydration Cleanup
+  - Stop hydrating `projectInfo.address` from JobTread `formattedAddress` when it contains city/state/ZIP/country text
+  - Prefer a dedicated street-line value from the customer detail mapping layer and preserve separate city/state/ZIP hydration
+  - Surface only a minimal linked-customer hint when JobTread returns location metadata without a usable street address
+- Milestone 5.2.17 – Linked Address Contamination Repair
+  - Treat JobTread `address` as untrusted if it still includes separately hydrated city/state/ZIP/country parts
+  - Repair contaminated linked-scope `projectInfo.address` values during customer-detail hydration when a clean street line can be determined, otherwise clear them
+  - Preserve current search/select flow and separate city/state/ZIP hydration
+- Milestone 5.2.18 – Trailing City Suffix Cleanup
+  - Remove only a standalone trailing city suffix from a street line when the same city is already hydrated separately
+  - Do not strip city-like words from the middle of a street name or from unrelated valid street names
+  - Preserve the current linked-customer search/select and hydration behavior for already-correct address cases
 - Milestone 5.3 – Initial Sync Flow (One-Way)
   - Implement manual `Send to JobTread` action per scope
   - Map core scope entities into JobTread entities (customer/location/job/etc.)

@@ -1039,6 +1039,17 @@ final class JobScope {
         return customerName.localizedCaseInsensitiveCompare(displayName) != .orderedSame
     }
 
+    var shouldShowMissingLinkedStreetAddressHint: Bool {
+        guard jobTreadCustomer != nil else { return false }
+        guard projectInfo.address.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty == nil else { return false }
+
+        return [
+            jobTreadCustomer?.city,
+            jobTreadCustomer?.state,
+            jobTreadCustomer?.postalCode
+        ].contains { $0?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty != nil }
+    }
+
     func setLocalScopeTitle(_ newTitle: String) {
         scopeTitle = newTitle.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty
         updatedAt = .now
@@ -1063,9 +1074,16 @@ final class JobScope {
             jobTreadCustomer?.fetchedAt = .now
         }
 
-        if projectInfo.address.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty == nil,
-           let trimmedAddress {
-            projectInfo.address = trimmedAddress
+        let existingAddress = projectInfo.address.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty
+        let existingAddressIsContaminated = Self.isContaminatedLinkedStreetAddress(
+            existingAddress,
+            city: trimmedCity,
+            state: trimmedState,
+            zip: trimmedZIP
+        )
+
+        if existingAddress == nil || existingAddressIsContaminated {
+            projectInfo.address = trimmedAddress ?? ""
         }
 
         if projectInfo.city?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty == nil {
@@ -1081,6 +1099,40 @@ final class JobScope {
         }
 
         updatedAt = .now
+    }
+
+    private static func isContaminatedLinkedStreetAddress(
+        _ address: String?,
+        city: String?,
+        state: String?,
+        zip: String?
+    ) -> Bool {
+        guard let address = address?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty else {
+            return false
+        }
+
+        let normalizedAddress = address.lowercased()
+
+        if normalizedAddress.contains("usa") || normalizedAddress.contains("united states") {
+            return true
+        }
+
+        if let zip = zip?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty?.lowercased(),
+           normalizedAddress.contains(zip) {
+            return true
+        }
+
+        if let city = city?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty?.lowercased(),
+           normalizedAddress.contains(city) {
+            return true
+        }
+
+        if let state = state?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty?.lowercased(),
+           normalizedAddress.contains(state) {
+            return true
+        }
+
+        return false
     }
 }
 

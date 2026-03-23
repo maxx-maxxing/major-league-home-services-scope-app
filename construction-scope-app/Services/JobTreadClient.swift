@@ -741,8 +741,125 @@ private struct JobTreadLocationNode: Decodable {
     let formattedAddress: String?
 
     var resolvedAddress: String? {
-        formattedAddress?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty ??
-            address?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty
+        if let resolvedFromAddress = sanitizedStreetAddress(from: address) {
+            return resolvedFromAddress
+        }
+
+        return sanitizedStreetAddress(from: formattedAddress)
+    }
+
+    private func sanitizedStreetAddress(from rawValue: String?) -> String? {
+        guard let trimmedValue = rawValue?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty else {
+            return nil
+        }
+
+        let components = trimmedValue
+            .split(separator: ",", omittingEmptySubsequences: true)
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+
+        guard let firstComponent = components.first?.nilIfEmpty else {
+            return nil
+        }
+
+        let sanitizedFirstComponent = trimmingTrailingCitySuffixIfNeeded(from: firstComponent)
+
+        if components.count == 1 {
+            guard let sanitizedFirstComponent else { return nil }
+            return valueContainsKnownLocationParts(sanitizedFirstComponent) ? nil : sanitizedFirstComponent
+        }
+
+        // Only recover a street line when the remaining segments clearly match
+        // dedicated location fields that hydrate separately.
+        if formattedAddressContainsOnlyKnownLocationParts(components.dropFirst()) {
+            return sanitizedFirstComponent
+        }
+
+        return nil
+    }
+
+    private func formattedAddressContainsOnlyKnownLocationParts<S: Sequence>(_ components: S) -> Bool where S.Element == String {
+        let normalizedExpected = Set(
+            [city, state, postalCode, "USA", "United States"]
+                .compactMap { $0?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty?.lowercased() }
+        )
+
+        guard !normalizedExpected.isEmpty else { return false }
+
+        for component in components {
+            let normalizedComponent = component.lowercased()
+
+            if normalizedExpected.contains(normalizedComponent) {
+                continue
+            }
+
+            let tokens = normalizedComponent
+                .split(whereSeparator: { $0 == " " || $0 == "-" })
+                .map(String.init)
+                .filter { !$0.isEmpty }
+
+            if tokens.allSatisfy({ normalizedExpected.contains($0) }) {
+                continue
+            }
+
+            return false
+        }
+
+        return true
+    }
+
+    private func valueContainsKnownLocationParts(_ value: String) -> Bool {
+        let normalizedValue = value.lowercased()
+
+        if let city = city?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty?.lowercased(),
+           normalizedValue.contains(city) {
+            return true
+        }
+
+        if let state = state?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty?.lowercased(),
+           normalizedValue.contains(state) {
+            return true
+        }
+
+        if let postalCode = postalCode?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty?.lowercased(),
+           normalizedValue.contains(postalCode) {
+            return true
+        }
+
+        return normalizedValue.contains("usa") || normalizedValue.contains("united states")
+    }
+
+    private func trimmingTrailingCitySuffixIfNeeded(from value: String) -> String? {
+        guard let city = city?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty else {
+            return value
+        }
+
+        let normalizedValue = value.lowercased()
+        let normalizedCity = city.lowercased()
+
+        guard normalizedValue.count > normalizedCity.count else {
+            return value
+        }
+
+        guard normalizedValue.hasSuffix(normalizedCity) else {
+            return value
+        }
+
+        let suffixStartIndex = normalizedValue.index(normalizedValue.endIndex, offsetBy: -normalizedCity.count)
+        guard suffixStartIndex > normalizedValue.startIndex else {
+            return value
+        }
+
+        let boundaryIndex = normalizedValue.index(before: suffixStartIndex)
+        guard normalizedValue[boundaryIndex].isWhitespace else {
+            return value
+        }
+
+        let trimmedStreet = value[..<boundaryIndex]
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .nilIfEmpty
+
+        return trimmedStreet
     }
 }
 

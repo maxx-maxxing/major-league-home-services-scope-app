@@ -1,5 +1,18 @@
 Read codex_context.md before making changes.
 
+Current working focus:
+Refining app-side data entry UX and field configuration.
+
+Today’s likely tasks include:
+- updating section options
+- adding/editing dropdown values
+- refining labels and field organization
+- aligning form choices with real business workflow
+- making small UI/data-entry improvements without disrupting the current JobTread integration flow
+
+Important constraint:
+Do not destabilize the current working JobTread customer search/select, linked-customer hydration, or verified read-only ownership behavior unless the task explicitly requires it.
+
 Current app phase:
 JobTread-first customer linking flow is working. Current focus is solidifying JobTread-owned field semantics and preparing the first safe sync-back workflow.
 

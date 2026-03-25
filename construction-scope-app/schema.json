@@ -82,6 +82,10 @@
           "type": "AttachmentConditions",
           "required": false
         },
+        "documents": {
+          "type": "DocumentsSection",
+          "required": false
+        },
         "finishes": {
           "type": "Finishes",
           "required": false
@@ -363,7 +367,24 @@
             "20x20_no_see_um",
             "18x14_tuff",
             "20x20_tuff",
+            "suntex_solar_screen",
             "other"
+          ],
+          "required": false
+        },
+        "screenTint": {
+          "type": "enum",
+          "values": [
+            "95%",
+            "99%"
+          ],
+          "required": false
+        },
+        "screenFrameSize": {
+          "type": "enum",
+          "values": [
+            "2_in_frame",
+            "3_in_frame"
           ],
           "required": false
         },
@@ -371,11 +392,10 @@
           "type": "enum",
           "values": [
             "white",
-            "beige",
-            "bronze",
             "black",
-            "khaki",
-            "other"
+            "bronze",
+            "almond",
+            "clay"
           ],
           "required": false
         },
@@ -981,6 +1001,72 @@
         },
         "signedDate": {
           "type": "date",
+          "required": false
+        }
+      }
+    },
+    "DocumentsSection": {
+      "fields": {
+        "irrigation": {
+          "type": "DocumentAttachmentFile",
+          "required": false
+        },
+        "propertySurvey": {
+          "type": "DocumentAttachmentFile",
+          "required": false
+        },
+        "additionalAttachments": {
+          "type": "array",
+          "items": "AdditionalDocumentAttachment",
+          "required": false
+        }
+      }
+    },
+    "DocumentAttachmentFile": {
+      "fields": {
+        "id": {
+          "type": "uuid",
+          "required": true
+        },
+        "originalFilename": {
+          "type": "string",
+          "required": true
+        },
+        "filePath": {
+          "type": "string",
+          "required": true
+        },
+        "contentTypeIdentifier": {
+          "type": "string",
+          "required": false
+        },
+        "source": {
+          "type": "enum",
+          "values": [
+            "files",
+            "photo_library",
+            "camera"
+          ],
+          "required": true
+        },
+        "createdAt": {
+          "type": "date",
+          "required": true
+        }
+      }
+    },
+    "AdditionalDocumentAttachment": {
+      "fields": {
+        "id": {
+          "type": "uuid",
+          "required": true
+        },
+        "name": {
+          "type": "string",
+          "required": false
+        },
+        "attachment": {
+          "type": "DocumentAttachmentFile",
           "required": false
         }
       }

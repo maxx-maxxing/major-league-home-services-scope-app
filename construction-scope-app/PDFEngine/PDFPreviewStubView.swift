@@ -306,6 +306,8 @@ enum ScopePDFExporter {
                 PDFSection(title: "Enclosure", rows: [
                     .init(label: "Type", value: enclosure?.enclosureType?.displayName ?? "Not set"),
                     .init(label: "Screen Type", value: enclosure?.screenWallType?.displayName ?? "Not set"),
+                    .init(label: "Tint", value: enclosure?.screenTint?.displayName ?? "Not set"),
+                    .init(label: "Frame Size", value: enclosure?.screenFrameSize?.displayName ?? "Not set"),
                     .init(label: "Frame Color", value: resolvedScreenFrameColor(enclosure?.screenFrameColor, custom: enclosure?.screenFrameColorCustom)),
                     .init(label: "Knee Wall", value: enclosure?.kneeWall?.option?.displayName ?? "Not set"),
                     .init(label: "Knee Wall Details", value: kneeWallSummary(enclosure?.kneeWall)),
@@ -554,9 +556,9 @@ enum ScopePDFExporter {
         return color.displayName
     }
 
-    private static func resolvedScreenFrameColor(_ color: ScreenFrameColorOption?, custom: String?) -> String {
+    private static func resolvedScreenFrameColor(_ color: EnclosureScreenFrameColorOption?, custom: String?) -> String {
         guard let color else { return "Not set" }
-        if color == .other {
+        if color == .legacyOther {
             return custom?.nilIfBlank ?? color.displayName
         }
         return color.displayName

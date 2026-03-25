@@ -2,6 +2,11 @@
 import SwiftUI
 import SwiftData
 import PencilKit
+import PhotosUI
+import UniformTypeIdentifiers
+#if canImport(UIKit)
+import UIKit
+#endif
 
 struct ProjectInfoEditorView: View {
     let scope: JobScope
@@ -745,8 +750,8 @@ struct EnclosureEditorView: View {
             if showsScreenOptions {
                 CardGroup(title: "Screen Options") {
                     VStack(spacing: 12) {
-                        FieldHeader("Screen Wall Type")
-                        Picker("Screen Wall Type", selection: screenWallTypeBinding) {
+                        FieldHeader("Screen Type")
+                        Picker("Screen Type", selection: screenWallTypeBinding) {
                             Text("Not Set").tag(nil as ScreenWallType?)
                             ForEach(ScreenWallType.allCases, id: \.self) { option in
                                 Text(option.displayName).tag(Optional(option))
@@ -755,10 +760,33 @@ struct EnclosureEditorView: View {
                         .pickerStyle(.menu)
                         .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
 
+                        if showsScreenTintField {
+                            FieldHeader("Tint")
+                            Picker("Tint", selection: screenTintBinding) {
+                                Text("Not Set").tag(nil as ScreenTintOption?)
+                                ForEach(ScreenTintOption.allCases, id: \.self) { option in
+                                    Text(option.displayName).tag(Optional(option))
+                                }
+                            }
+                            .pickerStyle(.menu)
+                            .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+                            .formRevealTransition()
+                        }
+
+                        FieldHeader("Frame Size")
+                        Picker("Frame Size", selection: screenFrameSizeBinding) {
+                            Text("Not Set").tag(nil as ScreenFrameSizeOption?)
+                            ForEach(ScreenFrameSizeOption.allCases, id: \.self) { option in
+                                Text(option.displayName).tag(Optional(option))
+                            }
+                        }
+                        .pickerStyle(.menu)
+                        .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+
                         FieldHeader("Screen Frame Color")
                         Picker("Screen Frame Color", selection: screenFrameColorBinding) {
-                            Text("Not Set").tag(nil as ScreenFrameColorOption?)
-                            ForEach(ScreenFrameColorOption.allCases, id: \.self) { color in
+                            Text("Not Set").tag(nil as EnclosureScreenFrameColorOption?)
+                            ForEach(screenFrameColorOptions, id: \.self) { color in
                                 Text(color.displayName).tag(Optional(color))
                             }
                         }
@@ -963,6 +991,7 @@ struct EnclosureEditorView: View {
         .animation(.formReveal, value: showsDoorHingeSideOptions)
         .animation(.formReveal, value: showsCabanaDimensions)
         .animation(.formReveal, value: showsSlidingGlassFields)
+        .animation(.formReveal, value: showsScreenTintField)
     }
 
     private var showsScreenOptions: Bool {
@@ -976,11 +1005,15 @@ struct EnclosureEditorView: View {
 
     private var showsCustomScreenFrameColorField: Bool {
         switch scope.enclosure?.screenFrameColor {
-        case .other:
+        case .legacyOther:
             return true
         default:
             return false
         }
+    }
+
+    private var showsScreenTintField: Bool {
+        scope.enclosure?.screenWallType == .suntexSolarScreen
     }
 
     private var enclosureTypeBinding: Binding<EnclosureType?> {
@@ -991,6 +1024,8 @@ struct EnclosureEditorView: View {
                     enclosure.enclosureType = newValue
                     if !isScreenType(newValue) {
                         enclosure.screenWallType = nil
+                        enclosure.screenTint = nil
+                        enclosure.screenFrameSize = nil
                         enclosure.screenFrameColor = nil
                         enclosure.screenFrameColorCustom = nil
                     }
@@ -1003,18 +1038,50 @@ struct EnclosureEditorView: View {
         Binding(
             get: { scope.enclosure?.screenWallType },
             set: { newValue in
-                updateEnclosure { $0.screenWallType = newValue }
+                updateEnclosure { enclosure in
+                    enclosure.screenWallType = newValue
+                    if newValue != .suntexSolarScreen {
+                        enclosure.screenTint = nil
+                    }
+                }
             }
         )
     }
 
-    private var screenFrameColorBinding: Binding<ScreenFrameColorOption?> {
+    private var screenTintBinding: Binding<ScreenTintOption?> {
+        Binding(
+            get: { scope.enclosure?.screenTint },
+            set: { newValue in
+                updateEnclosure { $0.screenTint = newValue }
+            }
+        )
+    }
+
+    private var screenFrameSizeBinding: Binding<ScreenFrameSizeOption?> {
+        Binding(
+            get: { scope.enclosure?.screenFrameSize },
+            set: { newValue in
+                updateEnclosure { $0.screenFrameSize = newValue }
+            }
+        )
+    }
+
+    private var screenFrameColorOptions: [EnclosureScreenFrameColorOption] {
+        var options = EnclosureScreenFrameColorOption.allCases
+        if let current = scope.enclosure?.screenFrameColor,
+           !options.contains(current) {
+            options.append(current)
+        }
+        return options
+    }
+
+    private var screenFrameColorBinding: Binding<EnclosureScreenFrameColorOption?> {
         Binding(
             get: { scope.enclosure?.screenFrameColor },
             set: { newValue in
                 updateEnclosure { enclosure in
                     enclosure.screenFrameColor = newValue
-                    if newValue != .other {
+                    if newValue != .legacyOther {
                         enclosure.screenFrameColorCustom = nil
                     }
                 }
@@ -2202,6 +2269,530 @@ struct AttachmentConditionsEditorView: View {
     }
 }
 
+struct DocumentsEditorView: View {
+    let scope: JobScope
+    @ObservedObject var autosave: DebouncedAutosave
+
+    @State private var activeSlot: DocumentSlotTarget?
+    @State private var showingFileImporter = false
+    @State private var selectedPhotoItem: PhotosPickerItem?
+    @State private var showingPhotoPicker = false
+    @State private var showingCameraPicker = false
+    @State private var importError: String?
+
+    var body: some View {
+        VStack(spacing: 16) {
+            commonAttachmentsCard
+            additionalAttachmentsCard
+
+            if shouldRenderImportPresenter {
+                DocumentImportPresenter(
+                    showingFileImporter: $showingFileImporter,
+                    selectedPhotoItem: $selectedPhotoItem,
+                    showingPhotoPicker: $showingPhotoPicker,
+                    showingCameraPicker: $showingCameraPicker,
+                    importError: $importError,
+                    handleFileImportResult: handleFileImportResult,
+                    importSelectedPhotoItem: importSelectedPhotoItem,
+                    importCameraImage: importCameraImage,
+                    resetImportPresentation: resetImportPresentation
+                )
+            }
+        }
+    }
+
+    private var additionalAttachments: [AdditionalDocumentAttachment] {
+        scope.documents?.additionalAttachments ?? []
+    }
+
+    private var shouldRenderImportPresenter: Bool {
+        activeSlot != nil ||
+        showingFileImporter ||
+        showingPhotoPicker ||
+        showingCameraPicker ||
+        importError != nil
+    }
+
+    private var commonAttachmentsCard: some View {
+        CardGroup(title: "Common Attachments") {
+            VStack(alignment: .leading, spacing: 16) {
+                documentSlotBlock(
+                    title: "Irrigation",
+                    detail: "One dedicated attachment slot for irrigation documents or imagery.",
+                    attachment: scope.documents?.irrigation,
+                    target: .irrigation
+                )
+
+                Divider()
+
+                documentSlotBlock(
+                    title: "Property Survey",
+                    detail: "One dedicated attachment slot for the property survey.",
+                    attachment: scope.documents?.propertySurvey,
+                    target: .propertySurvey
+                )
+            }
+        }
+    }
+
+    private var additionalAttachmentsCard: some View {
+        CardGroup(title: "Additional Attachments") {
+            VStack(alignment: .leading, spacing: 16) {
+                Text("Add one-off files, photos, or camera captures as needed.")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+
+                if additionalAttachments.isEmpty {
+                    Text("No additional attachments yet.")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                } else {
+                    ForEach(Array(additionalAttachments.enumerated()), id: \.element.id) { index, row in
+                        additionalAttachmentRow(row, index: index)
+
+                        if row.id != additionalAttachments.last?.id {
+                            Divider()
+                        }
+                    }
+                }
+
+                Button {
+                    addAdditionalAttachmentRow()
+                } label: {
+                    Label("Add Another Attachment", systemImage: "plus")
+                }
+                .buttonStyle(.bordered)
+                .buttonBorderShape(.capsule)
+                .frame(minHeight: 44)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func additionalAttachmentRow(_ row: AdditionalDocumentAttachment, index: Int) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(alignment: .firstTextBaseline) {
+                Text("Attachment \(index + 1)")
+                    .font(.subheadline.weight(.semibold))
+
+                Spacer(minLength: 12)
+
+                Button("Remove", role: .destructive) {
+                    removeAdditionalAttachmentRow(row.id)
+                }
+                .buttonStyle(.borderless)
+                .frame(minHeight: 44)
+            }
+
+            TextField("Attachment Name", text: additionalAttachmentNameBinding(for: row.id))
+                .liquidGlassInput()
+
+            documentSlotBlock(
+                title: "File",
+                attachment: row.attachment,
+                target: .additional(row.id)
+            )
+        }
+    }
+
+    @ViewBuilder
+    private func documentSlotBlock(
+        title: String,
+        detail: String? = nil,
+        attachment: DocumentAttachmentFile?,
+        target: DocumentSlotTarget
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            FieldHeader(title)
+
+            if let detail {
+                Text(detail)
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            }
+
+            if let attachment {
+                HStack(alignment: .top, spacing: 12) {
+                    Image(systemName: documentAttachmentSymbol(for: attachment))
+                        .font(.title3)
+                        .foregroundStyle(.secondary)
+                        .frame(width: 28, height: 28)
+
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(attachment.originalFilename)
+                            .font(.body.weight(.medium))
+                            .lineLimit(2)
+
+                        Text("\(attachment.source.displayName) • \(attachment.createdAt.formatted(date: .abbreviated, time: .shortened))")
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(2)
+                    }
+
+                    Spacer(minLength: 0)
+                }
+                .padding(12)
+                .liquidGlassSurface(cornerRadius: 18)
+
+                HStack(spacing: 10) {
+                    attachmentSourceMenu(title: "Replace", systemImage: nil, target: target)
+
+                    Button("Remove", role: .destructive) {
+                        clearAttachment(for: target)
+                    }
+                    .buttonStyle(.bordered)
+                    .buttonBorderShape(.capsule)
+                    .frame(minHeight: 44)
+                }
+            } else {
+                Text("No attachment selected.")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+
+                attachmentSourceMenu(title: "Add File", systemImage: "plus", target: target)
+            }
+        }
+    }
+
+    private func additionalAttachmentNameBinding(for rowID: UUID) -> Binding<String> {
+        Binding(
+            get: {
+                additionalAttachments.first(where: { $0.id == rowID })?.name ?? ""
+            },
+            set: { newValue in
+                updateDocuments { documents in
+                    guard var rows = documents.additionalAttachments,
+                          let index = rows.firstIndex(where: { $0.id == rowID }) else { return }
+                    rows[index].name = newValue.nilIfBlank
+                    documents.additionalAttachments = rows
+                }
+            }
+        )
+    }
+
+    @ViewBuilder
+    private func attachmentSourceMenu(title: String, systemImage: String?, target: DocumentSlotTarget) -> some View {
+        Menu {
+            Button("Files") {
+                presentImporter(.files, for: target)
+            }
+
+            Button("Photo Library") {
+                presentImporter(.photoLibrary, for: target)
+            }
+
+            #if canImport(UIKit)
+            if DocumentCameraPicker.isCameraAvailable {
+                Button("Camera") {
+                    presentImporter(.camera, for: target)
+                }
+            }
+            #endif
+        } label: {
+            if let systemImage {
+                Label(title, systemImage: systemImage)
+            } else {
+                Text(title)
+            }
+        }
+        .buttonStyle(.bordered)
+        .buttonBorderShape(.capsule)
+        .frame(minHeight: 44)
+    }
+
+    private func presentImporter(_ source: DocumentImportSource, for target: DocumentSlotTarget) {
+        activeSlot = target
+        selectedPhotoItem = nil
+
+        switch source {
+        case .files:
+            showingFileImporter = true
+        case .photoLibrary:
+            showingPhotoPicker = true
+        case .camera:
+            showingCameraPicker = true
+        }
+    }
+
+    private func resetImportPresentation(clearActiveSlot: Bool) {
+        showingFileImporter = false
+        showingPhotoPicker = false
+        showingCameraPicker = false
+        selectedPhotoItem = nil
+
+        if clearActiveSlot {
+            activeSlot = nil
+        }
+    }
+
+    private func addAdditionalAttachmentRow() {
+        updateDocuments { documents in
+            var rows = documents.additionalAttachments ?? []
+            rows.append(AdditionalDocumentAttachment())
+            documents.additionalAttachments = rows
+        }
+    }
+
+    private func removeAdditionalAttachmentRow(_ rowID: UUID) {
+        if let attachment = additionalAttachments.first(where: { $0.id == rowID })?.attachment {
+            DocumentAssetStore.removeAttachment(at: attachment.filePath)
+        }
+
+        updateDocuments { documents in
+            var rows = documents.additionalAttachments ?? []
+            rows.removeAll { $0.id == rowID }
+            documents.additionalAttachments = rows.isEmpty ? nil : rows
+        }
+    }
+
+    private func clearAttachment(for target: DocumentSlotTarget) {
+        if let existing = existingAttachment(for: target) {
+            DocumentAssetStore.removeAttachment(at: existing.filePath)
+        }
+
+        updateDocuments { documents in
+            switch target {
+            case .irrigation:
+                documents.irrigation = nil
+            case .propertySurvey:
+                documents.propertySurvey = nil
+            case .additional(let rowID):
+                guard var rows = documents.additionalAttachments,
+                      let index = rows.firstIndex(where: { $0.id == rowID }) else { return }
+                rows[index].attachment = nil
+                documents.additionalAttachments = rows
+            }
+        }
+    }
+
+    private func handleFileImportResult(_ result: Result<[URL], Error>) {
+        switch result {
+        case .success(let urls):
+            guard let url = urls.first else {
+                resetImportPresentation(clearActiveSlot: true)
+                return
+            }
+            let target = activeSlot
+            let scopeID = scope.id
+
+            Task {
+                do {
+                    let attachment = try await Task.detached(priority: .userInitiated) {
+                        try DocumentAssetStore.importFile(from: url, scopeID: scopeID)
+                    }.value
+
+                    await MainActor.run {
+                        persistImportedAttachment(attachment, for: target)
+                        resetImportPresentation(clearActiveSlot: true)
+                    }
+                } catch {
+                    await MainActor.run {
+                        importError = error.localizedDescription
+                        resetImportPresentation(clearActiveSlot: true)
+                    }
+                }
+            }
+        case .failure(let error):
+            importError = error.localizedDescription
+            resetImportPresentation(clearActiveSlot: true)
+        }
+    }
+
+    private func importSelectedPhotoItem(_ item: PhotosPickerItem) {
+        Task {
+            do {
+                guard let data = try await item.loadTransferable(type: Data.self) else {
+                    throw DocumentAssetStore.StoreError.unsupportedImageData
+                }
+                let scopeID = scope.id
+                let target = activeSlot
+                let attachment = try await Task.detached(priority: .userInitiated) {
+                    try DocumentAssetStore.savePhotoLibraryImage(data: data, scopeID: scopeID)
+                }.value
+
+                await MainActor.run {
+                    persistImportedAttachment(attachment, for: target)
+                    resetImportPresentation(clearActiveSlot: true)
+                }
+            } catch {
+                await MainActor.run {
+                    importError = error.localizedDescription
+                    resetImportPresentation(clearActiveSlot: true)
+                }
+            }
+        }
+    }
+
+    #if canImport(UIKit)
+    private func importCameraImage(_ image: UIImage) {
+        do {
+            let attachment = try DocumentAssetStore.saveCameraImage(image, scopeID: scope.id)
+            persistImportedAttachment(attachment, for: activeSlot)
+            resetImportPresentation(clearActiveSlot: true)
+        } catch {
+            importError = error.localizedDescription
+            resetImportPresentation(clearActiveSlot: true)
+        }
+    }
+    #endif
+
+    private func persistImportedAttachment(_ attachment: DocumentAttachmentFile, for target: DocumentSlotTarget?) {
+        guard let target else { return }
+
+        if let existing = existingAttachment(for: target) {
+            DocumentAssetStore.removeAttachment(at: existing.filePath)
+        }
+
+        updateDocuments { documents in
+            switch target {
+            case .irrigation:
+                documents.irrigation = attachment
+            case .propertySurvey:
+                documents.propertySurvey = attachment
+            case .additional(let rowID):
+                guard var rows = documents.additionalAttachments,
+                      let index = rows.firstIndex(where: { $0.id == rowID }) else { return }
+                rows[index].attachment = attachment
+                documents.additionalAttachments = rows
+            }
+        }
+
+        activeSlot = nil
+    }
+
+    private func existingAttachment(for target: DocumentSlotTarget) -> DocumentAttachmentFile? {
+        switch target {
+        case .irrigation:
+            return scope.documents?.irrigation
+        case .propertySurvey:
+            return scope.documents?.propertySurvey
+        case .additional(let rowID):
+            return additionalAttachments.first(where: { $0.id == rowID })?.attachment
+        }
+    }
+
+    private func updateDocuments(_ update: (inout DocumentsSection) -> Void) {
+        var documents = scope.documents ?? emptyDocumentsSection()
+        update(&documents)
+        scope.documents = documents.isEffectivelyEmpty ? nil : documents
+        autosave.scheduleSave(for: scope)
+    }
+
+    private func documentAttachmentSymbol(for attachment: DocumentAttachmentFile) -> String {
+        guard let identifier = attachment.contentTypeIdentifier,
+              let type = UTType(identifier) else {
+            return "doc"
+        }
+
+        if type.conforms(to: .image) {
+            return "photo"
+        }
+
+        if type.conforms(to: .pdf) {
+            return "doc.richtext"
+        }
+
+        if type.conforms(to: .plainText) {
+            return "doc.text"
+        }
+
+        return "doc"
+    }
+}
+
+private struct DocumentImportPresenter: View {
+    @Binding var showingFileImporter: Bool
+    @Binding var selectedPhotoItem: PhotosPickerItem?
+    @Binding var showingPhotoPicker: Bool
+    @Binding var showingCameraPicker: Bool
+    @Binding var importError: String?
+
+    let handleFileImportResult: (Result<[URL], Error>) -> Void
+    let importSelectedPhotoItem: (PhotosPickerItem) -> Void
+#if canImport(UIKit)
+    let importCameraImage: (UIImage) -> Void
+#endif
+    let resetImportPresentation: (Bool) -> Void
+
+    var body: some View {
+        Color.clear
+            .frame(width: 0, height: 0)
+            .fileImporter(
+                isPresented: $showingFileImporter,
+                allowedContentTypes: [.item],
+                allowsMultipleSelection: false,
+                onCompletion: handleFileImportResult
+            )
+            .photosPicker(
+                isPresented: $showingPhotoPicker,
+                selection: $selectedPhotoItem,
+                matching: .images,
+                photoLibrary: .shared()
+            )
+            .onChange(of: selectedPhotoItem) { _, newItem in
+                guard let newItem else { return }
+                importSelectedPhotoItem(newItem)
+            }
+            .sheet(isPresented: $showingCameraPicker) {
+                #if canImport(UIKit)
+                DocumentCameraPicker(
+                    onImagePicked: { image in
+                        showingCameraPicker = false
+                        importCameraImage(image)
+                    },
+                    onCancel: {
+                        resetImportPresentation(true)
+                    }
+                )
+                .ignoresSafeArea()
+                #else
+                EmptyView()
+                #endif
+            }
+            .alert("Attachment Import Failed", isPresented: importErrorPresented) {
+                Button("OK", role: .cancel) {
+                    importError = nil
+                }
+            } message: {
+                Text(importError ?? "Unable to import the selected attachment.")
+            }
+    }
+
+    private var importErrorPresented: Binding<Bool> {
+        Binding(
+            get: { importError != nil },
+            set: { isPresented in
+                if !isPresented {
+                    importError = nil
+                }
+            }
+        )
+    }
+}
+
+private enum DocumentImportSource {
+    case files
+    case photoLibrary
+    case camera
+}
+
+private enum DocumentSlotTarget: Identifiable, Equatable {
+    case irrigation
+    case propertySurvey
+    case additional(UUID)
+
+    var id: String {
+        switch self {
+        case .irrigation:
+            return "irrigation"
+        case .propertySurvey:
+            return "propertySurvey"
+        case .additional(let rowID):
+            return "additional-\(rowID.uuidString)"
+        }
+    }
+}
+
 struct FinishesEditorView: View {
     let scope: JobScope
     @ObservedObject var autosave: DebouncedAutosave
@@ -2947,6 +3538,8 @@ private func emptyEnclosure() -> Enclosure {
     Enclosure(
         enclosureType: nil,
         screenWallType: nil,
+        screenTint: nil,
+        screenFrameSize: nil,
         screenFrameColor: nil,
         screenFrameColorCustom: nil,
         windowSystem: nil,
@@ -3042,6 +3635,8 @@ private extension Enclosure {
     var isEffectivelyEmpty: Bool {
         enclosureType == nil &&
         screenWallType == nil &&
+        screenTint == nil &&
+        screenFrameSize == nil &&
         screenFrameColor == nil &&
         (screenFrameColorCustom ?? "").nilIfBlank == nil &&
         windowSystem == nil &&
@@ -3160,6 +3755,14 @@ private func emptyAttachmentConditions() -> AttachmentConditions {
     )
 }
 
+private func emptyDocumentsSection() -> DocumentsSection {
+    DocumentsSection(
+        irrigation: nil,
+        propertySurvey: nil,
+        additionalAttachments: nil
+    )
+}
+
 private func emptyFinishes() -> Finishes {
     Finishes(
         trimType: nil,
@@ -3216,6 +3819,14 @@ private extension Drainage {
         (downspoutLocations ?? "").nilIfBlank == nil &&
         drainTieIn == nil &&
         (slopeNotes ?? "").nilIfBlank == nil
+    }
+}
+
+private extension DocumentsSection {
+    var isEffectivelyEmpty: Bool {
+        irrigation == nil &&
+        propertySurvey == nil &&
+        (additionalAttachments ?? []).isEmpty
     }
 }
 

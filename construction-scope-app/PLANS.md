@@ -218,6 +218,19 @@ Keep milestones small, testable, and reviewable.
   - Do not expand production hydration until the exact supported object and field path is verified
 - Milestone 5.2.23 – Linked Customer Ownership Stabilization
   - Preserve the existing local ownership UX work in `Views/SectionEditors.swift` and avoid broad view rewrites
+## Milestone 7.5.1 – Documents Responsiveness Regression Recovery
+- Investigate the Documents / Attachments section for launch-time or interaction freezes introduced by the new import flow
+- Prioritize restoring responsiveness over preserving every import path detail
+- Keep the fix surgical:
+  - break any dialog -> picker/fileImporter presentation loops
+  - avoid main-thread blocking during document import writes where possible
+  - do not expand Documents feature scope or add new export/sync behavior
+- Validate that the app still builds cleanly and that the Documents section remains usable for the safe paths kept enabled
+- Milestone 7.5.2 – Documents Persistence Hardening
+  - Treat the `JobScope.documents` crash as a model/storage issue first, not a presenter issue
+  - Replace direct SwiftData persistence of the nested `DocumentsSection` graph with a simple app-controlled encoded payload
+  - Keep the logical `DocumentsSection` / attachment metadata API intact for the rest of the app
+  - Favor safe section open + future persistence stability over automatic salvage of any already-corrupt legacy `documents` rows
   - Confirm the linked-customer refresh path continues to update only the verified JobTread-owned fields:
     - customer name
     - street address
@@ -238,6 +251,18 @@ Keep milestones small, testable, and reviewable.
 - Milestone 5.2.26 – Linked Customer Location Display Name Unit Fallback
   - Extend the linked-customer detail lookup to capture JobTread location display name when available on the current verified location object
   - Use location display name only as a trailing-unit fallback source and keep canonical street hydration sourced from the real address fields
+- Milestone 7.5 – Documents / Attachments Section
+  - Add a new top-level `Documents` section to the existing section navigation without altering current JobTread-linked flows
+  - Add a persisted schema/model object with:
+    - fixed single-file slots for `Irrigation` and `Property Survey`
+    - a repeatable list of additional named single-file attachments
+  - Support file selection from:
+    - Files
+    - Photo Library
+    - Camera
+  - Store imported assets locally under the scope asset directory and persist lightweight file metadata/paths only
+  - Keep the first pass local-only with no JobTread upload/sync behavior
+  - Validate autosave, relaunch persistence, and compile stability after wiring the new section
   - Preserve the current linked-customer search/select flow, read-only ownership behavior, refresh behavior, and existing city/state/ZIP hydration
 - Milestone 5.3 – Initial Sync Flow (One-Way)
   - Implement manual `Send to JobTread` action per scope

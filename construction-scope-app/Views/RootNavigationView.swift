@@ -11,6 +11,7 @@ enum ScopeSection: String, CaseIterable, Identifiable {
     case electrical = "Electrical"
     case drainage = "Drainage"
     case attachmentConditions = "Attachment Conditions"
+    case documents = "Documents"
     case finishes = "Finishes"
     case permitsHOA = "Permits / HOA"
     case productionNotes = "Production Notes"
@@ -29,6 +30,7 @@ enum ScopeSection: String, CaseIterable, Identifiable {
         case .electrical: return "bolt"
         case .drainage: return "drop"
         case .attachmentConditions: return "link"
+        case .documents: return "paperclip"
         case .finishes: return "paintbrush"
         case .permitsHOA: return "doc.text"
         case .productionNotes: return "note.text"
@@ -1603,6 +1605,8 @@ struct SectionEditorView: View {
                     DrainageEditorView(scope: scope, autosave: autosave)
                 case .attachmentConditions:
                     AttachmentConditionsEditorView(scope: scope, autosave: autosave)
+                case .documents:
+                    DocumentsEditorView(scope: scope, autosave: autosave)
                 case .finishes:
                     FinishesEditorView(scope: scope, autosave: autosave)
                 case .permitsHOA:

@@ -133,6 +133,7 @@ enum ScreenWallType: String, Codable, CaseIterable, SchemaEnumDisplayable {
     case noSeeUm2020 = "20x20_no_see_um"
     case tuff1814 = "18x14_tuff"
     case tuff2020 = "20x20_tuff"
+    case suntexSolarScreen = "suntex_solar_screen"
     case other
 
     var displayName: String {
@@ -141,7 +142,25 @@ enum ScreenWallType: String, Codable, CaseIterable, SchemaEnumDisplayable {
         case .noSeeUm2020: return "20x20 No-See-Um"
         case .tuff1814: return "18x14 Tuff"
         case .tuff2020: return "20x20 Tuff"
+        case .suntexSolarScreen: return "Suntex Solar Screen"
         case .other: return "Other"
+        }
+    }
+}
+
+enum ScreenTintOption: String, Codable, CaseIterable, SchemaEnumDisplayable {
+    case percent95 = "95%"
+    case percent99 = "99%"
+}
+
+enum ScreenFrameSizeOption: String, Codable, CaseIterable, SchemaEnumDisplayable {
+    case twoInchFrame = "2_in_frame"
+    case threeInchFrame = "3_in_frame"
+
+    var displayName: String {
+        switch self {
+        case .twoInchFrame: return "2\" Frame"
+        case .threeInchFrame: return "3\" Frame"
         }
     }
 }
@@ -162,6 +181,34 @@ enum ScreenFrameColorOption: String, Codable, CaseIterable, SchemaEnumDisplayabl
     case black
     case khaki
     case other
+}
+
+enum EnclosureScreenFrameColorOption: String, Codable, CaseIterable, SchemaEnumDisplayable {
+    case white
+    case black
+    case bronze
+    case almond
+    case clay
+    case legacyBeige = "beige"
+    case legacyKhaki = "khaki"
+    case legacyOther = "other"
+
+    static var allCases: [EnclosureScreenFrameColorOption] {
+        [.white, .black, .bronze, .almond, .clay]
+    }
+
+    var displayName: String {
+        switch self {
+        case .legacyBeige:
+            return "Almond"
+        case .legacyKhaki:
+            return "Clay"
+        case .legacyOther:
+            return "Other"
+        default:
+            return rawValue.capitalized
+        }
+    }
 }
 
 enum WindowType: String, Codable, CaseIterable, SchemaEnumDisplayable {
@@ -546,7 +593,9 @@ struct StructuralSystem: Codable, Hashable {
 struct Enclosure: Codable, Hashable {
     var enclosureType: EnclosureType?
     var screenWallType: ScreenWallType?
-    var screenFrameColor: ScreenFrameColorOption?
+    var screenTint: ScreenTintOption?
+    var screenFrameSize: ScreenFrameSizeOption?
+    var screenFrameColor: EnclosureScreenFrameColorOption?
     var screenFrameColorCustom: String?
     var windowSystem: WindowSystem?
     var kneeWall: KneeWall?
@@ -906,6 +955,63 @@ struct CustomerApproval: Codable, Hashable {
     var signedDate: Date?
 }
 
+enum DocumentAttachmentSource: String, Codable, CaseIterable, SchemaEnumDisplayable {
+    case files
+    case photoLibrary = "photo_library"
+    case camera
+
+    var displayName: String {
+        switch self {
+        case .files: return "Files"
+        case .photoLibrary: return "Photo Library"
+        case .camera: return "Camera"
+        }
+    }
+}
+
+struct DocumentAttachmentFile: Codable, Hashable, Identifiable {
+    var id: UUID
+    var originalFilename: String
+    var filePath: String
+    var contentTypeIdentifier: String?
+    var source: DocumentAttachmentSource
+    var createdAt: Date
+
+    init(
+        id: UUID = UUID(),
+        originalFilename: String,
+        filePath: String,
+        contentTypeIdentifier: String? = nil,
+        source: DocumentAttachmentSource,
+        createdAt: Date = .now
+    ) {
+        self.id = id
+        self.originalFilename = originalFilename
+        self.filePath = filePath
+        self.contentTypeIdentifier = contentTypeIdentifier
+        self.source = source
+        self.createdAt = createdAt
+    }
+}
+
+struct AdditionalDocumentAttachment: Codable, Hashable, Identifiable {
+    var id: UUID
+    var name: String?
+    var attachment: DocumentAttachmentFile?
+
+    init(id: UUID = UUID(), name: String? = nil, attachment: DocumentAttachmentFile? = nil) {
+        self.id = id
+        self.name = name
+        self.attachment = attachment
+    }
+}
+
+struct DocumentsSection: Codable, Hashable {
+    var irrigation: DocumentAttachmentFile?
+    var propertySurvey: DocumentAttachmentFile?
+    var additionalAttachments: [AdditionalDocumentAttachment]?
+}
+
 struct PhotoAttachment: Codable, Hashable, Identifiable {
     var id: UUID
     var caption: String?
@@ -962,6 +1068,7 @@ final class JobScope {
     var electrical: Electrical?
     var drainage: Drainage?
     var attachment: AttachmentConditions?
+    var documentsPayload: Data?
     var finishes: Finishes?
     var permitsHOA: PermitsHOA?
     var production: ProductionOrderMeta?
@@ -988,6 +1095,7 @@ final class JobScope {
         electrical: Electrical? = nil,
         drainage: Drainage? = nil,
         attachment: AttachmentConditions? = nil,
+        documents: DocumentsSection? = nil,
         finishes: Finishes? = nil,
         permitsHOA: PermitsHOA? = nil,
         production: ProductionOrderMeta? = nil,
@@ -1013,6 +1121,7 @@ final class JobScope {
         self.electrical = electrical
         self.drainage = drainage
         self.attachment = attachment
+        self.documentsPayload = JobScope.encodeDocumentsPayload(documents)
         self.finishes = finishes
         self.permitsHOA = permitsHOA
         self.production = production
@@ -1035,6 +1144,44 @@ final class JobScope {
 
     var resolvedCustomerDisplayName: String? {
         resolvedLinkedCustomerName ?? resolvedProjectClientName
+    }
+
+    var documents: DocumentsSection? {
+        get {
+            JobScope.decodeDocumentsPayload(documentsPayload)
+        }
+        set {
+            documentsPayload = JobScope.encodeDocumentsPayload(newValue)
+        }
+    }
+
+    private static func decodeDocumentsPayload(_ payload: Data?) -> DocumentsSection? {
+        guard let payload, !payload.isEmpty else { return nil }
+
+        do {
+            return try JSONDecoder().decode(DocumentsSection.self, from: payload)
+        } catch {
+            assertionFailure("Failed to decode documents payload: \(error)")
+            return nil
+        }
+    }
+
+    private static func encodeDocumentsPayload(_ documents: DocumentsSection?) -> Data? {
+        guard let documents else { return nil }
+
+        let isEffectivelyEmpty =
+            documents.irrigation == nil &&
+            documents.propertySurvey == nil &&
+            (documents.additionalAttachments ?? []).isEmpty
+
+        guard !isEffectivelyEmpty else { return nil }
+
+        do {
+            return try JSONEncoder().encode(documents)
+        } catch {
+            assertionFailure("Failed to encode documents payload: \(error)")
+            return nil
+        }
     }
 
     var resolvedDocumentTitle: String {

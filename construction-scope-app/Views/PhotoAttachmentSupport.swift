@@ -283,3 +283,200 @@ private func photoChecklistSummary(_ checklist: PhotoChecklist) -> String {
 private func blankToNil(_ value: String) -> String? {
     value.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : value
 }
+
+enum DocumentAssetStore {
+    enum StoreError: LocalizedError {
+        case unsupportedImageData
+        case unableToAccessFile
+
+        var errorDescription: String? {
+            switch self {
+            case .unsupportedImageData:
+                return "The selected image could not be converted into a supported file."
+            case .unableToAccessFile:
+                return "The selected file could not be accessed."
+            }
+        }
+    }
+
+    static func importFile(from sourceURL: URL, scopeID: UUID) throws -> DocumentAttachmentFile {
+        let didAccessSecurityScope = sourceURL.startAccessingSecurityScopedResource()
+        defer {
+            if didAccessSecurityScope {
+                sourceURL.stopAccessingSecurityScopedResource()
+            }
+        }
+
+        guard FileManager.default.fileExists(atPath: sourceURL.path) else {
+            throw StoreError.unableToAccessFile
+        }
+
+        let attachmentID = UUID()
+        let destinationURL = try fileURL(
+            scopeID: scopeID,
+            attachmentID: attachmentID,
+            preferredFilename: sourceURL.lastPathComponent
+        )
+
+        if FileManager.default.fileExists(atPath: destinationURL.path) {
+            try FileManager.default.removeItem(at: destinationURL)
+        }
+
+        try FileManager.default.copyItem(at: sourceURL, to: destinationURL)
+
+        return DocumentAttachmentFile(
+            id: attachmentID,
+            originalFilename: sourceURL.lastPathComponent,
+            filePath: destinationURL.path,
+            contentTypeIdentifier: resolvedContentTypeIdentifier(for: sourceURL),
+            source: .files
+        )
+    }
+
+    static func savePhotoLibraryImage(data: Data, scopeID: UUID) throws -> DocumentAttachmentFile {
+        try saveImageData(
+            data,
+            scopeID: scopeID,
+            source: .photoLibrary,
+            fallbackFilename: "Photo.jpg"
+        )
+    }
+
+    #if canImport(UIKit)
+    static func saveCameraImage(_ image: UIImage, scopeID: UUID) throws -> DocumentAttachmentFile {
+        guard let jpegData = image.jpegData(compressionQuality: 0.9) else {
+            throw StoreError.unsupportedImageData
+        }
+
+        return try saveImageData(
+            jpegData,
+            scopeID: scopeID,
+            source: .camera,
+            fallbackFilename: "Camera.jpg"
+        )
+    }
+    #endif
+
+    static func removeAttachment(at path: String) {
+        let fileURL = URL(fileURLWithPath: path)
+        guard FileManager.default.fileExists(atPath: fileURL.path) else { return }
+        try? FileManager.default.removeItem(at: fileURL)
+    }
+
+    private static func saveImageData(
+        _ data: Data,
+        scopeID: UUID,
+        source: DocumentAttachmentSource,
+        fallbackFilename: String
+    ) throws -> DocumentAttachmentFile {
+        #if canImport(UIKit)
+        guard let image = UIImage(data: data),
+              let jpegData = image.jpegData(compressionQuality: 0.9) else {
+            throw StoreError.unsupportedImageData
+        }
+
+        let attachmentID = UUID()
+        let destinationURL = try fileURL(
+            scopeID: scopeID,
+            attachmentID: attachmentID,
+            preferredFilename: fallbackFilename
+        )
+
+        try jpegData.write(to: destinationURL, options: .atomic)
+
+        return DocumentAttachmentFile(
+            id: attachmentID,
+            originalFilename: fallbackFilename,
+            filePath: destinationURL.path,
+            contentTypeIdentifier: UTType.jpeg.identifier,
+            source: source
+        )
+        #else
+        throw StoreError.unsupportedImageData
+        #endif
+    }
+
+    private static func resolvedContentTypeIdentifier(for sourceURL: URL) -> String? {
+        if let resourceValues = try? sourceURL.resourceValues(forKeys: [.contentTypeKey]),
+           let contentType = resourceValues.contentType {
+            return contentType.identifier
+        }
+
+        guard !sourceURL.pathExtension.isEmpty else { return nil }
+        return UTType(filenameExtension: sourceURL.pathExtension)?.identifier
+    }
+
+    private static func fileURL(scopeID: UUID, attachmentID: UUID, preferredFilename: String) throws -> URL {
+        let directory = try documentsDirectory(scopeID: scopeID)
+        let sanitizedFilename = sanitizedFilenameComponent(preferredFilename)
+        let filename = "\(attachmentID.uuidString)-\(sanitizedFilename)"
+        return directory.appendingPathComponent(filename, isDirectory: false)
+    }
+
+    private static func documentsDirectory(scopeID: UUID) throws -> URL {
+        let baseDirectory = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+        let directory = baseDirectory
+            .appendingPathComponent("ScopeAssets", isDirectory: true)
+            .appendingPathComponent(scopeID.uuidString, isDirectory: true)
+            .appendingPathComponent("Documents", isDirectory: true)
+
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        return directory
+    }
+
+    private static func sanitizedFilenameComponent(_ filename: String) -> String {
+        let trimmed = filename.trimmingCharacters(in: .whitespacesAndNewlines)
+        let fallback = trimmed.isEmpty ? "Attachment" : trimmed
+        let allowed = CharacterSet.alphanumerics.union(.init(charactersIn: "-_. "))
+        let sanitizedScalars = fallback.unicodeScalars.map { allowed.contains($0) ? $0 : "-" }
+        return String(String.UnicodeScalarView(sanitizedScalars)).replacingOccurrences(of: "  ", with: " ")
+    }
+}
+
+#if canImport(UIKit)
+struct DocumentCameraPicker: UIViewControllerRepresentable {
+    let onImagePicked: (UIImage) -> Void
+    let onCancel: () -> Void
+
+    static var isCameraAvailable: Bool {
+        UIImagePickerController.isSourceTypeAvailable(.camera)
+    }
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(parent: self)
+    }
+
+    func makeUIViewController(context: Context) -> UIImagePickerController {
+        let picker = UIImagePickerController()
+        picker.sourceType = .camera
+        picker.mediaTypes = ["public.image"]
+        picker.delegate = context.coordinator
+        return picker
+    }
+
+    func updateUIViewController(_ uiViewController: UIImagePickerController, context: Context) {}
+
+    final class Coordinator: NSObject, UINavigationControllerDelegate, UIImagePickerControllerDelegate {
+        let parent: DocumentCameraPicker
+
+        init(parent: DocumentCameraPicker) {
+            self.parent = parent
+        }
+
+        func imagePickerControllerDidCancel(_ picker: UIImagePickerController) {
+            parent.onCancel()
+        }
+
+        func imagePickerController(
+            _ picker: UIImagePickerController,
+            didFinishPickingMediaWithInfo info: [UIImagePickerController.InfoKey: Any]
+        ) {
+            if let image = info[.originalImage] as? UIImage {
+                parent.onImagePicked(image)
+            } else {
+                parent.onCancel()
+            }
+        }
+    }
+}
+#endif

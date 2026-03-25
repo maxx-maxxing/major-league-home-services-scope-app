@@ -30,6 +30,8 @@
 - Milestone 7.2: In progress (acceptance closeout)
 - Milestone 7.3: In progress (liquid-glass chrome pass)
 - Milestone 7.4: In progress (maximalist Liquid Glass exploration)
+- Milestone 7.5: Implemented (documents / attachments section)
+- Milestone 7.5.1: In progress (documents responsiveness regression recovery)
 
 ## Decisions
 - SwiftData remains the persistence layer (`JobScope` model + Codable value types).
@@ -123,6 +125,52 @@
   - Imported photos are stored locally under the scope asset directory and persisted in `scope.photos`.
   - Photo captions can be edited after import and individual photos can be deleted.
   - The PDF appendix now adds one page per stored photo with caption + created timestamp.
+- Milestone 7.5 documents / attachments section:
+  - Added a new top-level `Documents` section to the sidebar section navigation.
+  - Added a persisted schema/model object on `JobScope`:
+    - `documents.irrigation`
+    - `documents.propertySurvey`
+    - `documents.additionalAttachments`
+  - Fixed slots support exactly one attachment each for:
+    - Irrigation
+    - Property Survey
+  - Additional attachments support repeatable rows with:
+    - editable attachment name
+    - exactly one attachment slot per row
+    - row removal
+  - Each attachment slot now supports:
+    - Files
+    - Photo Library
+    - Camera
+  - Imported assets are stored locally under:
+    - `Application Support/ScopeAssets/<scope-id>/Documents/`
+  - Persisted attachment metadata is intentionally lightweight:
+    - original filename
+    - local file path
+    - content type identifier
+    - source
+    - created date
+  - Current first pass is local-only:
+    - no JobTread upload/sync behavior
+    - no PDF embedding/export of attached documents yet
+- Milestone 7.5.1 documents responsiveness recovery:
+  - Investigating a regression where the app becomes unresponsive after the Documents import flow work.
+  - Current leading hypothesis is modal presentation churn in the Documents section:
+    - confirmation dialog directly arming `fileImporter` / `photosPicker` / camera sheet
+    - transient import state not being cleared consistently after success/cancel/failure
+  - Recovery work is intentionally narrow:
+    - keep the Documents section
+    - stabilize importer presentation state first
+    - push heavy document file writes off the main actor where practical
+- Milestone 7.5.2 documents persistence hardening:
+  - The crash now reproduces in `JobScope.documents.getter`, so the primary fault domain is persisted model reconstruction rather than picker presentation.
+  - `JobScope.documents` now reads/writes an app-controlled encoded payload instead of relying on direct SwiftData persistence of the nested `DocumentsSection` graph.
+  - The logical Documents API remains the same for the rest of the app:
+    - `documents.irrigation`
+    - `documents.propertySurvey`
+    - `documents.additionalAttachments`
+  - This prioritizes safe section open and forward-stable persistence for new writes.
+  - Legacy `documents` values already stored through the previous SwiftData-managed shape may require manual re-entry if they were part of the crashing decode path.
 - Milestone 7.1 interaction polish:
   - Added animated new-scope creation/deposit feedback in the sidebar.
   - Added animated scope row deletion transitions in scope lists.

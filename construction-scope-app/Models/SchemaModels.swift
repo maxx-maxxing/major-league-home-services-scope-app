@@ -446,6 +446,7 @@ enum PermitStatus: String, Codable, CaseIterable, SchemaEnumDisplayable {
 struct ProjectInfo: Codable, Hashable {
     var clientName: String
     var address: String
+    var unitNumber: String?
     var city: String?
     var state: String?
     var zip: String?
@@ -460,6 +461,7 @@ struct ProjectInfo: Codable, Hashable {
     init(
         clientName: String = "",
         address: String = "",
+        unitNumber: String? = nil,
         city: String? = nil,
         state: String? = nil,
         zip: String? = nil,
@@ -473,6 +475,7 @@ struct ProjectInfo: Codable, Hashable {
     ) {
         self.clientName = clientName
         self.address = address
+        self.unitNumber = unitNumber
         self.city = city
         self.state = state
         self.zip = zip
@@ -483,6 +486,22 @@ struct ProjectInfo: Codable, Hashable {
         self.siteVisitDate = siteVisitDate
         self.projectType = projectType
         self.notes = notes
+    }
+
+    var formattedAddressLine: String? {
+        let trimmedAddress = address.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty
+        let trimmedUnitNumber = unitNumber?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty
+
+        switch (trimmedAddress, trimmedUnitNumber) {
+        case let (address?, unitNumber?):
+            return "\(address), \(unitNumber)"
+        case let (address?, nil):
+            return address
+        case let (nil, unitNumber?):
+            return unitNumber
+        case (nil, nil):
+            return nil
+        }
     }
 }
 
@@ -801,6 +820,7 @@ struct JobTreadCustomerRef: Codable, Hashable {
     var displayName: String?
     var accountType: String?
     var primaryAddress: String?
+    var unitNumber: String?
     var city: String?
     var state: String?
     var postalCode: String?
@@ -813,6 +833,7 @@ struct JobTreadCustomerRef: Codable, Hashable {
         displayName: String? = nil,
         accountType: String? = nil,
         primaryAddress: String? = nil,
+        unitNumber: String? = nil,
         city: String? = nil,
         state: String? = nil,
         postalCode: String? = nil,
@@ -824,6 +845,7 @@ struct JobTreadCustomerRef: Codable, Hashable {
         self.displayName = displayName
         self.accountType = accountType
         self.primaryAddress = primaryAddress
+        self.unitNumber = unitNumber
         self.city = city
         self.state = state
         self.postalCode = postalCode
@@ -1062,6 +1084,7 @@ final class JobScope {
     func applyLinkedCustomerHydration(_ detail: JobTreadCustomerDetail) {
         let trimmedName = detail.displayName?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty
         let trimmedAddress = detail.primaryAddress?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty
+        let trimmedUnitNumber = detail.unitNumber?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty
         let trimmedAccountType = detail.accountType?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty
         let trimmedCity = detail.city?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty
         let trimmedState = detail.state?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty
@@ -1071,6 +1094,7 @@ final class JobScope {
             jobTreadCustomer?.displayName = trimmedName
             jobTreadCustomer?.accountType = trimmedAccountType
             jobTreadCustomer?.primaryAddress = trimmedAddress
+            jobTreadCustomer?.unitNumber = trimmedUnitNumber
             jobTreadCustomer?.city = trimmedCity
             jobTreadCustomer?.state = trimmedState
             jobTreadCustomer?.postalCode = trimmedZIP
@@ -1079,6 +1103,7 @@ final class JobScope {
 
         projectInfo.clientName = trimmedName ?? ""
         projectInfo.address = trimmedAddress ?? ""
+        projectInfo.unitNumber = trimmedUnitNumber
         projectInfo.city = trimmedCity
         projectInfo.state = trimmedState
         projectInfo.zip = trimmedZIP

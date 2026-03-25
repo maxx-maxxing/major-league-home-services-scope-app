@@ -90,7 +90,10 @@ struct ProjectInfoEditorView: View {
                     if hasLinkedCustomer {
                         ReadOnlyProjectField(title: "Customer Name", value: scope.projectInfo.clientName, placeholder: "No customer name")
 
-                        ReadOnlyProjectField(title: "Address", value: scope.projectInfo.address, placeholder: "No street address")
+                        HStack(spacing: 12) {
+                            ReadOnlyProjectField(title: "Address", value: scope.projectInfo.address, placeholder: "No street address")
+                            ReadOnlyProjectField(title: "Unit Number", value: scope.projectInfo.unitNumber, placeholder: "Not provided")
+                        }
 
                         if scope.shouldShowMissingLinkedStreetAddressHint {
                             Text("JobTread provided city/state/ZIP, but no usable street address line.")
@@ -113,6 +116,13 @@ struct ProjectInfoEditorView: View {
                         VStack(alignment: .leading, spacing: 6) {
                             RequiredLabel(text: "Address")
                             TextField("Street address", text: requiredStringBinding(\.address))
+                                .liquidGlassInput()
+                        }
+
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text("Unit Number")
+                                .font(.body)
+                            TextField("Apartment, suite, etc.", text: optionalStringBinding(\.unitNumber))
                                 .liquidGlassInput()
                         }
 

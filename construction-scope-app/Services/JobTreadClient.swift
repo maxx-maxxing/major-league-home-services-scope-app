@@ -33,6 +33,7 @@ struct JobTreadCustomerDetail: Sendable {
     let displayName: String?
     let accountType: String?
     let primaryAddress: String?
+    let unitNumber: String?
     let city: String?
     let state: String?
     let postalCode: String?
@@ -564,6 +565,7 @@ private struct JobTreadSingleNodeOptions: Encodable {
 
 private struct JobTreadLocationSelection: Encodable {
     let id = JobTreadEmptySelection()
+    let name = JobTreadEmptySelection()
     let address = JobTreadEmptySelection()
     let city = JobTreadEmptySelection()
     let state = JobTreadEmptySelection()
@@ -720,7 +722,8 @@ private struct JobTreadCustomerDetailNode: Decodable {
             customerID: id,
             displayName: name,
             accountType: type,
-            primaryAddress: resolvedLocation?.resolvedAddress,
+            primaryAddress: resolvedLocation?.resolvedAddressParts.streetAddress,
+            unitNumber: resolvedLocation?.resolvedAddressParts.unitNumber,
             city: resolvedLocation?.city,
             state: resolvedLocation?.state,
             postalCode: resolvedLocation?.postalCode
@@ -734,23 +737,42 @@ private struct JobTreadLocationConnectionNode: Decodable {
 
 private struct JobTreadLocationNode: Decodable {
     let id: String?
+    let name: String?
     let address: String?
     let city: String?
     let state: String?
     let postalCode: String?
     let formattedAddress: String?
 
-    var resolvedAddress: String? {
-        if let resolvedFromAddress = sanitizedStreetAddress(from: address) {
+    var resolvedAddressParts: ResolvedAddressParts {
+        let resolvedStreetAddress = resolvedStreetAddressParts
+
+        if resolvedStreetAddress.unitNumber != nil {
+            return resolvedStreetAddress
+        }
+
+        if let displayNameUnitNumber = extractTrailingUnitNumber(from: name?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty)?.unitNumber {
+            return ResolvedAddressParts(
+                streetAddress: resolvedStreetAddress.streetAddress,
+                unitNumber: displayNameUnitNumber
+            )
+        }
+
+        return resolvedStreetAddress
+    }
+
+    private var resolvedStreetAddressParts: ResolvedAddressParts {
+        let resolvedFromAddress = sanitizedAddressParts(from: address)
+        if resolvedFromAddress.streetAddress != nil || resolvedFromAddress.unitNumber != nil {
             return resolvedFromAddress
         }
 
-        return sanitizedStreetAddress(from: formattedAddress)
+        return sanitizedAddressParts(from: formattedAddress)
     }
 
-    private func sanitizedStreetAddress(from rawValue: String?) -> String? {
+    private func sanitizedAddressParts(from rawValue: String?) -> ResolvedAddressParts {
         guard let trimmedValue = rawValue?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty else {
-            return nil
+            return .empty
         }
 
         let components = trimmedValue
@@ -759,23 +781,52 @@ private struct JobTreadLocationNode: Decodable {
             .filter { !$0.isEmpty }
 
         guard let firstComponent = components.first?.nilIfEmpty else {
-            return nil
+            return .empty
         }
 
-        let sanitizedFirstComponent = trimmingTrailingCitySuffixIfNeeded(from: firstComponent)
+        var sanitizedFirstComponent = trimmingTrailingCitySuffixIfNeeded(from: firstComponent)
+        var resolvedUnitNumber: String?
+
+        if let parsedInlineUnit = extractTrailingUnitNumber(from: sanitizedFirstComponent) {
+            sanitizedFirstComponent = parsedInlineUnit.streetAddress
+            resolvedUnitNumber = parsedInlineUnit.unitNumber
+        }
 
         if components.count == 1 {
-            guard let sanitizedFirstComponent else { return nil }
-            return valueContainsKnownLocationParts(sanitizedFirstComponent) ? nil : sanitizedFirstComponent
+            guard let sanitizedFirstComponent else { return .empty }
+            return valueContainsKnownLocationParts(sanitizedFirstComponent)
+                ? .empty
+                : ResolvedAddressParts(streetAddress: sanitizedFirstComponent, unitNumber: resolvedUnitNumber)
+        }
+
+        var remainingComponents = Array(components.dropFirst())
+
+        if resolvedUnitNumber == nil,
+           let lastComponent = remainingComponents.last,
+           let trailingLocationUnit = extractTrailingUnitNumberFromLocationComponent(lastComponent) {
+            remainingComponents[remainingComponents.count - 1] = trailingLocationUnit.locationComponent
+            resolvedUnitNumber = trailingLocationUnit.unitNumber
+        }
+
+        if let explicitUnitComponent = remainingComponents.first?.nilIfEmpty,
+           isClearlyUnitNumberComponent(explicitUnitComponent) {
+            let trailingLocationComponents = remainingComponents.dropFirst()
+            let canAcceptTrailingLocationComponents = trailingLocationComponents.isEmpty || formattedAddressContainsOnlyKnownLocationParts(trailingLocationComponents)
+
+            if canAcceptTrailingLocationComponents, let sanitizedFirstComponent {
+                return valueContainsKnownLocationParts(sanitizedFirstComponent)
+                    ? .empty
+                    : ResolvedAddressParts(streetAddress: sanitizedFirstComponent, unitNumber: explicitUnitComponent)
+            }
         }
 
         // Only recover a street line when the remaining segments clearly match
         // dedicated location fields that hydrate separately.
-        if formattedAddressContainsOnlyKnownLocationParts(components.dropFirst()) {
-            return sanitizedFirstComponent
+        if formattedAddressContainsOnlyKnownLocationParts(remainingComponents), let sanitizedFirstComponent {
+            return ResolvedAddressParts(streetAddress: sanitizedFirstComponent, unitNumber: resolvedUnitNumber)
         }
 
-        return nil
+        return .empty
     }
 
     private func formattedAddressContainsOnlyKnownLocationParts<S: Sequence>(_ components: S) -> Bool where S.Element == String {
@@ -861,6 +912,79 @@ private struct JobTreadLocationNode: Decodable {
 
         return trimmedStreet
     }
+
+    private func extractTrailingUnitNumber(from value: String?) -> ResolvedAddressParts? {
+        guard let value = value?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty else {
+            return nil
+        }
+
+        guard value.rangeOfCharacter(from: .decimalDigits) != nil else {
+            return nil
+        }
+
+        let pattern = #"(?i)^(.*?)(?:\s+|,\s*)(#\s*[A-Za-z0-9-]+|(?:apt\.?|apartment|unit|ste\.?|suite|lot|bldg\.?|building|fl\.?|floor|rm\.?|room)\s*[A-Za-z0-9-]+(?:\s+[A-Za-z0-9-]+)?)$"#
+        guard let regex = try? NSRegularExpression(pattern: pattern) else {
+            return nil
+        }
+
+        let range = NSRange(value.startIndex..<value.endIndex, in: value)
+        guard let match = regex.firstMatch(in: value, options: [], range: range),
+              match.numberOfRanges == 3,
+              let streetRange = Range(match.range(at: 1), in: value),
+              let unitRange = Range(match.range(at: 2), in: value) else {
+            return nil
+        }
+
+        let streetAddress = value[streetRange].trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty
+        let unitNumber = value[unitRange].trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty
+        guard let streetAddress, let unitNumber else { return nil }
+        return ResolvedAddressParts(streetAddress: streetAddress, unitNumber: unitNumber)
+    }
+
+    private func extractTrailingUnitNumberFromLocationComponent(_ value: String) -> (locationComponent: String, unitNumber: String)? {
+        let trimmedValue = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedValue.isEmpty else { return nil }
+
+        // Only strip a trailing unit from a location component when the leading
+        // portion still looks like city/state/ZIP data that hydrates separately.
+        let pattern = #"(?i)^(.*?\b\d{5}(?:-\d{4})?)(?:\s+)(unit\s+[A-Za-z0-9-]+(?:\s+[A-Za-z0-9-]+)*)$"#
+        guard let regex = try? NSRegularExpression(pattern: pattern) else {
+            return nil
+        }
+
+        let range = NSRange(trimmedValue.startIndex..<trimmedValue.endIndex, in: trimmedValue)
+        guard let match = regex.firstMatch(in: trimmedValue, options: [], range: range),
+              match.numberOfRanges == 3,
+              let locationRange = Range(match.range(at: 1), in: trimmedValue),
+              let unitRange = Range(match.range(at: 2), in: trimmedValue) else {
+            return nil
+        }
+
+        let locationComponent = trimmedValue[locationRange].trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty
+        let unitNumber = trimmedValue[unitRange].trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty
+        guard let locationComponent, let unitNumber else { return nil }
+        return (locationComponent, unitNumber)
+    }
+
+    private func isClearlyUnitNumberComponent(_ value: String) -> Bool {
+        let trimmedValue = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedValue.isEmpty else { return false }
+
+        let pattern = #"(?i)^(#\s*[A-Za-z0-9-]+|(?:apt\.?|apartment|unit|ste\.?|suite|lot|bldg\.?|building|fl\.?|floor|rm\.?|room)\s*[A-Za-z0-9-]+(?:\s+[A-Za-z0-9-]+)?)$"#
+        guard let regex = try? NSRegularExpression(pattern: pattern) else {
+            return false
+        }
+
+        let range = NSRange(trimmedValue.startIndex..<trimmedValue.endIndex, in: trimmedValue)
+        return regex.firstMatch(in: trimmedValue, options: [], range: range) != nil
+    }
+}
+
+private struct ResolvedAddressParts {
+    let streetAddress: String?
+    let unitNumber: String?
+
+    static let empty = ResolvedAddressParts(streetAddress: nil, unitNumber: nil)
 }
 
 private extension String {

@@ -755,8 +755,7 @@ private struct ScopeSidebarView: View {
     }
 
     private func scopeAddressSummary(for scope: JobScope) -> String {
-        let address = scope.projectInfo.address.trimmingCharacters(in: .whitespacesAndNewlines)
-        return address.isEmpty ? "No address" : address
+        scope.projectInfo.formattedAddressLine ?? "No address"
     }
 
     private func scopeMetadataSummary(for scope: JobScope) -> String? {
@@ -1094,7 +1093,7 @@ private struct PhoneScopesListView: View {
                 VStack(alignment: .leading, spacing: 4) {
                     Text(scope.displayName)
                         .font(.body)
-                    Text(scope.projectInfo.address.isEmpty ? "No address" : scope.projectInfo.address)
+                    Text(scope.projectInfo.formattedAddressLine ?? "No address")
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                 }

@@ -172,7 +172,7 @@ enum ScopePDFExporter {
     private static func drawHeader(in context: CGContext, rect: CGRect, scope: JobScope) {
         let title = scope.resolvedDocumentTitle
         let customerName = scope.resolvedExportCustomerName ?? "Not set"
-        let address = scope.projectInfo.address.nilIfBlank ?? "No address"
+        let address = scope.projectInfo.formattedAddressLine ?? "No address"
         let type = scope.projectInfo.projectType.displayName
         let jobNumber = scope.jobNumber ?? "N/A"
 
@@ -232,6 +232,7 @@ enum ScopePDFExporter {
                     .init(label: "Scope Title", value: scope.resolvedScopeTitle ?? "Not set"),
                     .init(label: "Customer", value: scope.resolvedExportCustomerName ?? "Not set"),
                     .init(label: "Address", value: project.address.nilIfBlank ?? "Not set"),
+                    .init(label: "Unit Number", value: project.unitNumber?.nilIfBlank ?? "Not set"),
                     .init(label: "City / State / ZIP", value: combinedValue(project.city, project.state, project.zip)),
                     .init(label: "Phone", value: project.phone?.nilIfBlank ?? "Not set"),
                     .init(label: "Email", value: project.email?.nilIfBlank ?? "Not set"),

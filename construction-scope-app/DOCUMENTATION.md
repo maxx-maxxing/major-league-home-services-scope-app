@@ -697,6 +697,45 @@
   - Added a conservative suffix-only trim for cases where a standalone city token remains at the end of the street line.
   - The trim only applies when the trailing token exactly matches the separately hydrated city and sits on a trailing whitespace boundary.
   - Middle-of-string words and unrelated street names are left unchanged.
+- Milestone 5.2.24 linked customer unit number hydration:
+  - Added additive optional `unitNumber` support to the schema-backed `ProjectInfo` model and persisted linked `JobTreadCustomerRef` metadata.
+  - Kept the main street address field separate from unit data in the Project Information UI, PDF project-info rows, and scope address summaries.
+  - The linked-customer refresh path now updates `projectInfo.unitNumber` and `jobTreadCustomer.unitNumber` alongside the existing verified JobTread-owned address fields.
+  - No new JobTread query fields were guessed in this pass because the current verified `organization.accounts -> primaryLocation/locations` lookup still only exposes:
+    - `address`
+    - `city`
+    - `state`
+    - `postalCode`
+    - `formattedAddress`
+  - Unit hydration therefore stays conservative:
+    - first use the existing verified location `address` payload when it clearly separates a trailing unit designator from the street line
+    - otherwise fall back to the existing verified `formattedAddress` source only when its non-street segments still clearly match separately hydrated city/state/ZIP/country parts
+    - leave `unitNumber` blank when the source is ambiguous rather than risking street-address corruption
+  - Existing linked-customer behavior remains unchanged outside the additive unit field:
+    - customer search/select still creates the linked scope immediately
+    - blank local scope creation remains unchanged
+    - verified JobTread-owned linked address fields remain read-only in the app
+    - refresh/re-hydration remains the path for upstream JobTread customer changes
+- Milestone 5.2.25 linked customer unit edge-case coverage:
+  - Expanded the existing hydration parser to recognize trailing `Unit <value>` appended to the ZIP/location segment in verified JobTread formatted addresses such as `11000 Anderson Mill Rd, Austin, Tx 78750 Unit 63`.
+  - Preserved the existing case-insensitive trailing street-line extraction for inline `unit <value>` and trailing `#<value>` / `# <value>` patterns such as:
+    - `11000 Anderson Mill Rd unit 64`
+    - `6820 Cypress Point N #27`
+  - The parser still strips unit data only when it is clearly trailing:
+    - street-line extraction applies only to end-of-string unit markers
+    - location-segment extraction applies only when a ZIP is present before the trailing `Unit <value>`
+    - ambiguous middle-of-string tokens are left untouched to avoid corrupting legitimate street names
+- Milestone 5.2.26 linked customer location display name unit fallback:
+  - Extended the JobTread customer detail location selection to request location `name` alongside the existing verified address-bearing fields.
+  - Updated unit-source priority in the hydration layer to:
+    - use any unit already extracted from the real address/formatted-address path first
+    - otherwise extract only a clear trailing unit token from location display name
+    - otherwise leave `unitNumber` blank
+  - Canonical street hydration still comes only from JobTread address/formatted-address fields; location display name is used only as a fallback source for trailing unit extraction.
+  - This covers live JobTread cases where:
+    - address = `6820 Cypress Point N, Austin, TX 78746, USA`
+    - display name = `6820 Cypress Point N #27`
+  - The display-name fallback still strips only clear trailing unit markers and does not rewrite the street line from display-name text.
 - Unsandboxed `xcodebuild` validation succeeded on March 10, 2026 using:
   - `xcodebuild -project ConstructionScopeApp.xcodeproj -scheme ConstructionScopeApp -destination 'generic/platform=iOS' -derivedDataPath /tmp/ConstructionScopeAppDerived CODE_SIGNING_ALLOWED=NO build`
 - Unsandboxed `xcodebuild` validation succeeded again on March 11, 2026 after Milestone 7.2 acceptance fixes using:
@@ -739,6 +778,12 @@
   - `xcodebuild -project ConstructionScopeApp.xcodeproj -scheme ConstructionScopeApp -destination 'generic/platform=iOS Simulator' -derivedDataPath /tmp/ConstructionScopeAppAddressRepairDerived CODE_SIGNING_ALLOWED=NO build`
 - Unsandboxed `xcodebuild` validation succeeded on March 23, 2026 after Milestone 5.2.18 trailing city suffix cleanup using:
   - `xcodebuild -project ConstructionScopeApp.xcodeproj -scheme ConstructionScopeApp -destination 'generic/platform=iOS Simulator' -derivedDataPath /tmp/ConstructionScopeAppAddressSuffixDerived CODE_SIGNING_ALLOWED=NO build`
+- Unsandboxed `xcodebuild` validation succeeded on March 25, 2026 after Milestone 5.2.24 linked customer unit number hydration using:
+  - `xcodebuild -project ConstructionScopeApp.xcodeproj -scheme ConstructionScopeApp -destination 'generic/platform=iOS Simulator' -derivedDataPath /tmp/ConstructionScopeAppUnitNumberDerived CODE_SIGNING_ALLOWED=NO build`
+- Unsandboxed `xcodebuild` validation succeeded on March 25, 2026 after Milestone 5.2.25 linked customer unit edge-case coverage using:
+  - `xcodebuild -project ConstructionScopeApp.xcodeproj -scheme ConstructionScopeApp -destination 'generic/platform=iOS Simulator' -derivedDataPath /tmp/ConstructionScopeAppUnitNumberEdgeDerived CODE_SIGNING_ALLOWED=NO build`
+- Unsandboxed `xcodebuild` validation succeeded on March 25, 2026 after Milestone 5.2.26 linked customer location display name unit fallback using:
+  - `xcodebuild -project ConstructionScopeApp.xcodeproj -scheme ConstructionScopeApp -destination 'generic/platform=iOS Simulator' -derivedDataPath /tmp/ConstructionScopeAppUnitDisplayNameDerived CODE_SIGNING_ALLOWED=NO build`
 - Simulator runtime validation on March 10, 2026:
   - built for `iPad Pro 11-inch (M5)` simulator
   - installed successfully with `simctl`

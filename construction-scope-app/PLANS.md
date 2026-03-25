@@ -226,6 +226,19 @@ Keep milestones small, testable, and reviewable.
     - ZIP
   - Leave phone/email editable as local scope-owned fields for now
   - Validate the pass with a clean compile without touching partial search or linked-scope creation
+- Milestone 5.2.24 – Linked Customer Unit Number Hydration
+  - Add an additive optional `unitNumber` field to the schema-backed project info model and linked JobTread customer metadata
+  - Keep `projectInfo.address` limited to the street line and hydrate `unitNumber` separately when the verified JobTread location payload clearly contains unit information
+  - Prefer a clearly available verified location source first; otherwise conservatively extract only obvious trailing unit designators from the existing verified address string
+  - Preserve the current linked-customer search/select flow, read-only ownership behavior, refresh behavior, and non-linked blank-scope creation
+- Milestone 5.2.25 – Linked Customer Unit Edge-Case Coverage
+  - Expand the existing hydration parser to recognize verified trailing unit formats that appear after ZIP data in `formattedAddress`
+  - Keep street-line extraction limited to clear trailing markers such as `Unit <value>` and `#<value>` / `# <value>` so legitimate street names are not altered
+  - Preserve the current linked-customer search/select, read-only ownership, refresh, and existing address normalization behavior
+- Milestone 5.2.26 – Linked Customer Location Display Name Unit Fallback
+  - Extend the linked-customer detail lookup to capture JobTread location display name when available on the current verified location object
+  - Use location display name only as a trailing-unit fallback source and keep canonical street hydration sourced from the real address fields
+  - Preserve the current linked-customer search/select flow, read-only ownership behavior, refresh behavior, and existing city/state/ZIP hydration
 - Milestone 5.3 – Initial Sync Flow (One-Way)
   - Implement manual `Send to JobTread` action per scope
   - Map core scope entities into JobTread entities (customer/location/job/etc.)

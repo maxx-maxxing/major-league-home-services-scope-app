@@ -1,5 +1,5 @@
 {
-  "version": 2,
+  "version": 3,
   "entities": {
     "JobScope": {
       "fields": {
@@ -121,6 +121,10 @@
         "address": {
           "type": "string",
           "required": true
+        },
+        "unitNumber": {
+          "type": "string",
+          "required": false
         },
         "city": {
           "type": "string",
@@ -886,6 +890,10 @@
           "required": false
         },
         "primaryAddress": {
+          "type": "string",
+          "required": false
+        },
+        "unitNumber": {
           "type": "string",
           "required": false
         },

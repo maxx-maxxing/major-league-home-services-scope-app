@@ -25,6 +25,9 @@
 - Milestone 5.2.21: Implemented (linked customer ownership UX clarification)
 - Milestone 5.2.22: Verified (account phone/email probe)
 - Milestone 5.2.23: Implemented (linked customer ownership stabilization)
+- Milestone 5.2.27: Planned (proposal-generation + structured JobTread sync architecture audit)
+- Milestone 5.2.28: Implemented (editable pricing / proposal foundation)
+- Milestone 5.2.29: Implemented (internal proposal foundation inspector)
 - Milestone 6: Implemented (photo attachment flow + PDF photo appendix)
 - Milestone 7.1: In progress (interaction animation polish)
 - Milestone 7.2: In progress (acceptance closeout)
@@ -34,6 +37,153 @@
 - Milestone 7.5.1: In progress (documents responsiveness regression recovery)
 
 ## Decisions
+- Milestone 5.2.29 internal proposal foundation inspector:
+  - Added a debug-only read-only inspector to [JobTreadDebugView.swift](/Users/maxx/Documents/major-league-home-services-scope-app/construction-scope-app/Views/JobTreadDebugView.swift).
+  - The inspector lives inside the existing `JobTread Debug` internal window instead of the production `RootNavigationView` flow.
+  - Why this is the smallest safe access point:
+    - no new user-facing section was added to the scope editor
+    - no main customer workflow or section navigation was changed
+    - no proposal mapping logic was duplicated in SwiftUI views
+  - The inspector reads directly from `JobScope.proposalFoundationSnapshot`, so it reflects the same foundation boundary that future pricing, proposal, PDF, and sync work will consume.
+  - Current inspector output for a selected scope includes:
+    - normalized input snapshots grouped by capture section
+    - composed proposal sections with inclusion state and highlights
+    - composed pricing groups/components with quantity sources and candidate state
+    - future sync preview candidates and preview values
+  - The inspector is intentionally internal-only in this phase:
+    - no customer-facing proposal UI
+    - no PDF rendering changes
+    - no pricing formula expansion
+    - no JobTread sync submission behavior
+  - Validation:
+    - compiled successfully with:
+      - `xcodebuild -project ConstructionScopeApp.xcodeproj -scheme ConstructionScopeApp -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' -derivedDataPath /tmp/ConstructionScopeAppDerivedData CODE_SIGNING_ALLOWED=NO build`
+- Milestone 5.2.28 editable pricing / proposal foundation:
+  - Added a first app-owned pricing/proposal foundation layer in [PricingProposalFoundation.swift](/Users/maxx/Documents/major-league-home-services-scope-app/construction-scope-app/Models/PricingProposalFoundation.swift).
+  - The new layer intentionally separates five concerns:
+    - raw scope capture stays on `JobScope` and the existing schema-backed section models
+    - proposal/pricing template structure now lives in `ProposalTemplateDefinition.editableFoundationV1`
+    - normalized proposal composition inputs now live in `ProposalCompositionInput`
+    - composed proposal/pacing outputs now live in `ProposalCompositionDraft`
+    - future structured sync hints now live in `ProposalSyncPreview`
+  - The first foundation mirrors the current scope layout through explicit capture section snapshots:
+    - project information
+    - existing conditions
+    - dimensions
+    - structural system
+    - enclosure
+    - electrical
+    - drainage
+    - attachment conditions
+    - documents
+    - finishes
+    - permits / HOA
+    - production
+    - photos / sketches / signatures
+  - Current scope selections now map in one place to:
+    - pricing inputs:
+      - normalized `ScopeInputKey` values such as project type, dimensions, roof/enclosure/window/door selections, electrical/drainage selections, permit flags, and document counts
+      - grouped pricing buckets such as:
+        - base structure
+        - enclosure options
+        - electrical and drainage
+        - finishes, permits, and presentation
+    - proposal sections:
+      - project summary
+      - site conditions
+      - structural system
+      - enclosure and openings
+      - electrical and drainage
+      - finishes and permitting
+      - attachments and supporting documents
+    - future structured sync outputs:
+      - job-field candidates
+      - cost-group candidates
+      - cost-item candidates
+      - custom-field candidates
+      - document/upload candidates
+  - The first pricing layer is intentionally foundational, not final:
+    - no full formula engine yet
+    - no editable template UI yet
+    - no PDF renderer integration yet
+    - no direct JobTread sync submission yet
+    - no broad rewrite of the current scope editors
+  - Why this is the current safest shape:
+    - it keeps business logic out of SwiftUI views
+    - it keeps pricing/proposal structure out of the PDF renderer
+    - it preserves the working JobTread customer-link / hydration / read-only baseline
+    - it gives future pricing, PDF, and JobTread sync work one shared composition source instead of parallel ad hoc mappings
+  - Validation:
+    - compiled successfully with:
+      - `xcodebuild -project ConstructionScopeApp.xcodeproj -scheme ConstructionScopeApp -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' -derivedDataPath /tmp/ConstructionScopeAppDerivedData CODE_SIGNING_ALLOWED=NO build`
+- Milestone 5.2.27 proposal-generation + structured JobTread sync architecture audit:
+  - Current architecture audit conclusion:
+    - the best end-state is a hybrid model:
+      - app-first for scope capture, pricing rules/calculations, proposal composition, signature embedding, and polished PDF generation
+      - direct JobTread API sync for supported structured fields and pricing rows
+      - JobTread file/document upload for presentation artifacts and supporting attachments
+  - Why this is the preferred architecture:
+    - it preserves the already-working JobTread customer lookup/hydration/read-only baseline
+    - it minimizes duplicate entry by deriving both the proposal PDF and JobTread sync payloads from the same local structured scope data
+    - it avoids putting pricing logic into the PDF renderer
+    - it avoids assuming unsupported behavior where JobTread would parse an uploaded PDF and backfill structured fields automatically
+  - Most relevant JobTread object categories for the next phase:
+    - `Job`
+      - likely destination for linked job identity, job number/title, job-level status, and other top-level scope/proposal metadata if the docs support those fields
+    - `Document`
+      - likely destination for uploaded proposal PDFs and other generated presentation artifacts
+      - potentially relevant for native document/signature workflows only if later docs clearly show advantages over app-owned proposal generation
+    - `Cost Groups`
+      - likely destination for proposal section groupings such as structure, enclosure, electrical, drainage, finishes, options, and allowances
+    - `Cost Items` / `Line Items`
+      - likely destination for calculated pricing rows and estimate-ready detail generated from the app pricing engine
+    - `Custom Fields`
+      - fallback destination for structured scope metadata that matters operationally but does not have a clean native JobTread field
+    - file attachments
+      - destination for generated proposal PDFs plus selected supporting files/photos where upload is operationally useful
+  - Recommended ownership split by data category:
+    - direct structured sync candidates:
+      - linked JobTread customer identity already exists and should remain the customer source-of-truth anchor
+      - future linked JobTread job identity via `jobTreadJob`
+      - high-level proposal/job metadata such as local scope title, project type, job number, status, estimator/salesperson, schedule/status metadata, and selected operational notes where native job/custom-field targets exist
+      - calculated proposal price groups/items generated from a structured pricing layer
+    - likely custom-field sync candidates:
+      - many section-specific capture values from `existingConditions`, `dimensions`, `structuralSystem`, `enclosure`, `electrical`, `drainage`, `attachment`, `finishes`, and `permitsHOA` when the data is operationally valuable but not clearly a native job field or cost row
+    - file/PDF-only candidates by default:
+      - customer-facing proposal layout, branding, explanatory copy, inclusions/exclusions formatting, and signature presentation
+      - raw sketches, site diagram presentation, reference photos, and arbitrary attached documents unless a concrete upload use case is defined
+      - any content whose primary purpose is visual communication rather than structured operations
+  - Recommended pricing architecture:
+    - pricing formulas should live in an app-owned structured rules/calculation layer
+    - that layer should consume normalized scope inputs and emit:
+      - customer-facing proposal totals/sections
+      - JobTread cost-group / cost-item sync rows
+      - PDF-ready display values
+    - the PDF renderer should only present already-calculated outputs
+  - Recommended proposal-generation architecture:
+    - choose `hybrid approach`
+    - not pure app-first PDF only:
+      - because it would miss the duplicate-entry reduction available from direct structured JobTread sync
+    - not JobTread document-first:
+      - because the current verified app value is rich local scope capture plus first-party PDF output, and the repo does not yet contain proof that JobTread-native proposal/document tooling can fully replace that without regressions
+    - hybrid:
+      - app owns capture, pricing, proposal composition, and PDF generation
+      - JobTread receives structured sync where supported plus uploaded proposal/document artifacts
+  - Unsupported or still unclear from the current repo evidence:
+    - no verified support for JobTread parsing uploaded PDFs back into structured fields
+    - no verified `organization.accounts.nodes.phone` or `.email` fields on the current customer-detail path
+    - no verified contact-relationship path for customer phone/email hydration from the available docs/runtime notes in this repo
+    - no verified mapping yet for which exact app fields have first-class JobTread native destinations versus custom fields
+    - no verified native JobTread signature/document flow that is clearly better than app-owned proposal PDF generation for this app
+  - Practical end-state workflow recommendation:
+    - 1. Search/select existing JobTread customer in the app
+    - 2. Hydrate verified customer/location fields into the local scope and keep them read-only with refresh support
+    - 3. Complete the full scope offline in the app
+    - 4. Run app-owned pricing calculations and proposal composition from structured scope inputs
+    - 5. Generate polished customer-facing proposal PDF with embedded signatures
+    - 6. Sync supported structured proposal/job/cost/custom-field data directly into JobTread
+    - 7. Upload generated proposal PDF and selected supporting files to JobTread as attachments/documents
+    - 8. Treat unsupported or presentation-only data as local/PDF/file output rather than forcing weak structured mappings
 - SwiftData remains the persistence layer (`JobScope` model + Codable value types).
 - Milestone 2 section editors implemented for:
   - Project Info

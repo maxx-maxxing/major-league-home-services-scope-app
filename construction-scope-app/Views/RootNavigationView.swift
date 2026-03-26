@@ -1,6 +1,11 @@
 import SwiftUI
 import SwiftData
 
+#if DEBUG
+private let rootNavigationJobTreadDebugWindowID = "jobtread-debug-window"
+private let rootNavigationDebugSelectedScopeStorageKey = "debug.selected-scope-id"
+#endif
+
 enum ScopeSection: String, CaseIterable, Identifiable {
     case projectInfo = "Project Information"
     case existingConditions = "Existing Conditions"
@@ -179,6 +184,10 @@ private let rootNavigationCoordinateSpace = "RootNavigationCoordinateSpace"
 struct RootNavigationView: View {
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @Environment(\.modelContext) private var modelContext
+#if DEBUG
+    @Environment(\.openWindow) private var openWindow
+    @AppStorage(rootNavigationDebugSelectedScopeStorageKey) private var debugSelectedScopeIDStorage = ""
+#endif
     @Query private var scopes: [JobScope]
 
     @State private var selectedScopeID: UUID?
@@ -297,14 +306,48 @@ struct RootNavigationView: View {
                 )
                 .zIndex(10)
             }
+
+#if DEBUG
+            VStack {
+                Spacer()
+
+                HStack {
+                    Spacer()
+
+                    Button {
+                        openWindow(id: rootNavigationJobTreadDebugWindowID)
+                    } label: {
+                        Label("Internal Debug", systemImage: "ladybug.fill")
+                            .font(.footnote.weight(.semibold))
+                            .padding(.horizontal, 14)
+                            .padding(.vertical, 10)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .tint(.orange)
+                    .shadow(color: .black.opacity(0.18), radius: 12, y: 6)
+                    .accessibilityHint("Opens the internal JobTread and proposal foundation debug window.")
+                }
+                .padding(.trailing, 20)
+                .padding(.bottom, 20)
+            }
+            .zIndex(20)
+#endif
         }
         .coordinateSpace(name: rootNavigationCoordinateSpace)
         .onAppear {
             autosave.configure(with: modelContext)
             selectFirstScopeIfNeeded()
+#if DEBUG
+            syncDebugSelectedScopeID()
+#endif
         }
         .onChange(of: scopes.map(\.id)) { _, _ in
             selectFirstScopeIfNeeded()
+        }
+        .onChange(of: selectedScopeID) { _, _ in
+#if DEBUG
+            syncDebugSelectedScopeID()
+#endif
         }
         .sheet(isPresented: $showingScopeCreationSheet) {
             ScopeCreationSheet(
@@ -324,6 +367,12 @@ struct RootNavigationView: View {
     private func handleSidebarCreateScope() {
         showingScopeCreationSheet = true
     }
+
+#if DEBUG
+    private func syncDebugSelectedScopeID() {
+        debugSelectedScopeIDStorage = selectedScopeID?.uuidString ?? ""
+    }
+#endif
 
     private func beginSidebarRename(for scope: JobScope, mode: SidebarRenamePromptMode) {
         sidebarRenameScope = scope

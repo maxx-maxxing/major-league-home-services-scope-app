@@ -218,6 +218,39 @@ Keep milestones small, testable, and reviewable.
   - Do not expand production hydration until the exact supported object and field path is verified
 - Milestone 5.2.23 – Linked Customer Ownership Stabilization
   - Preserve the existing local ownership UX work in `Views/SectionEditors.swift` and avoid broad view rewrites
+- Milestone 5.2.28 – Editable Pricing / Proposal Foundation
+  - Define a first app-owned master template layer that mirrors the current scope layout without moving pricing logic into Views or PDF rendering
+  - Add a normalized scope-to-proposal composition mapping layer that derives:
+    - pricing inputs
+    - proposal section inputs
+    - future structured JobTread sync candidates
+    from the existing `JobScope`
+  - Keep the first pass practical and incremental:
+    - no full pricing engine yet
+    - no proposal editing UI yet
+    - no broad rewrite of current section editors
+    - no direct JobTread sync submission yet
+  - Ensure the foundation remains easy to evolve when:
+    - supplier/vendor prices change
+    - option names change
+    - offerings are added or removed
+    - proposal wording or section visibility changes
+  - Validate that the app still compiles cleanly and the current JobTread customer-link baseline remains intact
+- Milestone 5.2.29 – Internal Proposal Foundation Inspector
+  - Add a debug-only in-app inspector that reads `JobScope.proposalFoundationSnapshot`
+  - Keep the access point outside the main scope workflow by using the existing internal debug surface
+  - Display the current scope's:
+    - normalized proposal/pricing input snapshots
+    - composed proposal sections
+    - composed pricing groups and candidate components
+    - future sync preview candidates
+  - Keep the first pass strictly internal and read-only:
+    - no customer-facing proposal screen
+    - no PDF rendering changes
+    - no pricing formula engine expansion
+    - no JobTread sync submission
+  - Preserve the current linked-customer hydration/read-only baseline and the existing Documents / Attachments behavior
+  - Validate that the app still compiles cleanly after the inspector is added
 ## Milestone 7.5.1 – Documents Responsiveness Regression Recovery
 - Investigate the Documents / Attachments section for launch-time or interaction freezes introduced by the new import flow
 - Prioritize restoring responsiveness over preserving every import path detail
@@ -251,6 +284,22 @@ Keep milestones small, testable, and reviewable.
 - Milestone 5.2.26 – Linked Customer Location Display Name Unit Fallback
   - Extend the linked-customer detail lookup to capture JobTread location display name when available on the current verified location object
   - Use location display name only as a trailing-unit fallback source and keep canonical street hydration sourced from the real address fields
+- Milestone 5.2.27 – Proposal + Structured Sync Architecture Audit
+  - Audit the current app model and feature set against the local JobTread docs/schema evidence captured in this repo
+  - Preserve the current working baseline:
+    - customer search/select
+    - linked-customer hydration
+    - verified read-only customer ownership
+    - refresh/re-hydration behavior
+    - documents / attachments section
+  - Define and document:
+    - which scope data should map to JobTread job-level fields
+    - which scope data should map to JobTread cost groups / cost items / line items
+    - which scope data should map to custom fields
+    - which scope outputs should remain file/PDF-only
+    - which JobTread-native document/signature workflows are relevant only if clearly supported later
+  - Explicitly reject architecture that assumes uploaded PDFs will backfill structured JobTread fields automatically
+  - Treat pricing as a structured calculation layer owned by the app, not by the rendered PDF
 - Milestone 7.5 – Documents / Attachments Section
   - Add a new top-level `Documents` section to the existing section navigation without altering current JobTread-linked flows
   - Add a persisted schema/model object with:
@@ -266,16 +315,92 @@ Keep milestones small, testable, and reviewable.
   - Preserve the current linked-customer search/select flow, read-only ownership behavior, refresh behavior, and existing city/state/ZIP hydration
 - Milestone 5.3 – Initial Sync Flow (One-Way)
   - Implement manual `Send to JobTread` action per scope
-  - Map core scope entities into JobTread entities (customer/location/job/etc.)
-  - Upload supported artifacts (signature/diagram and other attachments as applicable)
+  - Keep the sync boundary additive and one-way from app -> JobTread for scope/proposal outputs
+  - Preserve the existing linked-customer hydration/read-only baseline and do not widen customer-master ownership
+  - Split sync work into distinct operations:
+    - create or link JobTread job record
+    - push supported structured fields directly through API payloads
+    - push estimate/proposal pricing structure as cost groups / cost items when supported
+    - upload generated proposal PDF and selected source files as attachments/documents
+  - Do not treat file upload as a substitute for structured sync
+- Milestone 5.3.1 – Sync Mapping Matrix
+  - Build the canonical mapping table from `schema.json` fields to:
+    - JobTread job fields
+    - custom fields
+    - cost groups
+    - cost items / line items
+    - file/document attachments
+  - Mark every field as one of:
+    - direct native mapping
+    - custom-field mapping
+    - derived pricing/calculation input
+    - PDF/file-only
+    - unsupported / unknown pending doc verification
+- Milestone 5.3.2 – Pricing Rules Engine Foundation
+  - Add a structured pricing domain owned by the app, separate from PDF rendering and separate from JobTread transport code
+  - Model:
+    - pricing inputs derived from scope selections
+    - calculation rules/formulas
+    - derived proposal totals and optional alternates/add-ons
+    - exportable sync rows for JobTread cost groups / cost items
+  - Ensure the same pricing output can drive both:
+    - customer-facing proposal PDF rendering
+    - structured JobTread estimate/cost sync payloads
+- Milestone 5.3.3 – Proposal Composition Layer
+  - Add a proposal-specific composition model that sits above raw scope capture and below final PDF generation
+  - Support:
+    - selected inclusions/exclusions
+    - customer-facing allowance/option text
+    - signature blocks and acceptance text
+    - proposal section ordering and visibility
+  - Keep proposal composition deterministic from structured app data; do not embed business logic directly in the PDF renderer
+- Milestone 5.3.4 – Attachment Classification + Upload Plan
+  - Define which local assets are candidates for JobTread upload:
+    - generated proposal PDF
+    - supporting documents / attachments
+    - selected photos
+    - site diagram or signature artifacts only if operationally useful
+  - Distinguish:
+    - presentation artifacts that should always upload
+    - internal field photos/docs that should upload conditionally
+    - local-only artifacts that should not sync by default
+- Milestone 5.3.5 – Native JobTread Document/Signature Decision Gate
+  - Evaluate any clearly documented JobTread-native document/signature workflow before adoption
+  - Default to app-owned PDF proposal + embedded signatures unless native JobTread workflow is demonstrably superior and API-supported
+  - Do not migrate proposal ownership into JobTread-native document generation without verified support for:
+    - structured line/pricing composition
+    - signature capture workflow
+    - reliable file/document retrieval lifecycle
 - Milestone 5.4 – Sync UX + Operations
   - Add per-scope sync status (never sent / in progress / success / failed)
   - Add actionable error UI and retry controls
   - Add integration logs/diagnostics suitable for support troubleshooting
+- Milestone 5.4.1 – Idempotent Sync Identity
+  - Add stable outbound sync identity so retries do not create duplicate jobs, cost rows, or attachments
+  - Track:
+    - linked JobTread job ID
+    - synced proposal/document IDs where available
+    - attachment upload fingerprints or equivalent app-side dedupe keys
+- Milestone 5.4.2 – Sync Staging + Review
+  - Add a preflight review screen that shows:
+    - structured fields to sync
+    - pricing rows to sync
+    - files that will upload
+    - unsupported fields that will remain PDF-only
+  - Make the split between structured sync and file upload explicit to the user
 - Milestone 5.5 – Validation
   - Validate payload correctness against JobTread docs/sandbox
   - Verify idempotency to prevent duplicate records on retry
   - Document mapping assumptions and known gaps
+- Milestone 5.5.1 – Proposal Workflow Validation
+  - Validate the end-to-end workflow:
+    - link existing JobTread customer
+    - complete scope locally offline
+    - calculate proposal pricing in app
+    - generate customer-facing proposal PDF
+    - sync supported structured data into JobTread
+    - upload proposal PDF and selected source files
+  - Confirm the workflow reduces duplicate entry without relying on any PDF-import parsing behavior
 
 ## Milestone 6 – Photos Appendix (Optional)
 - Photo capture per checklist

@@ -1,6 +1,8 @@
 import SwiftUI
 import SwiftData
 
+private let jobTreadDebugWindowID = "jobtread-debug-window"
+
 @main
 struct ConstructionScopeAppApp: App {
     private let persistenceController = PersistenceController.shared
@@ -12,9 +14,10 @@ struct ConstructionScopeAppApp: App {
         .modelContainer(persistenceController.container)
 
 #if DEBUG
-        WindowGroup("JobTread Debug") {
+        WindowGroup("JobTread Debug", id: jobTreadDebugWindowID) {
             JobTreadDebugView()
         }
+        .modelContainer(persistenceController.container)
 #endif
     }
 }

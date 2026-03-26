@@ -1,26 +1,18 @@
 Read codex_context.md before making changes.
 
 Current working focus:
-Refining app-side data entry UX and field configuration.
-
-Today’s likely tasks include:
-- updating section options
-- adding/editing dropdown values
-- refining labels and field organization
-- aligning form choices with real business workflow
-- making small UI/data-entry improvements without disrupting the current JobTread integration flow
+Building the app toward a proposal-generation workflow that minimizes duplicate entry between the scope app and JobTread.
 
 Important constraint:
-Do not destabilize the current working JobTread customer search/select, linked-customer hydration, or verified read-only ownership behavior unless the task explicitly requires it.
+Do not destabilize the current working JobTread customer search/select, linked-customer hydration, verified read-only ownership behavior, or recently added Documents / Attachments section unless the task explicitly requires it.
 
 Current app phase:
-JobTread-first customer linking flow is working. Current focus is solidifying JobTread-owned field semantics and preparing the first safe sync-back workflow.
+The JobTread-first customer linking flow is working. The app is now moving toward a hybrid proposal-generation + structured JobTread sync architecture.
 
 What is already true:
 - SwiftUI iPad construction scope app exists
 - Core section-based workflow exists
 - Offline-first behavior remains important
-- PDF export remains flattened by default
 - JobTread connectivity has been verified
 - The app has additive model support for:
   - scopeTitle
@@ -33,36 +25,72 @@ What is already true:
 - Selecting a JobTread customer creates a linked scope
 - Linked-customer hydration works for verified fields
 - Street-address normalization works in tested cases
-- JobTread-sourced customer fields should be treated as read-only in the app
-- Refresh/re-hydration from JobTread is the intended pattern for upstream customer changes
+- Unit number extraction from JobTread now uses the correct fallback behavior when needed
+- JobTread-sourced verified customer/location fields are treated as read-only in the app
+- Refresh/re-hydration from JobTread is the intended pattern for upstream customer/location changes
+- A Documents / Attachments section now exists with:
+  - fixed Irrigation attachment slot
+  - fixed Property Survey attachment slot
+  - repeatable Additional Attachments
+  - Files / Photo Library / Camera support
+- Attachment source UX has been cleaned up so actions are context-aware and visually distinct
 
-Known limitation:
-- Phone/email hydration is currently deferred because the current verified JobTread query path for those fields is not confirmed from the available docs/schema
+Known limitations / current truths:
+- Phone/email hydration from JobTread is still not verified from the available docs/schema and should not be assumed
+- Do not assume arbitrary uploaded PDFs can be parsed by JobTread to populate structured fields automatically
+- Some future scope fields may not map 1:1 to native JobTread fields and may require custom fields or file/PDF-only output
 
 Current architectural direction:
 - JobTread is the source of truth for customer records
 - The app should not create duplicate customers
-- The app should not edit JobTread-owned customer master data locally
-- Linked JobTread customer fields should be read-only
-- If JobTread customer data changes upstream, the app should support refreshing those fields into the linked local scope
-- Intended workflow:
-  1. Search/select existing JobTread customer
-  2. Capture scope details in the app
-  3. Keep JobTread-owned customer fields read-only
-  4. Refresh JobTread-owned customer fields on demand
-  5. Sync relevant scope/job data back to JobTread later
-  6. Support estimate/bid generation later
+- The app should not edit JobTread-owned customer master data locally unless a future phase explicitly verifies and adopts that behavior
+- Linked JobTread customer/location fields should remain read-only in the app
+- If JobTread customer/location data changes upstream, the app should support refreshing those fields into the linked local scope
+- The scope app should become the source of truth for:
+  - scope selections
+  - proposal composition
+  - estimate-relevant structured output
+  - customer-facing proposal generation
+
+Target end-state workflow:
+1. Search/select existing JobTread customer
+2. Pull linked customer/location data into the scope
+3. Capture scope details and estimate-relevant selections in the app
+4. Compute pricing/estimate output from a structured rules layer
+5. Generate a polished customer-facing PDF proposal from the scope
+6. Sync as much structured data as possible directly into JobTread where supported
+7. Upload generated PDF and related files to JobTread as attachments where appropriate
+8. Keep signatures embedded visually in the generated proposal/PDF unless a future phase explicitly adopts JobTread-native signature workflows
+
+Proposal-generation guidance:
+- Prefer direct API sync for structured data and file upload for presentation artifacts
+- Do not design around “upload PDF and let JobTread backfill itself”
+- Treat PDF generation and structured JobTread sync as related but separate outputs from the same scope data
+- Pricing formulas should live in a structured rules/calculation layer, not in the final PDF itself
+
+Most relevant JobTread sync targets to evaluate:
+- Job
+- Document
+- Cost Groups / Cost Items / Line Items
+- Custom Fields
+- File attachments
+- Native document/signature workflows only if clearly beneficial and supported
 
 Current priorities:
-1. Finish/polish read-only + refresh behavior for linked customer fields
-2. Keep customer hydration stable and conservative
-3. Do not force unsupported phone/email hydration
-4. Begin the first safe one-way scope/job sync-back flow for linked scopes
-5. Preserve current working search/select/hydration behavior
+1. Audit and define which scope fields map directly to JobTread job/document/cost data
+2. Define the best proposal-generation architecture
+3. Separate:
+   - structured sync targets
+   - PDF-only presentation data
+4. Preserve current working customer lookup/hydration/read-only behavior
+5. Continue UI/data-entry refinement without disrupting the integration baseline
+6. Avoid guessing unsupported JobTread behaviors, especially PDF-import parsing and unverified field ownership
 
 Editing rules:
 - Follow READ → PLAN → EDIT
 - Make surgical edits
 - Do not rewrite large files unnecessarily
 - Preserve working service and model boundaries
+- Treat schema/model updates correctly when adding persisted fields
 - Explain what files changed and why
+- Prefer incremental, production-safe changes over broad refactors

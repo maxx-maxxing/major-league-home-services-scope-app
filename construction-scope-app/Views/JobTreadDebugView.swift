@@ -285,6 +285,12 @@ private struct ProposalInspectorSectionsView: View {
             Label("Proposal Sections", systemImage: "square.text.square")
                 .font(.headline)
 
+            if snapshot.proposal.customerFacingSections.isEmpty {
+                Text("No customer-facing proposal sections are currently included.")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            }
+
             ForEach(snapshot.proposal.sections) { section in
                 VStack(alignment: .leading, spacing: 8) {
                     HStack(alignment: .firstTextBaseline) {
@@ -300,14 +306,45 @@ private struct ProposalInspectorSectionsView: View {
                         .font(.caption)
                         .foregroundStyle(.secondary)
 
-                    if section.highlights.isEmpty {
-                        Text("No mapped highlights.")
+                    Text(section.inclusionReason)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+
+                    if !section.relatedPricingGroupIDs.isEmpty {
+                        Text("Related Pricing Groups: \(section.relatedPricingGroupIDs.joined(separator: ", "))")
                             .font(.caption)
                             .foregroundStyle(.secondary)
+                    }
+
+                    if section.customerFacingValues.isEmpty {
+                        Text("No customer-facing values.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
                     } else {
-                        ForEach(section.highlights, id: \.self) { highlight in
-                            Text(highlight)
-                                .font(.footnote)
+                        Text("Customer-Facing")
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(.secondary)
+
+                        ForEach(section.customerFacingValues) { value in
+                            ProposalInspectorValueRow(
+                                title: value.label,
+                                detail: value.displayValue,
+                                meta: value.key.rawValue
+                            )
+                        }
+                    }
+
+                    if !section.internalValues.isEmpty {
+                        Text("Internal-Only")
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(.secondary)
+
+                        ForEach(section.internalValues) { value in
+                            ProposalInspectorValueRow(
+                                title: value.label,
+                                detail: value.displayValue,
+                                meta: value.key.rawValue
+                            )
                         }
                     }
                 }
@@ -322,15 +359,25 @@ private struct ProposalInspectorPricingView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Label("Pricing Groups", systemImage: "dollarsign.square")
+            Label("Pricing Buckets", systemImage: "dollarsign.square")
                 .font(.headline)
 
             ForEach(snapshot.proposal.pricingGroups) { group in
                 VStack(alignment: .leading, spacing: 8) {
-                    Text(group.title)
-                        .font(.subheadline.weight(.semibold))
+                    HStack(alignment: .firstTextBaseline) {
+                        Text(group.title)
+                            .font(.subheadline.weight(.semibold))
+                        Spacer()
+                        Text(group.isIncluded ? "Active" : "Inactive")
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(group.isIncluded ? .green : .secondary)
+                    }
 
                     Text("Source: \(group.sourceSections.map(\.title).joined(separator: ", "))")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+
+                    Text("Channels: \(group.outputChannels.map(\.rawValue).joined(separator: ", "))")
                         .font(.caption)
                         .foregroundStyle(.secondary)
 
@@ -340,12 +387,16 @@ private struct ProposalInspectorPricingView: View {
                                 Text(component.title)
                                     .font(.footnote.weight(.semibold))
                                 Spacer()
-                                Text(component.isCandidate ? "Candidate" : "Empty")
+                                Text(component.bucketState.rawValue.replacingOccurrences(of: "_", with: " ").capitalized)
                                     .font(.caption.weight(.semibold))
                                     .foregroundStyle(component.isCandidate ? .green : .secondary)
                             }
 
                             Text(component.summary)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+
+                            Text(component.inclusionReason)
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
 
@@ -360,6 +411,10 @@ private struct ProposalInspectorPricingView: View {
                             }
                             .font(.caption)
                             .foregroundStyle(.secondary)
+
+                            Text("Channels: \(component.outputChannels.map(\.rawValue).joined(separator: ", "))")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
 
                             if component.mappedValues.isEmpty {
                                 Text("No mapped values.")

@@ -251,6 +251,25 @@ Keep milestones small, testable, and reviewable.
     - no JobTread sync submission
   - Preserve the current linked-customer hydration/read-only baseline and the existing Documents / Attachments behavior
   - Validate that the app still compiles cleanly after the inspector is added
+- Milestone 5.2.30 – Proposal Composition Usefulness Pass
+  - Expand the pricing/proposal foundation so it emits three explicit outputs from one shared scope-derived model:
+    - customer-facing proposal sections
+    - internal-only operational details
+    - future structured sync candidates
+  - Replace generic section visibility with explicit inclusion criteria tied to current scope selections
+  - Add placeholder pricing groups and bucket definitions that better mirror the current scope domains, including:
+    - site readiness / coordination
+    - base structure
+    - enclosure / openings
+    - electrical / drainage
+    - finishes / permits / closeout
+  - Keep pricing buckets stable and inspectable without pretending final business formulas are finished
+  - Keep all composition and placeholder pricing logic in the foundation/domain layer:
+    - no SwiftUI pricing logic
+    - no PDF rendering work
+    - no live JobTread sync submission
+  - Improve the internal inspector so the separated customer-facing, internal-only, and pricing-bucket outputs are visible for the current scope
+  - Preserve the current JobTread search/select, linked hydration, read-only ownership, and Documents / Attachments baseline
 ## Milestone 7.5.1 – Documents Responsiveness Regression Recovery
 - Investigate the Documents / Attachments section for launch-time or interaction freezes introduced by the new import flow
 - Prioritize restoring responsiveness over preserving every import path detail

@@ -163,9 +163,16 @@ enum ProposalTemplateSectionID: String, Codable, CaseIterable, Identifiable {
     var id: String { rawValue }
 }
 
+enum ProposalOutputChannel: String, Codable, CaseIterable {
+    case customerFacing = "customer_facing"
+    case internalOnly = "internal_only"
+    case syncCandidate = "sync_candidate"
+}
+
 enum ProposalSectionVisibilityRule: String, Codable, CaseIterable {
     case always
-    case whenAnyMappedInputPresent
+    case whenAnyTriggerInputPresent
+    case whenAnyTriggerValueAffirmativeOrMeaningful
     case whenProjectTypeIsSet
 }
 
@@ -192,6 +199,12 @@ enum FutureSyncTargetKind: String, Codable, CaseIterable {
     case costItem
     case customField
     case document
+}
+
+enum ProposalPricingBucketState: String, Codable, CaseIterable {
+    case excluded
+    case placeholder
+    case quantitySeeded
 }
 
 struct ProposalInputValue: Codable, Hashable, Identifiable {
@@ -270,12 +283,19 @@ struct FutureSyncTargetBlueprint: Codable, Hashable, Identifiable {
     var id: String { "\(kind.rawValue):\(targetKey)" }
 }
 
+struct ProposalVisibilityDefinition: Codable, Hashable {
+    let rule: ProposalSectionVisibilityRule
+    let triggerInputKeys: [ScopeInputKey]
+}
+
 struct ProposalTemplateSectionDefinition: Codable, Hashable, Identifiable {
     let id: ProposalTemplateSectionID
     let title: String
     let sourceSections: [ScopeCaptureSectionKey]
-    let mappedInputKeys: [ScopeInputKey]
-    let visibilityRule: ProposalSectionVisibilityRule
+    let customerFacingInputKeys: [ScopeInputKey]
+    let internalInputKeys: [ScopeInputKey]
+    let visibility: ProposalVisibilityDefinition
+    let relatedPricingGroupIDs: [String]
     let syncTargets: [FutureSyncTargetBlueprint]
 }
 
@@ -284,8 +304,10 @@ struct PricingComponentDefinition: Codable, Hashable, Identifiable {
     let title: String
     let summary: String
     let mappedInputKeys: [ScopeInputKey]
+    let visibility: ProposalVisibilityDefinition
     let quantitySource: PricingQuantitySource?
     let strategy: PricingCalculationStrategyKind
+    let outputChannels: [ProposalOutputChannel]
     let syncTargets: [FutureSyncTargetBlueprint]
 }
 
@@ -293,6 +315,7 @@ struct PricingGroupDefinition: Codable, Hashable, Identifiable {
     let id: String
     let title: String
     let sourceSections: [ScopeCaptureSectionKey]
+    let outputChannels: [ProposalOutputChannel]
     let components: [PricingComponentDefinition]
 }
 
@@ -308,8 +331,11 @@ struct ComposedProposalSection: Codable, Hashable, Identifiable {
     let id: ProposalTemplateSectionID
     let title: String
     let isIncluded: Bool
+    let inclusionReason: String
     let sourceSections: [ScopeCaptureSectionKey]
-    let supportingValues: [ProposalInputValue]
+    let customerFacingValues: [ProposalInputValue]
+    let internalValues: [ProposalInputValue]
+    let relatedPricingGroupIDs: [String]
     let highlights: [String]
 }
 
@@ -317,10 +343,13 @@ struct ComposedPricingComponent: Codable, Hashable, Identifiable {
     let id: String
     let title: String
     let summary: String
+    let outputChannels: [ProposalOutputChannel]
     let strategy: PricingCalculationStrategyKind
+    let inclusionReason: String
     let quantitySource: PricingQuantitySource?
     let quantityValue: Double?
     let mappedValues: [ProposalInputValue]
+    let bucketState: ProposalPricingBucketState
     let isCandidate: Bool
 }
 
@@ -328,6 +357,8 @@ struct ComposedPricingGroup: Codable, Hashable, Identifiable {
     let id: String
     let title: String
     let sourceSections: [ScopeCaptureSectionKey]
+    let outputChannels: [ProposalOutputChannel]
+    let isIncluded: Bool
     let components: [ComposedPricingComponent]
 }
 
@@ -349,6 +380,18 @@ struct ProposalCompositionDraft: Codable, Hashable {
     let customerName: String?
     let sections: [ComposedProposalSection]
     let pricingGroups: [ComposedPricingGroup]
+
+    var customerFacingSections: [ComposedProposalSection] {
+        sections.filter { $0.isIncluded && !$0.customerFacingValues.isEmpty }
+    }
+
+    var internalSections: [ComposedProposalSection] {
+        sections.filter { $0.isIncluded && !$0.internalValues.isEmpty }
+    }
+
+    var activePricingGroups: [ComposedPricingGroup] {
+        pricingGroups.filter(\.isIncluded)
+    }
 }
 
 struct ProposalFoundationSnapshot: Codable, Hashable {
@@ -591,18 +634,21 @@ enum ProposalFoundationBuilder {
         template: ProposalTemplateDefinition
     ) -> ProposalCompositionDraft {
         let sections = template.sections.map { definition in
-            let sectionValues = definition.sourceSections.flatMap(input.values(for:))
-            let mappedValues = definition.mappedInputKeys.compactMap(input.value(for:))
-            let supportingValues = uniqueValues(from: sectionValues + mappedValues)
-            let isIncluded = includeSection(definition.visibilityRule, input: input, supportingValues: supportingValues)
+            let customerFacingValues = uniqueValues(from: definition.customerFacingInputKeys.compactMap(input.value(for:)))
+            let internalValues = uniqueValues(from: definition.internalInputKeys.compactMap(input.value(for:)))
+            let isIncluded = include(definition.visibility, input: input)
+            let inclusionReason = inclusionReason(for: definition.visibility, input: input)
 
             return ComposedProposalSection(
                 id: definition.id,
                 title: definition.title,
                 isIncluded: isIncluded,
+                inclusionReason: inclusionReason,
                 sourceSections: definition.sourceSections,
-                supportingValues: supportingValues,
-                highlights: supportingValues
+                customerFacingValues: customerFacingValues,
+                internalValues: internalValues,
+                relatedPricingGroupIDs: definition.relatedPricingGroupIDs,
+                highlights: customerFacingValues
                     .filter(\.isMeaningful)
                     .prefix(6)
                     .map { "\($0.label): \($0.displayValue)" }
@@ -613,24 +659,37 @@ enum ProposalFoundationBuilder {
             let components = group.components.map { component in
                 let mappedValues = component.mappedInputKeys.compactMap(input.value(for:))
                 let quantityValue = quantity(for: component.quantitySource, input: input)
-                let isCandidate = quantityValue != nil || mappedValues.contains(where: \.isMeaningful)
+                let isIncluded = include(component.visibility, input: input)
+                let bucketState = pricingBucketState(
+                    isIncluded: isIncluded,
+                    strategy: component.strategy,
+                    quantityValue: quantityValue
+                )
+                let isCandidate = isIncluded
 
                 return ComposedPricingComponent(
                     id: component.id,
                     title: component.title,
                     summary: component.summary,
+                    outputChannels: component.outputChannels,
                     strategy: component.strategy,
+                    inclusionReason: inclusionReason(for: component.visibility, input: input),
                     quantitySource: component.quantitySource,
                     quantityValue: quantityValue,
                     mappedValues: mappedValues,
+                    bucketState: bucketState,
                     isCandidate: isCandidate
                 )
             }
+
+            let isIncluded = components.contains(where: \.isCandidate)
 
             return ComposedPricingGroup(
                 id: group.id,
                 title: group.title,
                 sourceSections: group.sourceSections,
+                outputChannels: group.outputChannels,
+                isIncluded: isIncluded,
                 components: components
             )
         }
@@ -690,18 +749,49 @@ enum ProposalFoundationBuilder {
         return ProposalSyncPreview(candidates: candidates)
     }
 
-    private static func includeSection(
-        _ rule: ProposalSectionVisibilityRule,
-        input: ProposalCompositionInput,
-        supportingValues: [ProposalInputValue]
+    private static func include(
+        _ visibility: ProposalVisibilityDefinition,
+        input: ProposalCompositionInput
     ) -> Bool {
-        switch rule {
+        let triggerValues = visibility.triggerInputKeys.compactMap(input.value(for:))
+
+        switch visibility.rule {
         case .always:
             return true
-        case .whenAnyMappedInputPresent:
-            return supportingValues.contains(where: \.isMeaningful)
+        case .whenAnyTriggerInputPresent:
+            return triggerValues.contains(where: \.isMeaningful)
+        case .whenAnyTriggerValueAffirmativeOrMeaningful:
+            return triggerValues.contains(where: isAffirmativeOrMeaningful)
         case .whenProjectTypeIsSet:
             return input.customerContext.projectType != .notSet
+        }
+    }
+
+    private static func inclusionReason(
+        for visibility: ProposalVisibilityDefinition,
+        input: ProposalCompositionInput
+    ) -> String {
+        let triggerValues = visibility.triggerInputKeys.compactMap(input.value(for:))
+        let triggerLabels = triggerValues.map(\.label)
+
+        switch visibility.rule {
+        case .always:
+            return "Always included."
+        case .whenAnyTriggerInputPresent:
+            if triggerValues.contains(where: \.isMeaningful) {
+                return "Included because mapped scope inputs are present: \(triggerLabels.joined(separator: ", "))."
+            }
+            return "Excluded because no mapped scope inputs are present."
+        case .whenAnyTriggerValueAffirmativeOrMeaningful:
+            if triggerValues.contains(where: isAffirmativeOrMeaningful) {
+                return "Included because relevant scope selections are active: \(triggerLabels.joined(separator: ", "))."
+            }
+            return "Excluded because no relevant scope selections are active."
+        case .whenProjectTypeIsSet:
+            if input.customerContext.projectType != .notSet {
+                return "Included because project type is set to \(input.customerContext.projectType.displayName)."
+            }
+            return "Excluded because project type is not set."
         }
     }
 
@@ -746,6 +836,32 @@ enum ProposalFoundationBuilder {
         return values.filter { value in
             seen.insert(value.key).inserted
         }
+    }
+
+    private static func isAffirmativeOrMeaningful(_ value: ProposalInputValue) -> Bool {
+        if let boolValue = value.boolValue {
+            return boolValue
+        }
+
+        if let numericValue = value.numericValue {
+            return numericValue > 0
+        }
+
+        return value.isMeaningful
+    }
+
+    private static func pricingBucketState(
+        isIncluded: Bool,
+        strategy: PricingCalculationStrategyKind,
+        quantityValue: Double?
+    ) -> ProposalPricingBucketState {
+        guard isIncluded else { return .excluded }
+
+        if strategy == .quantityTimesRate, quantityValue != nil {
+            return .quantitySeeded
+        }
+
+        return .placeholder
     }
 
     private static func textValue(_ key: ScopeInputKey, _ label: String, _ value: String?) -> ProposalInputValue? {
@@ -854,8 +970,10 @@ extension ProposalTemplateDefinition {
                 id: .projectSummary,
                 title: "Project Summary",
                 sourceSections: [.projectInfo, .dimensions],
-                mappedInputKeys: [.scopeTitle, .customerName, .projectType, .widthFeet, .projectionFeet, .roofStyle, .attachmentType],
-                visibilityRule: .always,
+                customerFacingInputKeys: [.scopeTitle, .customerName, .projectType, .widthFeet, .projectionFeet, .roofStyle, .attachmentType],
+                internalInputKeys: [.linkedCustomerID, .salesperson, .estimator, .siteVisitDate, .projectNotes],
+                visibility: ProposalVisibilityDefinition(rule: .always, triggerInputKeys: []),
+                relatedPricingGroupIDs: ["site-readiness-and-coordination", "base-structure"],
                 syncTargets: [
                     FutureSyncTargetBlueprint(kind: .jobField, targetKey: "job.title", title: "Job Title / Scope Title", notes: "Use local scope title when a native title field exists."),
                     FutureSyncTargetBlueprint(kind: .customField, targetKey: "project-summary", title: "Project Summary", notes: "Fallback for app-owned narrative fields.")
@@ -865,8 +983,13 @@ extension ProposalTemplateDefinition {
                 id: .siteConditions,
                 title: "Site Conditions",
                 sourceSections: [.existingConditions, .attachmentConditions],
-                mappedInputKeys: [.houseStories, .exteriorFinish, .existingStructure, .obstaclesNotes, .utilitiesNotes, .houseWallMaterial, .houseMountingType, .mountCondition],
-                visibilityRule: .whenAnyMappedInputPresent,
+                customerFacingInputKeys: [.houseStories, .exteriorFinish, .existingStructure, .houseWallMaterial, .houseMountingType],
+                internalInputKeys: [.obstaclesNotes, .utilitiesNotes, .hoaNotes, .mountCondition, .fastenerPlan, .attachmentNotes],
+                visibility: ProposalVisibilityDefinition(
+                    rule: .whenAnyTriggerValueAffirmativeOrMeaningful,
+                    triggerInputKeys: [.houseStories, .exteriorFinish, .existingStructure, .obstaclesNotes, .utilitiesNotes, .houseWallMaterial, .houseMountingType]
+                ),
+                relatedPricingGroupIDs: ["site-readiness-and-coordination", "base-structure"],
                 syncTargets: [
                     FutureSyncTargetBlueprint(kind: .customField, targetKey: "site-conditions", title: "Site Conditions", notes: "Operational capture likely belongs in custom fields.")
                 ]
@@ -875,8 +998,13 @@ extension ProposalTemplateDefinition {
                 id: .structuralSystem,
                 title: "Structural System",
                 sourceSections: [.dimensions, .structuralSystem, .attachmentConditions],
-                mappedInputKeys: [.frameMaterial, .structuralPostSize, .beamType, .roofSystem, .roofColor, .frameColor, .postSpacing, .fastenerPlan],
-                visibilityRule: .whenAnyMappedInputPresent,
+                customerFacingInputKeys: [.frameMaterial, .structuralPostSize, .beamType, .roofSystem, .roofColor, .frameColor],
+                internalInputKeys: [.postSpacing, .fastenerPlan, .structuralNotes, .attachmentPostSize],
+                visibility: ProposalVisibilityDefinition(
+                    rule: .whenAnyTriggerValueAffirmativeOrMeaningful,
+                    triggerInputKeys: [.frameMaterial, .structuralPostSize, .beamType, .roofSystem, .roofColor, .frameColor]
+                ),
+                relatedPricingGroupIDs: ["base-structure"],
                 syncTargets: [
                     FutureSyncTargetBlueprint(kind: .costGroup, targetKey: "structure", title: "Structure Cost Group", notes: "Structure-related price rows can group here later."),
                     FutureSyncTargetBlueprint(kind: .customField, targetKey: "structural-specs", title: "Structural Specs", notes: "Useful for production notes and sync fallback.")
@@ -886,8 +1014,13 @@ extension ProposalTemplateDefinition {
                 id: .enclosureAndOpenings,
                 title: "Enclosure and Openings",
                 sourceSections: [.enclosure],
-                mappedInputKeys: [.enclosureType, .screenWallType, .windowType, .glassType, .windowBayCount, .kneeWallOption, .doorType],
-                visibilityRule: .whenAnyMappedInputPresent,
+                customerFacingInputKeys: [.enclosureType, .screenWallType, .windowType, .glassType, .windowBayCount, .kneeWallOption, .doorType, .doorStyle],
+                internalInputKeys: [.windowFrameSystem, .glassSafety, .gridOption, .windowOperation, .windowColor, .windowHeight, .windowConfiguration, .windowNotes, .kneeWallPanelHeight, .kneeWallPanelColor, .kneeWallLinearFootage, .kneeWallHeight, .kneeWallFraming, .doorOperableSide, .doorHingeSide, .doorWidth, .doorHeight, .doorColor, .doorDimensions, .doorNotes],
+                visibility: ProposalVisibilityDefinition(
+                    rule: .whenAnyTriggerValueAffirmativeOrMeaningful,
+                    triggerInputKeys: [.enclosureType, .screenWallType, .windowType, .glassType, .windowBayCount, .kneeWallOption, .doorType]
+                ),
+                relatedPricingGroupIDs: ["enclosure-options"],
                 syncTargets: [
                     FutureSyncTargetBlueprint(kind: .costGroup, targetKey: "enclosure-openings", title: "Enclosure / Openings Cost Group", notes: "Candidate parent group for screen/window/door items."),
                     FutureSyncTargetBlueprint(kind: .customField, targetKey: "enclosure-specs", title: "Enclosure Specs", notes: "Fallback structured sync bucket.")
@@ -897,8 +1030,13 @@ extension ProposalTemplateDefinition {
                 id: .electricalAndDrainage,
                 title: "Electrical and Drainage",
                 sourceSections: [.electrical, .drainage],
-                mappedInputKeys: [.outletCount, .lighting, .fanInstall, .dedicatedCircuits, .gutters, .drainTieIn],
-                visibilityRule: .whenAnyMappedInputPresent,
+                customerFacingInputKeys: [.outletCount, .lighting, .fanInstall, .gutters, .drainTieIn],
+                internalInputKeys: [.switchLocations, .dedicatedCircuits, .electricalNotes, .downspoutLocations, .slopeNotes],
+                visibility: ProposalVisibilityDefinition(
+                    rule: .whenAnyTriggerValueAffirmativeOrMeaningful,
+                    triggerInputKeys: [.outletCount, .lighting, .fanInstall, .gutters, .drainTieIn, .dedicatedCircuits]
+                ),
+                relatedPricingGroupIDs: ["electrical-drainage"],
                 syncTargets: [
                     FutureSyncTargetBlueprint(kind: .costGroup, targetKey: "electrical-drainage", title: "Electrical / Drainage Cost Group", notes: "For later line-item sync."),
                     FutureSyncTargetBlueprint(kind: .customField, targetKey: "electrical-drainage-specs", title: "Electrical / Drainage Specs", notes: "Fallback structured sync bucket.")
@@ -908,8 +1046,13 @@ extension ProposalTemplateDefinition {
                 id: .finishesAndPermitting,
                 title: "Finishes and Permitting",
                 sourceSections: [.finishes, .permitsHOA, .production],
-                mappedInputKeys: [.finishTrimType, .finishColor, .permitRequired, .hoaApprovalRequired, .engineeringRequired, .materialOrderStatus, .permitStatus],
-                visibilityRule: .whenAnyMappedInputPresent,
+                customerFacingInputKeys: [.finishTrimType, .finishColor, .permitRequired, .hoaApprovalRequired, .engineeringRequired],
+                internalInputKeys: [.caulkingSealingNotes, .jurisdiction, .permitStatusNotes, .productionStartDate, .crewLead, .durationEstimate, .materialOrderStatus, .permitStatus],
+                visibility: ProposalVisibilityDefinition(
+                    rule: .whenAnyTriggerValueAffirmativeOrMeaningful,
+                    triggerInputKeys: [.finishTrimType, .finishColor, .permitRequired, .hoaApprovalRequired, .engineeringRequired, .materialOrderStatus, .permitStatus]
+                ),
+                relatedPricingGroupIDs: ["finishes-permits-and-closeout"],
                 syncTargets: [
                     FutureSyncTargetBlueprint(kind: .costGroup, targetKey: "finishes-permitting", title: "Finishes / Permitting Cost Group", notes: "Future allowance/cost items can land here."),
                     FutureSyncTargetBlueprint(kind: .customField, targetKey: "finishes-permitting-specs", title: "Finishes / Permitting Specs", notes: "Fallback structured sync bucket.")
@@ -919,8 +1062,13 @@ extension ProposalTemplateDefinition {
                 id: .attachmentsAndSupportingDocuments,
                 title: "Attachments and Supporting Documents",
                 sourceSections: [.documents, .attachmentsAndSketches],
-                mappedInputKeys: [.irrigationDocument, .propertySurveyDocument, .additionalDocumentCount, .photoCount, .sketchCount, .signedDate],
-                visibilityRule: .whenAnyMappedInputPresent,
+                customerFacingInputKeys: [.irrigationDocument, .propertySurveyDocument, .additionalDocumentCount, .additionalDocumentNames],
+                internalInputKeys: [.photoCount, .sketchCount, .signedDate, .customerOptionsConfirmed],
+                visibility: ProposalVisibilityDefinition(
+                    rule: .whenAnyTriggerValueAffirmativeOrMeaningful,
+                    triggerInputKeys: [.irrigationDocument, .propertySurveyDocument, .additionalDocumentCount, .photoCount, .sketchCount, .signedDate]
+                ),
+                relatedPricingGroupIDs: ["site-readiness-and-coordination", "finishes-permits-and-closeout"],
                 syncTargets: [
                     FutureSyncTargetBlueprint(kind: .document, targetKey: "supporting-documents", title: "Supporting Documents", notes: "Use file/document upload for presentation artifacts."),
                     FutureSyncTargetBlueprint(kind: .document, targetKey: "proposal-pdf", title: "Proposal PDF", notes: "Future polished proposal output belongs here.")
@@ -929,17 +1077,63 @@ extension ProposalTemplateDefinition {
         ],
         pricingGroups: [
             PricingGroupDefinition(
+                id: "site-readiness-and-coordination",
+                title: "Site Readiness and Coordination",
+                sourceSections: [.projectInfo, .existingConditions, .attachmentConditions, .documents],
+                outputChannels: [.internalOnly, .syncCandidate],
+                components: [
+                    PricingComponentDefinition(
+                        id: "site-conditions-review",
+                        title: "Site Conditions Review",
+                        summary: "Existing conditions, obstacles, utilities, and attachment conditions that may affect setup or labor.",
+                        mappedInputKeys: [.houseStories, .exteriorFinish, .existingStructure, .obstaclesNotes, .utilitiesNotes, .houseWallMaterial, .houseMountingType, .mountCondition],
+                        visibility: ProposalVisibilityDefinition(
+                            rule: .whenAnyTriggerValueAffirmativeOrMeaningful,
+                            triggerInputKeys: [.houseStories, .exteriorFinish, .existingStructure, .obstaclesNotes, .utilitiesNotes, .houseWallMaterial, .houseMountingType, .mountCondition]
+                        ),
+                        quantitySource: nil,
+                        strategy: .lookupOnly,
+                        outputChannels: [.internalOnly, .syncCandidate],
+                        syncTargets: [
+                            FutureSyncTargetBlueprint(kind: .costItem, targetKey: "site-conditions-review", title: "Site Conditions Item", notes: "Placeholder operational bucket for future estimate rows.")
+                        ]
+                    ),
+                    PricingComponentDefinition(
+                        id: "document-verification-and-layout",
+                        title: "Document Verification and Layout",
+                        summary: "Survey, irrigation, and supporting document review before final drafting and layout.",
+                        mappedInputKeys: [.irrigationDocument, .propertySurveyDocument, .additionalDocumentCount, .additionalDocumentNames],
+                        visibility: ProposalVisibilityDefinition(
+                            rule: .whenAnyTriggerValueAffirmativeOrMeaningful,
+                            triggerInputKeys: [.irrigationDocument, .propertySurveyDocument, .additionalDocumentCount]
+                        ),
+                        quantitySource: .attachmentCount,
+                        strategy: .lookupOnly,
+                        outputChannels: [.internalOnly, .syncCandidate],
+                        syncTargets: [
+                            FutureSyncTargetBlueprint(kind: .costItem, targetKey: "document-verification-layout", title: "Document Review Item", notes: "Future preconstruction or admin line item.")
+                        ]
+                    )
+                ]
+            ),
+            PricingGroupDefinition(
                 id: "base-structure",
                 title: "Base Structure",
                 sourceSections: [.projectInfo, .dimensions, .structuralSystem, .attachmentConditions],
+                outputChannels: [.internalOnly, .syncCandidate],
                 components: [
                     PricingComponentDefinition(
                         id: "frame-and-roof-package",
                         title: "Frame and Roof Package",
                         summary: "Core structure package driven by dimensions, structural system, and roof selections.",
                         mappedInputKeys: [.projectType, .widthFeet, .projectionFeet, .roofStyle, .frameMaterial, .roofSystem, .attachmentType],
+                        visibility: ProposalVisibilityDefinition(
+                            rule: .whenAnyTriggerValueAffirmativeOrMeaningful,
+                            triggerInputKeys: [.projectType, .widthFeet, .projectionFeet, .roofStyle, .frameMaterial, .roofSystem, .attachmentType]
+                        ),
                         quantitySource: .areaSquareFeet,
                         strategy: .quantityTimesRate,
+                        outputChannels: [.internalOnly, .syncCandidate],
                         syncTargets: [
                             FutureSyncTargetBlueprint(kind: .costItem, targetKey: "frame-roof-package", title: "Frame / Roof Cost Item", notes: "Later line item generated from pricing rules.")
                         ]
@@ -949,8 +1143,13 @@ extension ProposalTemplateDefinition {
                         title: "Attachment and Support Package",
                         summary: "Attachment, support posts, mounting, and fastener conditions.",
                         mappedInputKeys: [.houseWallMaterial, .houseMountingType, .postColumnMaterial, .attachmentPostSize, .postSpacing, .mountCondition, .fastenerPlan],
+                        visibility: ProposalVisibilityDefinition(
+                            rule: .whenAnyTriggerValueAffirmativeOrMeaningful,
+                            triggerInputKeys: [.houseWallMaterial, .houseMountingType, .postColumnMaterial, .attachmentPostSize, .postSpacing, .mountCondition, .fastenerPlan]
+                        ),
                         quantitySource: .perimeterFeet,
                         strategy: .lookupOnly,
+                        outputChannels: [.internalOnly, .syncCandidate],
                         syncTargets: [
                             FutureSyncTargetBlueprint(kind: .costItem, targetKey: "attachment-support-package", title: "Attachment / Support Cost Item", notes: "May later become several discrete items.")
                         ]
@@ -961,14 +1160,20 @@ extension ProposalTemplateDefinition {
                 id: "enclosure-options",
                 title: "Enclosure Options",
                 sourceSections: [.enclosure],
+                outputChannels: [.internalOnly, .syncCandidate],
                 components: [
                     PricingComponentDefinition(
                         id: "screen-or-wall-package",
                         title: "Screen / Wall Package",
                         summary: "Screen wall and enclosure selections independent of final vendor catalog.",
                         mappedInputKeys: [.enclosureType, .screenWallType, .screenTint, .screenFrameSize, .screenFrameColor],
+                        visibility: ProposalVisibilityDefinition(
+                            rule: .whenAnyTriggerValueAffirmativeOrMeaningful,
+                            triggerInputKeys: [.enclosureType, .screenWallType, .screenTint, .screenFrameSize, .screenFrameColor]
+                        ),
                         quantitySource: .perimeterFeet,
                         strategy: .lookupOnly,
+                        outputChannels: [.internalOnly, .syncCandidate],
                         syncTargets: [
                             FutureSyncTargetBlueprint(kind: .costItem, targetKey: "screen-wall-package", title: "Screen / Wall Cost Item", notes: "Maps to future enclosure product rows.")
                         ]
@@ -978,8 +1183,13 @@ extension ProposalTemplateDefinition {
                         title: "Window System Package",
                         summary: "Window/glass configuration captured separately from proposal wording.",
                         mappedInputKeys: [.windowType, .windowFrameSystem, .glassType, .glassSafety, .gridOption, .windowOperation, .windowColor, .windowHeight, .windowBayCount, .windowConfiguration],
+                        visibility: ProposalVisibilityDefinition(
+                            rule: .whenAnyTriggerValueAffirmativeOrMeaningful,
+                            triggerInputKeys: [.windowType, .windowFrameSystem, .glassType, .windowBayCount, .windowConfiguration]
+                        ),
                         quantitySource: .bayCount,
                         strategy: .quantityTimesRate,
+                        outputChannels: [.internalOnly, .syncCandidate],
                         syncTargets: [
                             FutureSyncTargetBlueprint(kind: .costItem, targetKey: "window-system-package", title: "Window System Cost Item", notes: "Candidate sync row for structured estimate output.")
                         ]
@@ -989,8 +1199,13 @@ extension ProposalTemplateDefinition {
                         title: "Knee Wall Package",
                         summary: "Knee wall selections with allowance until full formulas are known.",
                         mappedInputKeys: [.kneeWallOption, .kneeWallPanelHeight, .kneeWallPanelColor, .kneeWallLinearFootage, .kneeWallHeight, .kneeWallFraming],
+                        visibility: ProposalVisibilityDefinition(
+                            rule: .whenAnyTriggerValueAffirmativeOrMeaningful,
+                            triggerInputKeys: [.kneeWallOption, .kneeWallPanelHeight, .kneeWallLinearFootage, .kneeWallHeight, .kneeWallFraming]
+                        ),
                         quantitySource: nil,
                         strategy: .allowance,
+                        outputChannels: [.internalOnly, .syncCandidate],
                         syncTargets: [
                             FutureSyncTargetBlueprint(kind: .costItem, targetKey: "knee-wall-package", title: "Knee Wall Cost Item", notes: "Future structured allowance or item set.")
                         ]
@@ -1000,8 +1215,13 @@ extension ProposalTemplateDefinition {
                         title: "Door Package",
                         summary: "Door selections kept separate so naming/vendor swaps are centralized.",
                         mappedInputKeys: [.doorType, .doorStyle, .doorOperableSide, .doorHingeSide, .doorWidth, .doorHeight, .doorColor, .doorDimensions],
+                        visibility: ProposalVisibilityDefinition(
+                            rule: .whenAnyTriggerValueAffirmativeOrMeaningful,
+                            triggerInputKeys: [.doorType, .doorStyle, .doorWidth, .doorHeight, .doorDimensions]
+                        ),
                         quantitySource: nil,
                         strategy: .manualAmount,
+                        outputChannels: [.internalOnly, .syncCandidate],
                         syncTargets: [
                             FutureSyncTargetBlueprint(kind: .costItem, targetKey: "door-package", title: "Door Cost Item", notes: "Future structured opening line item.")
                         ]
@@ -1012,14 +1232,20 @@ extension ProposalTemplateDefinition {
                 id: "electrical-drainage",
                 title: "Electrical and Drainage",
                 sourceSections: [.electrical, .drainage],
+                outputChannels: [.internalOnly, .syncCandidate],
                 components: [
                     PricingComponentDefinition(
                         id: "electrical-package",
                         title: "Electrical Package",
                         summary: "Outlets, lighting, fans, switches, and dedicated circuits.",
                         mappedInputKeys: [.outletCount, .lighting, .fanInstall, .switchLocations, .dedicatedCircuits],
+                        visibility: ProposalVisibilityDefinition(
+                            rule: .whenAnyTriggerValueAffirmativeOrMeaningful,
+                            triggerInputKeys: [.outletCount, .lighting, .fanInstall, .switchLocations, .dedicatedCircuits]
+                        ),
                         quantitySource: .outletCount,
                         strategy: .lookupOnly,
+                        outputChannels: [.internalOnly, .syncCandidate],
                         syncTargets: [
                             FutureSyncTargetBlueprint(kind: .costItem, targetKey: "electrical-package", title: "Electrical Cost Item", notes: "Could split into several cost rows later.")
                         ]
@@ -1029,8 +1255,13 @@ extension ProposalTemplateDefinition {
                         title: "Drainage Package",
                         summary: "Gutters, downspouts, tie-ins, and slope considerations.",
                         mappedInputKeys: [.gutters, .downspoutLocations, .drainTieIn, .slopeNotes],
+                        visibility: ProposalVisibilityDefinition(
+                            rule: .whenAnyTriggerValueAffirmativeOrMeaningful,
+                            triggerInputKeys: [.gutters, .downspoutLocations, .drainTieIn, .slopeNotes]
+                        ),
                         quantitySource: nil,
                         strategy: .manualAmount,
+                        outputChannels: [.internalOnly, .syncCandidate],
                         syncTargets: [
                             FutureSyncTargetBlueprint(kind: .costItem, targetKey: "drainage-package", title: "Drainage Cost Item", notes: "Future gutter/downspout/tie-in rows.")
                         ]
@@ -1038,17 +1269,23 @@ extension ProposalTemplateDefinition {
                 ]
             ),
             PricingGroupDefinition(
-                id: "finishes-permits-and-docs",
-                title: "Finishes, Permits, and Presentation",
-                sourceSections: [.finishes, .permitsHOA, .documents, .attachmentsAndSketches],
+                id: "finishes-permits-and-closeout",
+                title: "Finishes, Permits, and Closeout",
+                sourceSections: [.finishes, .permitsHOA, .production, .attachmentsAndSketches],
+                outputChannels: [.internalOnly, .syncCandidate],
                 components: [
                     PricingComponentDefinition(
                         id: "finish-package",
                         title: "Finish Package",
                         summary: "Trim, color, sealing, and siding-related scope.",
                         mappedInputKeys: [.finishTrimType, .finishColor, .sidingReplacementRequired, .caulkingSealingNotes],
+                        visibility: ProposalVisibilityDefinition(
+                            rule: .whenAnyTriggerValueAffirmativeOrMeaningful,
+                            triggerInputKeys: [.finishTrimType, .finishColor, .sidingReplacementRequired, .caulkingSealingNotes]
+                        ),
                         quantitySource: nil,
                         strategy: .manualAmount,
+                        outputChannels: [.internalOnly, .syncCandidate],
                         syncTargets: [
                             FutureSyncTargetBlueprint(kind: .costItem, targetKey: "finish-package", title: "Finish Cost Item", notes: "Later finish/paint/trim rows.")
                         ]
@@ -1058,20 +1295,31 @@ extension ProposalTemplateDefinition {
                         title: "Permit and Engineering Allowance",
                         summary: "Permit, HOA, and engineering decisions separated from proposal copy.",
                         mappedInputKeys: [.permitRequired, .jurisdiction, .hoaApprovalRequired, .engineeringRequired],
+                        visibility: ProposalVisibilityDefinition(
+                            rule: .whenAnyTriggerValueAffirmativeOrMeaningful,
+                            triggerInputKeys: [.permitRequired, .jurisdiction, .hoaApprovalRequired, .engineeringRequired]
+                        ),
                         quantitySource: nil,
                         strategy: .allowance,
+                        outputChannels: [.internalOnly, .syncCandidate],
                         syncTargets: [
                             FutureSyncTargetBlueprint(kind: .costItem, targetKey: "permit-engineering-allowance", title: "Permit / Engineering Item", notes: "Allowance or service item later.")
                         ]
                     ),
                     PricingComponentDefinition(
-                        id: "presentation-artifacts",
-                        title: "Presentation Artifacts",
-                        summary: "Documents, photos, sketches, and signed proposal outputs.",
-                        mappedInputKeys: [.irrigationDocument, .propertySurveyDocument, .additionalDocumentCount, .photoCount, .sketchCount, .signedDate],
+                        id: "project-coordination-and-closeout",
+                        title: "Project Coordination and Closeout",
+                        summary: "Production timing, customer approval, and closeout artifacts kept separate from customer-facing wording.",
+                        mappedInputKeys: [.productionStartDate, .crewLead, .durationEstimate, .materialOrderStatus, .permitStatus, .customerOptionsConfirmed, .signedDate, .photoCount, .sketchCount],
+                        visibility: ProposalVisibilityDefinition(
+                            rule: .whenAnyTriggerValueAffirmativeOrMeaningful,
+                            triggerInputKeys: [.productionStartDate, .crewLead, .durationEstimate, .materialOrderStatus, .permitStatus, .customerOptionsConfirmed, .signedDate, .photoCount, .sketchCount]
+                        ),
                         quantitySource: .attachmentCount,
                         strategy: .lookupOnly,
+                        outputChannels: [.internalOnly, .syncCandidate],
                         syncTargets: [
+                            FutureSyncTargetBlueprint(kind: .costItem, targetKey: "project-coordination-closeout", title: "Project Coordination Item", notes: "Future coordination/closeout line item or sync row."),
                             FutureSyncTargetBlueprint(kind: .document, targetKey: "supporting-artifacts", title: "Supporting Artifacts Upload", notes: "Upload or attach where operationally useful.")
                         ]
                     )

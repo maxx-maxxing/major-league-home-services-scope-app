@@ -28,6 +28,7 @@
 - Milestone 5.2.27: Planned (proposal-generation + structured JobTread sync architecture audit)
 - Milestone 5.2.28: Implemented (editable pricing / proposal foundation)
 - Milestone 5.2.29: Implemented (internal proposal foundation inspector)
+- Milestone 5.2.30: Implemented (proposal composition usefulness pass)
 - Milestone 6: Implemented (photo attachment flow + PDF photo appendix)
 - Milestone 7.1: In progress (interaction animation polish)
 - Milestone 7.2: In progress (acceptance closeout)
@@ -37,6 +38,51 @@
 - Milestone 7.5.1: In progress (documents responsiveness regression recovery)
 
 ## Decisions
+- Milestone 5.2.30 proposal composition usefulness pass:
+  - Expanded the existing foundation in [PricingProposalFoundation.swift](/Users/maxx/Documents/major-league-home-services-scope-app/construction-scope-app/Models/PricingProposalFoundation.swift) instead of introducing a second proposal model.
+  - Why this is the smallest safe architecture:
+    - it preserves the current `JobScope -> proposalFoundationSnapshot` boundary
+    - it keeps proposal composition, placeholder pricing scaffolding, and sync-preview mapping in one domain-layer file
+    - it avoids touching the working JobTread service/search/hydration flow
+    - it avoids coupling incomplete pricing assumptions to SwiftUI or PDF rendering
+  - The foundation now distinguishes three outputs from one shared composition pass:
+    - customer-facing proposal section values
+    - internal-only operational values
+    - future sync candidates
+  - Proposal section definitions are no longer just flat mapped-key lists.
+    - Each section now declares:
+      - customer-facing input keys
+      - internal-only input keys
+      - explicit inclusion criteria with trigger keys
+      - related placeholder pricing groups
+  - Inclusion behavior is now more useful for current scope-driven composition:
+    - sections and pricing buckets can be always included, project-type gated, or included only when relevant trigger values are affirmative/meaningful
+    - boolean `false` values no longer force a section or placeholder bucket active unless the section has another meaningful trigger
+  - Placeholder pricing scaffolding now mirrors the current scope domains more closely with stable group and bucket IDs:
+    - `site-readiness-and-coordination`
+    - `base-structure`
+    - `enclosure-options`
+    - `electrical-drainage`
+    - `finishes-permits-and-closeout`
+  - The placeholder buckets are intentionally provisional, not business-final:
+    - no real prices were added
+    - no vendor-specific formulas were guessed
+    - quantity-aware buckets only mark themselves as `quantitySeeded` when the current scope already provides a meaningful quantity seed
+    - all other active buckets remain `placeholder` until the business pricing layer is defined
+  - The internal inspector in [JobTreadDebugView.swift](/Users/maxx/Documents/major-league-home-services-scope-app/construction-scope-app/Views/JobTreadDebugView.swift) now exposes:
+    - customer-facing values per included proposal section
+    - internal-only values per included proposal section
+    - section inclusion reasons
+    - related pricing group IDs
+    - pricing bucket states, channels, and inclusion reasons
+  - Explicit deferrals for this pass:
+    - no editable proposal composer UI
+    - no final PDF proposal rendering
+    - no live JobTread sync payload submission
+    - no final business pricing formulas, amounts, or vendor catalogs
+  - Validation:
+    - compiled successfully with:
+      - `xcodebuild -project ConstructionScopeApp.xcodeproj -scheme ConstructionScopeApp -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' -derivedDataPath /tmp/ConstructionScopeAppDerivedData CODE_SIGNING_ALLOWED=NO build`
 - Milestone 5.2.29 internal proposal foundation inspector:
   - Added a debug-only read-only inspector to [JobTreadDebugView.swift](/Users/maxx/Documents/major-league-home-services-scope-app/construction-scope-app/Views/JobTreadDebugView.swift).
   - The inspector lives inside the existing `JobTread Debug` internal window instead of the production `RootNavigationView` flow.

@@ -29,6 +29,9 @@
 - Milestone 5.2.28: Implemented (editable pricing / proposal foundation)
 - Milestone 5.2.29: Implemented (internal proposal foundation inspector)
 - Milestone 5.2.30: Implemented (proposal composition usefulness pass)
+- Milestone 5.2.31: Implemented (pricing seed / config per bucket)
+- Milestone 5.2.32: Implemented (pricing rule registry foundation)
+- Milestone 5.2.33: Implemented (external pricing configuration foundation)
 - Milestone 6: Implemented (photo attachment flow + PDF photo appendix)
 - Milestone 7.1: In progress (interaction animation polish)
 - Milestone 7.2: In progress (acceptance closeout)
@@ -38,6 +41,166 @@
 - Milestone 7.5.1: In progress (documents responsiveness regression recovery)
 
 ## Decisions
+- Milestone 5.2.33 external pricing configuration foundation:
+  - Added a pricing configuration layer inside [PricingProposalFoundation.swift](/Users/maxx/Documents/major-league-home-services-scope-app/construction-scope-app/Models/PricingProposalFoundation.swift) that is separate from the pricing rule registry.
+  - Why this is the smallest safe architecture:
+    - rule definitions still describe formula shape and subtotal intent only
+    - pricing configuration is now a separate provider keyed by stable rule IDs
+    - the foundation builder merges rule definitions and config snapshots during composition without moving pricing logic into Views
+    - the current JobTread customer-link/hydration/read-only baseline and proposal composition flow remain unchanged
+  - Added typed configuration models for:
+    - rule-keyed pricing profiles
+    - draft unit cost / unit price values
+    - allowance / fee placeholders
+    - markup placeholders
+    - future schedule inputs
+    - resolved configuration status per bucket
+  - The current provider uses one embedded draft snapshot:
+    - snapshot ID: `embedded-draft-pricing-config`
+    - purpose: seed the architecture with replaceable draft values while keeping final business pricing out of the rule registry
+    - replacement path: later import a business-owned spreadsheet/CSV/JSON by mapping each row to a stable rule ID plus schedule-input keys
+  - Rule/config wiring now works as follows:
+    - pricing buckets resolve to stable rule definitions first
+    - the builder then looks up a matching config profile by resolved rule ID
+    - configured values are injected into draft cost/price slots and attached to the composed bucket seed/config output
+    - subtotal placeholders now report whether they are:
+      - derived from configured unit price and seeded quantity
+      - seeded from configured package/fee values
+      - seeded from configured allowance values
+      - still deferred because lookup-adjustment logic is intentionally unfinished
+  - This keeps future real pricing import straightforward:
+    - rule IDs stay stable and business-owned
+    - config profiles are pure data and can come from a structured sheet later
+    - schedule inputs already have typed keys/values so external schedules can be mapped in without redesigning the bucket/rule model
+  - The debug inspector in [JobTreadDebugView.swift](/Users/maxx/Documents/major-league-home-services-scope-app/construction-scope-app/Views/JobTreadDebugView.swift) now shows:
+    - active pricing config snapshot ID/version
+    - resolved config profile per bucket
+    - config-fed draft slot values
+    - allowance / fee / markup placeholders
+    - schedule inputs
+    - subtotal readiness and any derived draft subtotal amount when safe to derive now
+  - Explicit deferrals for this pass:
+    - no spreadsheet import UI or parser yet
+    - no editable pricing-config management UI yet
+    - no final business/vendor pricing source yet
+    - no final totals engine
+    - no PDF pricing rendering
+    - no JobTread pricing sync submission
+  - Validation:
+    - compiled successfully with:
+      - `xcodebuild -project ConstructionScopeApp.xcodeproj -scheme ConstructionScopeApp -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' -derivedDataPath /tmp/ConstructionScopeAppDerivedData CODE_SIGNING_ALLOWED=NO build`
+- Milestone 5.2.32 pricing rule registry foundation:
+  - Added the registry layer directly inside [PricingProposalFoundation.swift](/Users/maxx/Documents/major-league-home-services-scope-app/construction-scope-app/Models/PricingProposalFoundation.swift) so rule resolution stays inside the existing `JobScope -> proposalFoundationSnapshot` boundary.
+  - Why this is the smallest safe architecture:
+    - it preserves the current proposal composition pass instead of creating a second pricing engine
+    - it keeps rule logic, subtotal scaffolding, and future total scaffolding in the domain/foundation layer instead of SwiftUI
+    - it preserves the current JobTread search/select, hydration, and read-only linked-customer baseline
+    - it avoids hardcoding final business/vendor pricing before the business inputs are ready
+  - Added stable pricing rule-definition types for:
+    - rule kind
+    - formula strategy
+    - draft rate-slot references
+    - draft formula input references
+    - subtotal derivation scaffolding
+    - future group-rollup references
+    - resolved rule status
+  - Existing bucket `draftRuleKey` values now resolve through a registry into stable rule definitions covering all current placeholder buckets, including:
+    - site review
+    - document review
+    - structure/base package
+    - attachment/support conditions
+    - screen/wall package
+    - window system package
+    - knee wall
+    - door package
+    - electrical package
+    - drainage package
+    - finish package
+    - permit/engineering allowance
+    - project coordination/closeout
+  - The registry intentionally defines formula shape without committing final pricing:
+    - quantity-driven buckets resolve to draft `quantityTimesDraftRate` or lookup-adjusted strategies
+    - package/manual buckets resolve to draft package/manual-entry strategies
+    - allowance-oriented buckets resolve to allowance scaffolding
+    - all cost/price inputs remain placeholder slots for future external configuration
+  - Bucket subtotal scaffolding is now explicit per resolved bucket:
+    - each rule definition carries a draft subtotal derivation kind
+    - subtotal placeholders now describe whether the bucket expects manual entry, quantity x unit-price derivation, allowance entry, or deferred lookup logic
+    - mapped scope inputs and quantity seeds are exposed as structured formula inputs for inspection
+  - Future group totals are now scaffolded but not implemented:
+    - each pricing group exposes a stable future total placeholder
+    - each group records which bucket subtotal placeholders will roll into that future total
+    - group rollup status stays `inactive`, `pendingBucketSubtotals`, or `readyForFutureRollup`
+  - The debug inspector in [JobTreadDebugView.swift](/Users/maxx/Documents/major-league-home-services-scope-app/construction-scope-app/Views/JobTreadDebugView.swift) now reads the domain snapshot and displays:
+    - future group total placeholders and rollup status
+    - requested rule keys and resolved rule IDs
+    - resolved formula strategy and rate slots
+    - structured formula inputs pulled from the current scope snapshot
+    - subtotal derivation scaffolding
+    - future group rollup references
+  - Explicit deferrals for this pass:
+    - no real vendor/business rates
+    - no final bucket subtotal math
+    - no final group totals or proposal totals
+    - no PDF pricing rendering
+    - no JobTread pricing submission
+    - no unrelated UI refactor
+  - Validation:
+    - compiled successfully with:
+      - `xcodebuild -project ConstructionScopeApp.xcodeproj -scheme ConstructionScopeApp -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' -derivedDataPath /tmp/ConstructionScopeAppDerivedData CODE_SIGNING_ALLOWED=NO build`
+- Milestone 5.2.31 pricing seed / config per bucket:
+  - Extended the existing pricing foundation in [PricingProposalFoundation.swift](/Users/maxx/Documents/major-league-home-services-scope-app/construction-scope-app/Models/PricingProposalFoundation.swift) so every pricing bucket now carries a structured draft seed/config payload instead of only coarse placeholder state.
+  - Why this is the smallest safe architecture:
+    - it preserves the existing `JobScope -> proposalFoundationSnapshot` boundary
+    - it keeps draft pricing metadata in the domain/foundation layer rather than in SwiftUI
+    - it preserves the current proposal section composition behavior and JobTread integration baseline
+    - it adds useful pricing scaffolding now without locking the app to guessed business pricing
+  - Each composed pricing bucket now exposes:
+    - stable bucket ID
+    - group ID
+    - display name
+    - quantity basis label
+    - quantity source
+    - quantity seed value when derivable from current scope inputs
+    - unit label
+    - draft unit cost placeholder slot
+    - draft unit price placeholder slot
+    - draft rule/formula placeholder keys
+    - subtotal placeholder slot
+    - notes
+    - assumptions
+    - output channel hints
+    - explanation text describing how the seed was derived
+  - Useful quantity seeding now comes from the current scope where available, including:
+    - width/projection-derived area
+    - perimeter
+    - window bay count
+    - outlet count
+    - additional document count
+    - supporting artifact count
+    - parseable knee wall linear footage
+    - scoped default quantity seeds for package/allowance-style buckets where a per-scope seed is safer than leaving the bucket structurally empty
+  - The new layer still avoids overcommitting to incomplete business pricing:
+    - no real vendor pricing was hardcoded
+    - no final formulas or totals were introduced
+    - draft unit cost / price amounts remain empty slots keyed by stable placeholders
+    - allowance/manual buckets keep explicit assumptions instead of pretending a final calculation exists
+  - The internal inspector in [JobTreadDebugView.swift](/Users/maxx/Documents/major-league-home-services-scope-app/construction-scope-app/Views/JobTreadDebugView.swift) now reads and displays the new draft pricing seed/config payload directly from the foundation snapshot, including:
+    - bucket and group IDs
+    - quantity basis and seeded quantity
+    - unit cost / unit price slot keys
+    - rule and formula placeholder keys
+    - subtotal placeholder key and status
+    - notes, assumptions, and output hints
+  - Explicit deferrals for this pass:
+    - no real business/vendor pricing values
+    - no final pricing formulas or totals engine
+    - no final PDF proposal rendering changes
+    - no JobTread pricing sync submission
+    - no unrelated UI refactors
+  - Validation:
+    - compiled successfully with:
+      - `xcodebuild -project ConstructionScopeApp.xcodeproj -scheme ConstructionScopeApp -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' -derivedDataPath /tmp/ConstructionScopeAppDerivedData CODE_SIGNING_ALLOWED=NO build`
 - Milestone 5.2.30 proposal composition usefulness pass:
   - Expanded the existing foundation in [PricingProposalFoundation.swift](/Users/maxx/Documents/major-league-home-services-scope-app/construction-scope-app/Models/PricingProposalFoundation.swift) instead of introducing a second proposal model.
   - Why this is the smallest safe architecture:

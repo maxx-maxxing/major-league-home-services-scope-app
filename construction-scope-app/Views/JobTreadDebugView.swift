@@ -236,6 +236,11 @@ private struct ProposalInspectorSummary: View {
                     .multilineTextAlignment(.trailing)
             }
 
+            LabeledContent("Pricing Config") {
+                Text("\(snapshot.pricingConfiguration.id) v\(snapshot.pricingConfiguration.version)")
+                    .multilineTextAlignment(.trailing)
+            }
+
             LabeledContent("Proposal Title") {
                 Text(snapshot.proposal.proposalTitle)
                     .multilineTextAlignment(.trailing)
@@ -381,6 +386,22 @@ private struct ProposalInspectorPricingView: View {
                         .font(.caption)
                         .foregroundStyle(.secondary)
 
+                    ProposalInspectorValueRow(
+                        title: "Future Group Total",
+                        detail: group.futureTotal.placeholderKey,
+                        meta: group.futureTotal.status.rawValue
+                    )
+
+                    Text(group.futureTotal.explanation)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+
+                    if !group.futureTotal.componentSubtotalKeys.isEmpty {
+                        Text("Rolls Up: \(group.futureTotal.componentSubtotalKeys.joined(separator: ", "))")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+
                     ForEach(group.components) { component in
                         VStack(alignment: .leading, spacing: 6) {
                             HStack(alignment: .firstTextBaseline) {
@@ -416,6 +437,8 @@ private struct ProposalInspectorPricingView: View {
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
 
+                            ProposalInspectorSeedConfigView(seedConfig: component.seedConfig)
+
                             if component.mappedValues.isEmpty {
                                 Text("No mapped values.")
                                     .font(.caption)
@@ -434,6 +457,273 @@ private struct ProposalInspectorPricingView: View {
                     }
                 }
                 .padding(.vertical, 4)
+            }
+        }
+    }
+}
+
+private struct ProposalInspectorSeedConfigView: View {
+    let seedConfig: PricingBucketSeedConfig
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text("Draft Seed / Config")
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.secondary)
+
+            ProposalInspectorValueRow(
+                title: "Bucket ID",
+                detail: seedConfig.bucketID,
+                meta: "bucket_id"
+            )
+
+            ProposalInspectorValueRow(
+                title: "Group ID",
+                detail: seedConfig.groupID,
+                meta: "group_id"
+            )
+
+            ProposalInspectorValueRow(
+                title: "Display Name",
+                detail: seedConfig.displayName,
+                meta: "display_name"
+            )
+
+            ProposalInspectorValueRow(
+                title: "Quantity Basis",
+                detail: seedConfig.quantityBasisLabel ?? "Not seeded",
+                meta: seedConfig.quantitySource?.rawValue ?? "quantity_basis"
+            )
+
+            ProposalInspectorValueRow(
+                title: "Quantity Seed",
+                detail: seedConfig.quantitySeed.map {
+                    proposalInspectorNumberFormatter.string(from: NSNumber(value: $0)) ?? "\($0)"
+                } ?? "Not seeded",
+                meta: seedConfig.unitLabel ?? "quantity_seed"
+            )
+
+            ProposalInspectorValueRow(
+                title: "Draft Unit Cost Slot",
+                detail: configuredSlotDetail(
+                    placeholderKey: seedConfig.draftUnitCost.placeholderKey,
+                    amount: seedConfig.draftUnitCost.amount,
+                    unitLabel: seedConfig.unitLabel
+                ),
+                meta: seedConfig.draftUnitCost.status
+            )
+
+            ProposalInspectorValueRow(
+                title: "Draft Unit Price Slot",
+                detail: configuredSlotDetail(
+                    placeholderKey: seedConfig.draftUnitPrice.placeholderKey,
+                    amount: seedConfig.draftUnitPrice.amount,
+                    unitLabel: seedConfig.unitLabel
+                ),
+                meta: seedConfig.draftUnitPrice.status
+            )
+
+            ProposalInspectorValueRow(
+                title: "Rule Placeholder",
+                detail: seedConfig.draftRuleKey ?? "None",
+                meta: "rule_key"
+            )
+
+            ProposalInspectorValueRow(
+                title: "Formula Placeholder",
+                detail: seedConfig.draftFormulaKey ?? "None",
+                meta: "formula_key"
+            )
+
+            ProposalInspectorValueRow(
+                title: "Subtotal Placeholder",
+                detail: configuredSlotDetail(
+                    placeholderKey: seedConfig.subtotal.placeholderKey,
+                    amount: seedConfig.subtotal.amount
+                ),
+                meta: seedConfig.subtotal.status
+            )
+
+            ProposalInspectorResolvedRuleView(resolvedRule: seedConfig.resolvedRule)
+            ProposalInspectorResolvedConfigurationView(resolvedConfiguration: seedConfig.resolvedConfiguration)
+
+            Text(seedConfig.explanation)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+
+            if !seedConfig.notes.isEmpty {
+                Text("Notes: \(seedConfig.notes.joined(separator: " | "))")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
+            if !seedConfig.assumptions.isEmpty {
+                Text("Assumptions: \(seedConfig.assumptions.joined(separator: " | "))")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
+            Text("Output Hints: \(seedConfig.outputChannelHints.map(\.rawValue).joined(separator: ", "))")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
+        .padding(.vertical, 2)
+    }
+}
+
+private struct ProposalInspectorResolvedConfigurationView: View {
+    let resolvedConfiguration: ResolvedPricingConfiguration
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            ProposalInspectorValueRow(
+                title: "Pricing Config Source",
+                detail: resolvedConfiguration.profileID ?? resolvedConfiguration.snapshotID,
+                meta: resolvedConfiguration.status
+            )
+
+            if let profileTitle = resolvedConfiguration.profileTitle {
+                ProposalInspectorValueRow(
+                    title: "Config Profile",
+                    detail: profileTitle,
+                    meta: resolvedConfiguration.sourceDescription
+                )
+            }
+
+            ForEach(configuredValues) { value in
+                ProposalInspectorValueRow(
+                    title: value.title,
+                    detail: configuredValueDetail(value),
+                    meta: value.kind.rawValue
+                )
+            }
+
+            if !resolvedConfiguration.scheduleInputs.isEmpty {
+                Text("Schedule Inputs")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.secondary)
+
+                ForEach(resolvedConfiguration.scheduleInputs) { input in
+                    ProposalInspectorValueRow(
+                        title: input.title,
+                        detail: input.displayValue,
+                        meta: input.key
+                    )
+                }
+            }
+
+            if !resolvedConfiguration.notes.isEmpty {
+                Text("Config Notes: \(resolvedConfiguration.notes.joined(separator: " | "))")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+        }
+    }
+
+    private var configuredValues: [PricingConfiguredNumericValue] {
+        [
+            resolvedConfiguration.draftUnitCost,
+            resolvedConfiguration.draftUnitPrice,
+            resolvedConfiguration.allowanceAmount,
+            resolvedConfiguration.feeAmount,
+            resolvedConfiguration.markupPercent
+        ].compactMap { $0 }
+    }
+
+    private func configuredValueDetail(_ value: PricingConfiguredNumericValue) -> String {
+        let formatted = proposalInspectorCurrencyFormatter.string(from: NSNumber(value: value.amount)) ?? "\(value.amount)"
+        if value.kind == .markupPercent {
+            return "\(proposalInspectorNumberFormatter.string(from: NSNumber(value: value.amount)) ?? "\(value.amount)")%"
+        }
+
+        if let unitLabel = value.unitLabel?.nilIfBlank,
+           value.kind == .draftUnitCost || value.kind == .draftUnitPrice {
+            return "\(formatted) / \(unitLabel)"
+        }
+
+        return formatted
+    }
+}
+
+private struct ProposalInspectorResolvedRuleView: View {
+    let resolvedRule: ResolvedPricingRule
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            ProposalInspectorValueRow(
+                title: "Requested Rule",
+                detail: resolvedRule.requestedRuleKey ?? "None",
+                meta: resolvedRule.status
+            )
+
+            if let definition = resolvedRule.definition {
+                ProposalInspectorValueRow(
+                    title: "Resolved Rule ID",
+                    detail: definition.id,
+                    meta: definition.kind.rawValue
+                )
+
+                Text(definition.summary)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+
+                if let formula = definition.formula {
+                    ProposalInspectorValueRow(
+                        title: "Formula",
+                        detail: formula.title,
+                        meta: "\(formula.key) • \(formula.strategy.rawValue)"
+                    )
+
+                    Text(formula.description)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+
+                    if !formula.rateSlots.isEmpty {
+                        Text("Rate Slots: \(formula.rateSlots.map(\.slotKey).joined(separator: ", "))")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+
+                    if !formula.inputReferences.isEmpty {
+                        Text("Formula Inputs")
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(.secondary)
+
+                        ForEach(formula.inputReferences) { input in
+                            ProposalInspectorValueRow(
+                                title: input.title,
+                                detail: input.detail,
+                                meta: input.key
+                            )
+                        }
+                    }
+                }
+
+                ProposalInspectorValueRow(
+                    title: "Subtotal Derivation",
+                    detail: definition.subtotalDerivation.placeholderKey,
+                    meta: definition.subtotalDerivation.kind.rawValue
+                )
+
+                Text(definition.subtotalDerivation.status)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+
+                ProposalInspectorValueRow(
+                    title: "Future Group Rollup",
+                    detail: definition.futureGroupRollup.placeholderKey,
+                    meta: definition.futureGroupRollup.status.rawValue
+                )
+
+                Text(definition.futureGroupRollup.notes)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+
+                if !definition.notes.isEmpty {
+                    Text("Rule Notes: \(definition.notes.joined(separator: " | "))")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
             }
         }
     }
@@ -516,4 +806,31 @@ private let proposalInspectorNumberFormatter: NumberFormatter = {
     formatter.minimumFractionDigits = 0
     return formatter
 }()
+
+private let proposalInspectorCurrencyFormatter: NumberFormatter = {
+    let formatter = NumberFormatter()
+    formatter.numberStyle = .currency
+    formatter.maximumFractionDigits = 2
+    formatter.minimumFractionDigits = 2
+    return formatter
+}()
+
+private func configuredSlotDetail(
+    placeholderKey: String,
+    amount: Double?,
+    unitLabel: String? = nil
+) -> String {
+    guard let amount else { return placeholderKey }
+    let formatted = proposalInspectorCurrencyFormatter.string(from: NSNumber(value: amount)) ?? "\(amount)"
+    if let unitLabel = unitLabel?.nilIfBlank {
+        return "\(placeholderKey) = \(formatted) / \(unitLabel)"
+    }
+    return "\(placeholderKey) = \(formatted)"
+}
+
+private extension String {
+    var nilIfBlank: String? {
+        trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+}
 #endif

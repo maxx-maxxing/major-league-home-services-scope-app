@@ -218,6 +218,20 @@ Keep milestones small, testable, and reviewable.
   - Do not expand production hydration until the exact supported object and field path is verified
 - Milestone 5.2.23 – Linked Customer Ownership Stabilization
   - Preserve the existing local ownership UX work in `Views/SectionEditors.swift` and avoid broad view rewrites
+- Milestone 5.2.33 – External Pricing Configuration Foundation
+  - Add a pricing configuration source/layer separate from the pricing rule registry
+  - Key draft configuration by stable rule IDs so real business-owned pricing data can replace the embedded draft source later without redesigning the rules layer
+  - Support externally configurable draft values including unit cost, unit price, allowance/fee placeholders, markup placeholders, and future schedule inputs
+  - Wire the existing pricing rule registry and bucket resolution flow to read configured draft values from the config layer
+  - Preserve proposal composition, JobTread integration, and the current debug-only inspector workflow
+  - Expose configured draft values and subtotal-readiness state through the inspector from the domain snapshot, not from view-owned logic
+- Milestone 5.2.32 – Pricing Rule Registry Foundation
+  - Add stable pricing rule-definition types in the domain/foundation layer
+  - Resolve existing bucket `draftRuleKey` / formula placeholder metadata through a registry instead of leaving buckets as unstructured placeholders
+  - Add draft bucket subtotal derivation scaffolding that explains intended inputs and deferred rate slots without hardcoding real business/vendor pricing
+  - Add future pricing-group total scaffolding so later totals can roll up from resolved bucket subtotals without reworking proposal composition
+  - Keep the rule layer separate from raw scope capture, PDF rendering, and final JobTread sync submission
+  - Expose resolved rule/subtotal scaffolding through the internal inspector without duplicating pricing logic in SwiftUI
 - Milestone 5.2.28 – Editable Pricing / Proposal Foundation
   - Define a first app-owned master template layer that mirrors the current scope layout without moving pricing logic into Views or PDF rendering
   - Add a normalized scope-to-proposal composition mapping layer that derives:
@@ -238,6 +252,17 @@ Keep milestones small, testable, and reviewable.
   - Validate that the app still compiles cleanly and the current JobTread customer-link baseline remains intact
 - Milestone 5.2.29 – Internal Proposal Foundation Inspector
   - Add a debug-only in-app inspector that reads `JobScope.proposalFoundationSnapshot`
+ - Milestone 5.2.31 – Pricing Seed / Config per Bucket
+  - Extend the existing pricing foundation so each bucket carries a stable draft pricing seed/config payload
+  - Seed quantity basis, quantity value, unit labels, and draft pricing placeholders from the current normalized scope inputs where possible
+  - Keep bucket pricing seed/config separate from:
+    - raw scope capture
+    - proposal section composition
+    - final PDF rendering
+    - final JobTread sync submission
+  - Add rule/formula placeholder keys, subtotal placeholders, and notes/assumptions metadata without hardcoding final business/vendor pricing
+  - Upgrade the internal proposal foundation inspector to read and display the richer pricing seed/config output directly from the domain layer
+  - Preserve the current JobTread customer-link / hydration / read-only baseline and existing proposal section behavior
   - Keep the access point outside the main scope workflow by using the existing internal debug surface
   - Display the current scope's:
     - normalized proposal/pricing input snapshots

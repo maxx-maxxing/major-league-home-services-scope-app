@@ -471,6 +471,26 @@ enum PricingConfigurationValueKind: String, Codable, CaseIterable {
     case markupPercent
 }
 
+enum PricingImportedRowValueKind: String, Codable, CaseIterable {
+    case draftUnitCost
+    case draftUnitPrice
+    case allowanceAmount
+    case feeAmount
+    case markupPercent
+    case scheduleInput
+}
+
+enum PricingConfigurationSourceKind: String, Codable, CaseIterable {
+    case embeddedDraftBaseline
+    case importedJSONMerged
+    case importedJSONFallback
+}
+
+enum PricingImportIssueSeverity: String, Codable, CaseIterable {
+    case warning
+    case error
+}
+
 struct PricingConfiguredNumericValue: Codable, Hashable, Identifiable {
     let key: String
     let title: String
@@ -505,6 +525,40 @@ struct PricingScheduleInputValue: Codable, Hashable, Identifiable {
     }
 }
 
+struct ImportedPricingRow: Codable, Hashable, Identifiable {
+    let ruleID: String
+    let groupID: String?
+    let scheduleInputKey: String?
+    let valueKind: PricingImportedRowValueKind
+    let numericValue: Double?
+    let stringValue: String?
+    let title: String?
+    let unitLabel: String?
+    let notes: String?
+    let assumptions: String?
+
+    var id: String {
+        let groupPart = groupID?.nilIfBlank ?? "any_group"
+        let schedulePart = scheduleInputKey?.nilIfBlank ?? "primary"
+        return "\(ruleID):\(groupPart):\(valueKind.rawValue):\(schedulePart)"
+    }
+}
+
+struct PricingImportIssue: Codable, Hashable, Identifiable {
+    let id: String
+    let severity: PricingImportIssueSeverity
+    let rowID: String?
+    let message: String
+}
+
+struct PricingConfigurationProfileImportMetadata: Codable, Hashable {
+    let sourceKind: PricingConfigurationSourceKind
+    let sourceDescription: String
+    let importedRowCount: Int
+    let importedValueKinds: [PricingConfigurationValueKind]
+    let importedScheduleInputKeys: [String]
+}
+
 struct PricingRuleConfigurationProfile: Codable, Hashable, Identifiable {
     let id: String
     let title: String
@@ -515,13 +569,26 @@ struct PricingRuleConfigurationProfile: Codable, Hashable, Identifiable {
     let markupPercent: Double?
     let scheduleInputs: [PricingScheduleInputValue]
     let notes: [String]
+    let importMetadata: PricingConfigurationProfileImportMetadata?
+}
+
+struct PricingConfigurationImportReport: Codable, Hashable {
+    let sourceKind: PricingConfigurationSourceKind
+    let adapterID: String
+    let sourceDescription: String
+    let status: String
+    let importedRowCount: Int
+    let appliedRowCount: Int
+    let issues: [PricingImportIssue]
 }
 
 struct PricingConfigurationSnapshot: Codable, Hashable {
     let id: String
     let version: Int
+    let sourceKind: PricingConfigurationSourceKind
     let sourceDescription: String
     let profiles: [PricingRuleConfigurationProfile]
+    let importReport: PricingConfigurationImportReport?
 
     func profile(for ruleID: String) -> PricingRuleConfigurationProfile? {
         profiles.first(where: { $0.id == ruleID })
@@ -533,6 +600,8 @@ struct ResolvedPricingConfiguration: Codable, Hashable {
     let sourceDescription: String
     let profileID: String?
     let profileTitle: String?
+    let profileSourceKind: PricingConfigurationSourceKind?
+    let profileSourceDescription: String?
     let status: String
     let draftUnitCost: PricingConfiguredNumericValue?
     let draftUnitPrice: PricingConfiguredNumericValue?
@@ -541,6 +610,8 @@ struct ResolvedPricingConfiguration: Codable, Hashable {
     let markupPercent: PricingConfiguredNumericValue?
     let scheduleInputs: [PricingScheduleInputValue]
     let notes: [String]
+    let importedValueKinds: [PricingConfigurationValueKind]
+    let importedScheduleInputKeys: [String]
 }
 
 struct PricingBucketSeedConfig: Codable, Hashable {
@@ -1227,6 +1298,8 @@ enum ProposalFoundationBuilder {
                 sourceDescription: pricingConfiguration.sourceDescription,
                 profileID: nil,
                 profileTitle: nil,
+                profileSourceKind: nil,
+                profileSourceDescription: nil,
                 status: "No pricing configuration profile can resolve until the bucket resolves to a stable rule ID.",
                 draftUnitCost: nil,
                 draftUnitPrice: nil,
@@ -1234,7 +1307,9 @@ enum ProposalFoundationBuilder {
                 feeAmount: nil,
                 markupPercent: nil,
                 scheduleInputs: [],
-                notes: []
+                notes: [],
+                importedValueKinds: [],
+                importedScheduleInputKeys: []
             )
         }
 
@@ -1244,6 +1319,8 @@ enum ProposalFoundationBuilder {
                 sourceDescription: pricingConfiguration.sourceDescription,
                 profileID: nil,
                 profileTitle: nil,
+                profileSourceKind: nil,
+                profileSourceDescription: nil,
                 status: "No pricing configuration profile exists yet for \(resolvedRuleID).",
                 draftUnitCost: nil,
                 draftUnitPrice: nil,
@@ -1251,7 +1328,9 @@ enum ProposalFoundationBuilder {
                 feeAmount: nil,
                 markupPercent: nil,
                 scheduleInputs: [],
-                notes: []
+                notes: [],
+                importedValueKinds: [],
+                importedScheduleInputKeys: []
             )
         }
 
@@ -1260,7 +1339,11 @@ enum ProposalFoundationBuilder {
             sourceDescription: pricingConfiguration.sourceDescription,
             profileID: profile.id,
             profileTitle: profile.title,
-            status: "Resolved from pricing configuration snapshot \(pricingConfiguration.id).",
+            profileSourceKind: profile.importMetadata?.sourceKind ?? .embeddedDraftBaseline,
+            profileSourceDescription: profile.importMetadata?.sourceDescription ?? "Embedded draft pricing baseline.",
+            status: profile.importMetadata == nil
+                ? "Resolved from embedded pricing configuration baseline."
+                : "Resolved from imported pricing rows merged onto the embedded baseline.",
             draftUnitCost: configuredValue(
                 amount: profile.draftUnitCost,
                 key: component.draftUnitCostPlaceholderKey,
@@ -1302,7 +1385,9 @@ enum ProposalFoundationBuilder {
                 notes: "Future markup placeholder retained separately from rule definitions."
             ),
             scheduleInputs: profile.scheduleInputs,
-            notes: profile.notes
+            notes: profile.notes,
+            importedValueKinds: profile.importMetadata?.importedValueKinds ?? [],
+            importedScheduleInputKeys: profile.importMetadata?.importedScheduleInputKeys ?? []
         )
     }
 
@@ -2125,7 +2210,403 @@ private enum PricingRuleRegistry {
 
 private enum PricingConfigurationProvider {
     static func activeSnapshot() -> PricingConfigurationSnapshot {
-        .embeddedDraftBaselineV1
+        let baseline = PricingConfigurationSnapshot.embeddedDraftBaselineV1
+        return BundlePricingConfigurationImportAdapter.activeSnapshot(fallback: baseline)
+    }
+}
+
+private enum BundlePricingConfigurationImportAdapter {
+    private static let adapterID = "bundle-json-pricing-import-v1"
+    private static let resourceName = "BusinessOwnedPricingRows"
+
+    static func activeSnapshot(fallback baseline: PricingConfigurationSnapshot) -> PricingConfigurationSnapshot {
+        do {
+            let rows = try loadRows()
+            return PricingImportedConfigurationMerger.merge(
+                rows: rows,
+                onto: baseline,
+                template: .editableFoundationV1,
+                adapterID: adapterID,
+                sourceDescription: "Bundle JSON pricing import merged onto the embedded draft baseline."
+            )
+        } catch PricingImportAdapterError.missingResource {
+            return baseline.withImportReport(
+                sourceKind: .importedJSONFallback,
+                sourceDescription: "Embedded draft pricing baseline only. No bundle JSON pricing import resource was found.",
+                report: PricingConfigurationImportReport(
+                    sourceKind: .importedJSONFallback,
+                    adapterID: adapterID,
+                    sourceDescription: "Bundle JSON pricing import was not found, so the embedded draft baseline remains active.",
+                    status: "Using embedded fallback because \(resourceName).json is missing from the app bundle.",
+                    importedRowCount: 0,
+                    appliedRowCount: 0,
+                    issues: [
+                        PricingImportIssue(
+                            id: "missing-resource",
+                            severity: .warning,
+                            rowID: nil,
+                            message: "\(resourceName).json is missing from the app bundle."
+                        )
+                    ]
+                )
+            )
+        } catch PricingImportAdapterError.decodingFailed(let description) {
+            return baseline.withImportReport(
+                sourceKind: .importedJSONFallback,
+                sourceDescription: "Embedded draft pricing baseline only. Bundle JSON pricing import could not be decoded.",
+                report: PricingConfigurationImportReport(
+                    sourceKind: .importedJSONFallback,
+                    adapterID: adapterID,
+                    sourceDescription: "Bundle JSON pricing import failed to decode, so the embedded draft baseline remains active.",
+                    status: "Using embedded fallback because imported pricing JSON could not be decoded.",
+                    importedRowCount: 0,
+                    appliedRowCount: 0,
+                    issues: [
+                        PricingImportIssue(
+                            id: "decode-failed",
+                            severity: .error,
+                            rowID: nil,
+                            message: description
+                        )
+                    ]
+                )
+            )
+        } catch {
+            return baseline.withImportReport(
+                sourceKind: .importedJSONFallback,
+                sourceDescription: "Embedded draft pricing baseline only. Bundle JSON pricing import hit an unexpected error.",
+                report: PricingConfigurationImportReport(
+                    sourceKind: .importedJSONFallback,
+                    adapterID: adapterID,
+                    sourceDescription: "Bundle JSON pricing import failed unexpectedly, so the embedded draft baseline remains active.",
+                    status: "Using embedded fallback because imported pricing JSON could not be read safely.",
+                    importedRowCount: 0,
+                    appliedRowCount: 0,
+                    issues: [
+                        PricingImportIssue(
+                            id: "unexpected-error",
+                            severity: .error,
+                            rowID: nil,
+                            message: error.localizedDescription
+                        )
+                    ]
+                )
+            )
+        }
+    }
+
+    private static func loadRows() throws -> [ImportedPricingRow] {
+        guard let url = Bundle.main.url(forResource: resourceName, withExtension: "json") else {
+            throw PricingImportAdapterError.missingResource
+        }
+
+        do {
+            let data = try Data(contentsOf: url)
+            return try JSONDecoder().decode([ImportedPricingRow].self, from: data)
+        } catch let decodingError as DecodingError {
+            throw PricingImportAdapterError.decodingFailed("Failed to decode \(resourceName).json: \(decodingError.localizedDescription)")
+        } catch {
+            throw PricingImportAdapterError.decodingFailed("Failed to read \(resourceName).json: \(error.localizedDescription)")
+        }
+    }
+}
+
+private enum PricingImportAdapterError: Error {
+    case missingResource
+    case decodingFailed(String)
+}
+
+private enum PricingImportedConfigurationMerger {
+    static func merge(
+        rows: [ImportedPricingRow],
+        onto baseline: PricingConfigurationSnapshot,
+        template: ProposalTemplateDefinition,
+        adapterID: String,
+        sourceDescription: String
+    ) -> PricingConfigurationSnapshot {
+        let expectedGroupByRuleID = ruleGroupMap(template: template)
+        var profilesByRuleID = Dictionary(
+            uniqueKeysWithValues: baseline.profiles.map { ($0.id, MutablePricingRuleConfigurationProfile(profile: $0)) }
+        )
+        var issues: [PricingImportIssue] = []
+        var appliedRowCount = 0
+
+        for (index, row) in rows.enumerated() {
+            let issuePrefix = "row-\(index + 1)"
+            guard var profile = profilesByRuleID[row.ruleID] else {
+                issues.append(
+                    PricingImportIssue(
+                        id: "\(issuePrefix)-unknown-rule",
+                        severity: .warning,
+                        rowID: row.id,
+                        message: "Unknown rule ID \(row.ruleID). The row was ignored."
+                    )
+                )
+                continue
+            }
+
+            if let suppliedGroupID = row.groupID?.nilIfBlank,
+               let expectedGroupID = expectedGroupByRuleID[row.ruleID],
+               suppliedGroupID != expectedGroupID {
+                issues.append(
+                    PricingImportIssue(
+                        id: "\(issuePrefix)-group-mismatch",
+                        severity: .warning,
+                        rowID: row.id,
+                        message: "Rule \(row.ruleID) belongs to pricing group \(expectedGroupID), not \(suppliedGroupID). The row was ignored."
+                    )
+                )
+                continue
+            }
+
+            guard apply(row: row, to: &profile, issueIDPrefix: issuePrefix, issues: &issues) else {
+                continue
+            }
+
+            profilesByRuleID[row.ruleID] = profile
+            appliedRowCount += 1
+        }
+
+        let mergedProfiles = baseline.profiles.compactMap { baselineProfile in
+            profilesByRuleID[baselineProfile.id]?.resolvedProfile(sourceDescription: sourceDescription)
+        }
+
+        let sourceKind: PricingConfigurationSourceKind = appliedRowCount > 0 ? .importedJSONMerged : .importedJSONFallback
+        let sourceSummary = appliedRowCount > 0
+            ? "Bundle JSON pricing import is active. Imported rows merge onto the embedded draft baseline by stable rule ID."
+            : "Embedded draft pricing baseline remains active because no imported rows were applied."
+
+        let report = PricingConfigurationImportReport(
+            sourceKind: sourceKind,
+            adapterID: adapterID,
+            sourceDescription: sourceDescription,
+            status: importStatus(
+                importedRowCount: rows.count,
+                appliedRowCount: appliedRowCount,
+                issueCount: issues.count
+            ),
+            importedRowCount: rows.count,
+            appliedRowCount: appliedRowCount,
+            issues: issues
+        )
+
+        return PricingConfigurationSnapshot(
+            id: appliedRowCount > 0 ? "imported-business-owned-pricing-config" : baseline.id,
+            version: appliedRowCount > 0 ? baseline.version + 1 : baseline.version,
+            sourceKind: sourceKind,
+            sourceDescription: sourceSummary,
+            profiles: mergedProfiles,
+            importReport: report
+        )
+    }
+
+    private static func apply(
+        row: ImportedPricingRow,
+        to profile: inout MutablePricingRuleConfigurationProfile,
+        issueIDPrefix: String,
+        issues: inout [PricingImportIssue]
+    ) -> Bool {
+        switch row.valueKind {
+        case .draftUnitCost:
+            guard let amount = row.numericValue else {
+                issues.append(missingNumericValueIssue(prefix: issueIDPrefix, row: row))
+                return false
+            }
+            profile.draftUnitCost = amount
+            profile.importedValueKinds.insert(.draftUnitCost)
+        case .draftUnitPrice:
+            guard let amount = row.numericValue else {
+                issues.append(missingNumericValueIssue(prefix: issueIDPrefix, row: row))
+                return false
+            }
+            profile.draftUnitPrice = amount
+            profile.importedValueKinds.insert(.draftUnitPrice)
+        case .allowanceAmount:
+            guard let amount = row.numericValue else {
+                issues.append(missingNumericValueIssue(prefix: issueIDPrefix, row: row))
+                return false
+            }
+            profile.allowanceAmount = amount
+            profile.importedValueKinds.insert(.allowanceAmount)
+        case .feeAmount:
+            guard let amount = row.numericValue else {
+                issues.append(missingNumericValueIssue(prefix: issueIDPrefix, row: row))
+                return false
+            }
+            profile.feeAmount = amount
+            profile.importedValueKinds.insert(.feeAmount)
+        case .markupPercent:
+            guard let amount = row.numericValue else {
+                issues.append(missingNumericValueIssue(prefix: issueIDPrefix, row: row))
+                return false
+            }
+            profile.markupPercent = amount
+            profile.importedValueKinds.insert(.markupPercent)
+        case .scheduleInput:
+            guard let key = row.scheduleInputKey?.nilIfBlank else {
+                issues.append(
+                    PricingImportIssue(
+                        id: "\(issueIDPrefix)-missing-schedule-key",
+                        severity: .warning,
+                        rowID: row.id,
+                        message: "Schedule input rows must provide a scheduleInputKey. The row was ignored."
+                    )
+                )
+                return false
+            }
+
+            let stringValue = row.stringValue?.nilIfBlank
+            guard row.numericValue != nil || stringValue != nil else {
+                issues.append(
+                    PricingImportIssue(
+                        id: "\(issueIDPrefix)-missing-schedule-value",
+                        severity: .warning,
+                        rowID: row.id,
+                        message: "Schedule input row \(key) must provide either numericValue or stringValue. The row was ignored."
+                    )
+                )
+                return false
+            }
+
+            let existingInput = profile.scheduleInputs.first(where: { $0.key == key })
+            let mergedInput = PricingScheduleInputValue(
+                key: key,
+                title: row.title?.nilIfBlank ?? existingInput?.title ?? humanizedTitle(from: key),
+                numericValue: row.numericValue,
+                stringValue: stringValue,
+                unitLabel: row.unitLabel?.nilIfBlank ?? existingInput?.unitLabel,
+                notes: mergedNotes(row.notes, row.assumptions, existing: existingInput?.notes)
+            )
+            profile.upsertScheduleInput(mergedInput)
+            profile.importedScheduleInputKeys.insert(key)
+        }
+
+        if let notes = mergedNotes(row.notes, row.assumptions, existing: nil) {
+            profile.appendNoteIfNeeded("Imported row: \(notes)")
+        }
+
+        profile.importedRowCount += 1
+        return true
+    }
+
+    private static func missingNumericValueIssue(prefix: String, row: ImportedPricingRow) -> PricingImportIssue {
+        PricingImportIssue(
+            id: "\(prefix)-missing-numeric-value",
+            severity: .warning,
+            rowID: row.id,
+            message: "Imported row for \(row.ruleID) requires numericValue for \(row.valueKind.rawValue). The row was ignored."
+        )
+    }
+
+    private static func mergedNotes(_ notes: String?, _ assumptions: String?, existing: String?) -> String? {
+        [
+            existing?.nilIfBlank,
+            notes?.nilIfBlank,
+            assumptions?.nilIfBlank.map { "Assumption: \($0)" }
+        ]
+        .compactMap { $0 }
+        .joined(separator: " | ")
+        .nilIfBlank
+    }
+
+    private static func importStatus(importedRowCount: Int, appliedRowCount: Int, issueCount: Int) -> String {
+        if importedRowCount == 0 {
+            return "No imported pricing rows were found. Embedded draft pricing remains active."
+        }
+
+        if appliedRowCount == 0 {
+            return "Imported pricing file loaded, but no rows passed validation. Embedded draft pricing remains active."
+        }
+
+        if issueCount == 0 {
+            return "Imported pricing rows loaded successfully and merged onto the embedded draft baseline."
+        }
+
+        return "Imported pricing rows merged with validation issues. Invalid rows were skipped and embedded values remain in place where needed."
+    }
+
+    private static func humanizedTitle(from key: String) -> String {
+        key
+            .split(separator: "_")
+            .map { $0.capitalized }
+            .joined(separator: " ")
+    }
+
+    private static func ruleGroupMap(template: ProposalTemplateDefinition) -> [String: String] {
+        var map: [String: String] = [:]
+        for group in template.pricingGroups {
+            for component in group.components {
+                guard let ruleID = component.draftRuleKey?.nilIfBlank else { continue }
+                map[ruleID] = group.id
+            }
+        }
+        return map
+    }
+}
+
+private struct MutablePricingRuleConfigurationProfile {
+    let id: String
+    let title: String
+    var draftUnitCost: Double?
+    var draftUnitPrice: Double?
+    var allowanceAmount: Double?
+    var feeAmount: Double?
+    var markupPercent: Double?
+    var scheduleInputs: [PricingScheduleInputValue]
+    var notes: [String]
+    var importedRowCount: Int
+    var importedValueKinds: Set<PricingConfigurationValueKind>
+    var importedScheduleInputKeys: Set<String>
+
+    init(profile: PricingRuleConfigurationProfile) {
+        id = profile.id
+        title = profile.title
+        draftUnitCost = profile.draftUnitCost
+        draftUnitPrice = profile.draftUnitPrice
+        allowanceAmount = profile.allowanceAmount
+        feeAmount = profile.feeAmount
+        markupPercent = profile.markupPercent
+        scheduleInputs = profile.scheduleInputs
+        notes = profile.notes
+        importedRowCount = 0
+        importedValueKinds = []
+        importedScheduleInputKeys = []
+    }
+
+    mutating func upsertScheduleInput(_ input: PricingScheduleInputValue) {
+        if let index = scheduleInputs.firstIndex(where: { $0.key == input.key }) {
+            scheduleInputs[index] = input
+        } else {
+            scheduleInputs.append(input)
+        }
+    }
+
+    mutating func appendNoteIfNeeded(_ note: String) {
+        guard !notes.contains(note) else { return }
+        notes.append(note)
+    }
+
+    func resolvedProfile(sourceDescription: String) -> PricingRuleConfigurationProfile {
+        PricingRuleConfigurationProfile(
+            id: id,
+            title: title,
+            draftUnitCost: draftUnitCost,
+            draftUnitPrice: draftUnitPrice,
+            allowanceAmount: allowanceAmount,
+            feeAmount: feeAmount,
+            markupPercent: markupPercent,
+            scheduleInputs: scheduleInputs,
+            notes: notes,
+            importMetadata: importedRowCount > 0
+                ? PricingConfigurationProfileImportMetadata(
+                    sourceKind: .importedJSONMerged,
+                    sourceDescription: sourceDescription,
+                    importedRowCount: importedRowCount,
+                    importedValueKinds: importedValueKinds.sorted { $0.rawValue < $1.rawValue },
+                    importedScheduleInputKeys: importedScheduleInputKeys.sorted()
+                )
+                : nil
+        )
     }
 }
 
@@ -2133,6 +2614,7 @@ private extension PricingConfigurationSnapshot {
     static let embeddedDraftBaselineV1 = PricingConfigurationSnapshot(
         id: "embedded-draft-pricing-config",
         version: 1,
+        sourceKind: .embeddedDraftBaseline,
         sourceDescription: "Embedded draft pricing baseline. Replaceable later with imported business-owned pricing data keyed by stable rule IDs.",
         profiles: [
             profile(id: "site_review.scope_complexity", title: "Site Review Scope Complexity", feeAmount: 275, markupPercent: 18, scheduleInputs: [
@@ -2177,7 +2659,8 @@ private extension PricingConfigurationSnapshot {
             profile(id: "closeout.coordination", title: "Project Coordination and Closeout", feeAmount: 360, markupPercent: 18, scheduleInputs: [
                 PricingScheduleInputValue(key: "closeout_hours", title: "Closeout Hours", numericValue: 3, stringValue: nil, unitLabel: "hrs", notes: "Draft coordination schedule placeholder.")
             ], notes: ["Draft coordination placeholder only."])
-        ]
+        ],
+        importReport: nil
     )
 
     private static func profile(
@@ -2190,7 +2673,7 @@ private extension PricingConfigurationSnapshot {
         markupPercent: Double? = nil,
         scheduleInputs: [PricingScheduleInputValue] = [],
         notes: [String] = []
-    ) -> PricingRuleConfigurationProfile {
+        ) -> PricingRuleConfigurationProfile {
         PricingRuleConfigurationProfile(
             id: id,
             title: title,
@@ -2200,7 +2683,23 @@ private extension PricingConfigurationSnapshot {
             feeAmount: feeAmount,
             markupPercent: markupPercent,
             scheduleInputs: scheduleInputs,
-            notes: notes
+            notes: notes,
+            importMetadata: nil
+        )
+    }
+
+    func withImportReport(
+        sourceKind: PricingConfigurationSourceKind,
+        sourceDescription: String,
+        report: PricingConfigurationImportReport
+    ) -> PricingConfigurationSnapshot {
+        PricingConfigurationSnapshot(
+            id: id,
+            version: version,
+            sourceKind: sourceKind,
+            sourceDescription: sourceDescription,
+            profiles: profiles,
+            importReport: report
         )
     }
 }

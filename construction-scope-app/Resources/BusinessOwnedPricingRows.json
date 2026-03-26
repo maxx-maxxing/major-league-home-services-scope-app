@@ -1,0 +1,72 @@
+[
+  {
+    "ruleID": "structure.base_package",
+    "groupID": "base-structure",
+    "valueKind": "draftUnitCost",
+    "numericValue": 24,
+    "notes": "Sample business-owned import row. Mirrors the current draft baseline until real rates are finalized."
+  },
+  {
+    "ruleID": "structure.base_package",
+    "groupID": "base-structure",
+    "valueKind": "draftUnitPrice",
+    "numericValue": 36,
+    "notes": "Sample business-owned import row. Mirrors the current draft baseline until real rates are finalized."
+  },
+  {
+    "ruleID": "structure.base_package",
+    "groupID": "base-structure",
+    "valueKind": "scheduleInput",
+    "scheduleInputKey": "material_factor",
+    "title": "Material Factor",
+    "numericValue": 1,
+    "unitLabel": "multiplier",
+    "notes": "Example schedule input row."
+  },
+  {
+    "ruleID": "windows.system_selection",
+    "groupID": "enclosure-options",
+    "valueKind": "draftUnitCost",
+    "numericValue": 850,
+    "notes": "Sample imported per-bay cost."
+  },
+  {
+    "ruleID": "windows.system_selection",
+    "groupID": "enclosure-options",
+    "valueKind": "draftUnitPrice",
+    "numericValue": 1195,
+    "notes": "Sample imported per-bay sell price."
+  },
+  {
+    "ruleID": "windows.system_selection",
+    "groupID": "enclosure-options",
+    "valueKind": "scheduleInput",
+    "scheduleInputKey": "glass_modifier_table",
+    "title": "Glass Modifier Table",
+    "stringValue": "glass_default",
+    "notes": "Example schedule lookup key imported from JSON."
+  },
+  {
+    "ruleID": "permits.requirements",
+    "groupID": "finishes-permits-and-closeout",
+    "valueKind": "allowanceAmount",
+    "numericValue": 1650,
+    "notes": "Sample allowance row."
+  },
+  {
+    "ruleID": "permits.requirements",
+    "groupID": "finishes-permits-and-closeout",
+    "valueKind": "feeAmount",
+    "numericValue": 450,
+    "notes": "Sample permit admin fee row."
+  },
+  {
+    "ruleID": "permits.requirements",
+    "groupID": "finishes-permits-and-closeout",
+    "valueKind": "scheduleInput",
+    "scheduleInputKey": "jurisdiction_schedule",
+    "title": "Jurisdiction Schedule",
+    "stringValue": "default_jurisdiction",
+    "notes": "Example schedule key that can later come from a spreadsheet export."
+  }
+]

@@ -225,6 +225,18 @@ Keep milestones small, testable, and reviewable.
   - Wire the existing pricing rule registry and bucket resolution flow to read configured draft values from the config layer
   - Preserve proposal composition, JobTread integration, and the current debug-only inspector workflow
   - Expose configured draft values and subtotal-readiness state through the inspector from the domain snapshot, not from view-owned logic
+- Milestone 5.2.34 – Business-Owned Pricing Import Boundary
+  - Add a structured imported-pricing row model keyed by stable rule ID with optional group ID and optional schedule-input key
+  - Support a first safe machine-readable source using bundle-backed JSON so later CSV/spreadsheet exports can map into the same row model without redesigning the pricing layer
+  - Merge imported rows onto the existing embedded draft pricing snapshot so missing or partial business data safely falls back to the embedded baseline
+  - Surface import source, validation, and fallback status through the domain snapshot and debug inspector
+  - Keep the import adapter separate from raw scope capture, rule definitions, proposal composition, PDF rendering, and final JobTread sync submission
+- Milestone 5.2.35 – Business-Facing Pricing Intake Deliverable
+  - Produce a spreadsheet-first business-owned pricing intake workbook that a non-technical owner can fill out without touching app code
+  - Keep the business-facing sheet aligned to the existing stable `ruleID`, `groupID`, `valueKind`, and optional `scheduleInputKey` contract
+  - Include human-readable bucket/group names, fill instructions, optional examples, and explicit guidance for blank vs required values
+  - Add a normalization reference that shows how the completed spreadsheet maps back into the existing `ImportedPricingRow` JSON boundary without redesigning the pricing layer
+  - Preserve the current pricing rule registry, embedded baseline, JSON import adapter, debug inspector, JobTread integration baseline, and existing SwiftUI boundaries
 - Milestone 5.2.32 – Pricing Rule Registry Foundation
   - Add stable pricing rule-definition types in the domain/foundation layer
   - Resolve existing bucket `draftRuleKey` / formula placeholder metadata through a registry instead of leaving buckets as unstructured placeholders

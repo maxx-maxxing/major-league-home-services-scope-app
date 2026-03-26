@@ -241,6 +241,18 @@ private struct ProposalInspectorSummary: View {
                     .multilineTextAlignment(.trailing)
             }
 
+            LabeledContent("Config Source") {
+                Text(snapshot.pricingConfiguration.sourceKind.rawValue)
+                    .multilineTextAlignment(.trailing)
+            }
+
+            if let importReport = snapshot.pricingConfiguration.importReport {
+                LabeledContent("Import Status") {
+                    Text(importReport.status)
+                        .multilineTextAlignment(.trailing)
+                }
+            }
+
             LabeledContent("Proposal Title") {
                 Text(snapshot.proposal.proposalTitle)
                     .multilineTextAlignment(.trailing)
@@ -367,6 +379,10 @@ private struct ProposalInspectorPricingView: View {
             Label("Pricing Buckets", systemImage: "dollarsign.square")
                 .font(.headline)
 
+            if let importReport = snapshot.pricingConfiguration.importReport {
+                ProposalInspectorPricingImportReportView(importReport: importReport)
+            }
+
             ForEach(snapshot.proposal.pricingGroups) { group in
                 VStack(alignment: .leading, spacing: 8) {
                     HStack(alignment: .firstTextBaseline) {
@@ -459,6 +475,44 @@ private struct ProposalInspectorPricingView: View {
                 .padding(.vertical, 4)
             }
         }
+    }
+}
+
+private struct ProposalInspectorPricingImportReportView: View {
+    let importReport: PricingConfigurationImportReport
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text("Pricing Import Boundary")
+                .font(.subheadline.weight(.semibold))
+
+            ProposalInspectorValueRow(
+                title: "Adapter",
+                detail: importReport.adapterID,
+                meta: importReport.sourceKind.rawValue
+            )
+
+            ProposalInspectorValueRow(
+                title: "Rows",
+                detail: "\(importReport.appliedRowCount) applied / \(importReport.importedRowCount) imported",
+                meta: importReport.issues.isEmpty ? "validated" : "\(importReport.issues.count) issues"
+            )
+
+            Text(importReport.status)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+
+            if !importReport.issues.isEmpty {
+                ForEach(importReport.issues.prefix(5)) { issue in
+                    ProposalInspectorValueRow(
+                        title: issue.severity.rawValue.capitalized,
+                        detail: issue.message,
+                        meta: issue.rowID ?? "snapshot"
+                    )
+                }
+            }
+        }
+        .padding(.vertical, 4)
     }
 }
 
@@ -582,6 +636,14 @@ private struct ProposalInspectorResolvedConfigurationView: View {
                 meta: resolvedConfiguration.status
             )
 
+            if let profileSourceKind = resolvedConfiguration.profileSourceKind {
+                ProposalInspectorValueRow(
+                    title: "Profile Source",
+                    detail: profileSourceKind.rawValue,
+                    meta: resolvedConfiguration.profileSourceDescription ?? resolvedConfiguration.sourceDescription
+                )
+            }
+
             if let profileTitle = resolvedConfiguration.profileTitle {
                 ProposalInspectorValueRow(
                     title: "Config Profile",
@@ -610,6 +672,18 @@ private struct ProposalInspectorResolvedConfigurationView: View {
                         meta: input.key
                     )
                 }
+            }
+
+            if !resolvedConfiguration.importedValueKinds.isEmpty {
+                Text("Imported Value Kinds: \(resolvedConfiguration.importedValueKinds.map(\.rawValue).joined(separator: ", "))")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
+            if !resolvedConfiguration.importedScheduleInputKeys.isEmpty {
+                Text("Imported Schedule Keys: \(resolvedConfiguration.importedScheduleInputKeys.joined(separator: ", "))")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
             }
 
             if !resolvedConfiguration.notes.isEmpty {

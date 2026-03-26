@@ -32,6 +32,8 @@
 - Milestone 5.2.31: Implemented (pricing seed / config per bucket)
 - Milestone 5.2.32: Implemented (pricing rule registry foundation)
 - Milestone 5.2.33: Implemented (external pricing configuration foundation)
+- Milestone 5.2.34: Implemented (business-owned pricing import boundary)
+- Milestone 5.2.35: Implemented (business-facing pricing intake deliverable)
 - Milestone 6: Implemented (photo attachment flow + PDF photo appendix)
 - Milestone 7.1: In progress (interaction animation polish)
 - Milestone 7.2: In progress (acceptance closeout)
@@ -41,6 +43,92 @@
 - Milestone 7.5.1: In progress (documents responsiveness regression recovery)
 
 ## Decisions
+- Milestone 5.2.35 business-facing pricing intake deliverable:
+  - Added a spreadsheet-first pricing intake handoff under [Resources/PricingIntake/PricingIntake_FillSheet.csv](/Users/maxx/Documents/major-league-home-services-scope-app/construction-scope-app/Resources/PricingIntake/PricingIntake_FillSheet.csv), [Resources/PricingIntake/PricingIntake_RuleReference.csv](/Users/maxx/Documents/major-league-home-services-scope-app/construction-scope-app/Resources/PricingIntake/PricingIntake_RuleReference.csv), [Resources/PricingIntake/PricingIntakeGuide.md](/Users/maxx/Documents/major-league-home-services-scope-app/construction-scope-app/Resources/PricingIntake/PricingIntakeGuide.md), and [Resources/PricingIntake/PricingIntakeNormalization.md](/Users/maxx/Documents/major-league-home-services-scope-app/construction-scope-app/Resources/PricingIntake/PricingIntakeNormalization.md).
+  - Why this is the smallest safe deliverable:
+    - business owners usually work fastest in spreadsheet tools
+    - CSV keeps the handoff compatible with Numbers, Excel, and Google Sheets without adding parser or UI work now
+    - the machine-facing mapping remains explicitly tied to the existing `ImportedPricingRow` JSON boundary
+    - no pricing logic moved into Views and no current pricing/runtime behavior changed
+  - The fill sheet now includes one business-facing row for every currently importable config slot:
+    - stable `ruleID`
+    - stable `groupID`
+    - `valueKind`
+    - optional `scheduleInputKey`
+    - human-readable pricing group / pricing item / business label
+    - reference baseline value from the current embedded draft config
+    - dedicated business-entry columns for numeric or text values plus notes
+  - The companion rule reference sheet explains:
+    - which pricing bucket each rule controls
+    - which scope inputs activate it
+    - which config slots exist for that rule
+    - which schedule-input keys currently belong to it
+    - the current quantity basis / unit label / strategy context
+  - The normalization guide locks the future import path to the current architecture:
+    - completed spreadsheet rows normalize into the existing `ImportedPricingRow` shape
+    - only rows with a real business value should be emitted
+    - blank rows safely preserve the embedded draft baseline
+    - `scheduleInput` rows continue supporting either `numericValue` or `stringValue`
+  - Explicit deferrals for this pass:
+    - no CSV parser yet
+    - no spreadsheet import UI
+    - no automatic workbook generation
+    - no final totals engine
+    - no final PDF pricing output
+    - no final JobTread pricing sync submission
+  - Validation:
+    - deliverable files added without changing pricing runtime behavior
+    - full app build rerun after docs/template changes
+- Milestone 5.2.34 business-owned pricing import boundary:
+  - Added the first real pricing import seam directly inside [PricingProposalFoundation.swift](/Users/maxx/Documents/major-league-home-services-scope-app/construction-scope-app/Models/PricingProposalFoundation.swift) so imported business-owned values hydrate the existing configuration snapshot layer instead of bypassing it.
+  - Why this is the smallest safe architecture:
+    - rule definitions still own only formula/rule shape
+    - proposal composition still consumes one pricing configuration snapshot
+    - imported rows overlay the existing embedded snapshot by stable `ruleID`
+    - missing/invalid rows fall back safely to the embedded baseline without touching JobTread integration, scope capture, PDF rendering, or sync submission
+  - Added a normalized imported row model supporting:
+    - stable `ruleID`
+    - optional `groupID`
+    - optional `scheduleInputKey`
+    - imported `draftUnitCost`, `draftUnitPrice`, `allowanceAmount`, `feeAmount`, `markupPercent`, and `scheduleInput` rows
+    - optional imported notes/assumptions for traceability
+  - The first machine-readable source is bundle-backed JSON:
+    - file: [BusinessOwnedPricingRows.json](/Users/maxx/Documents/major-league-home-services-scope-app/construction-scope-app/Resources/BusinessOwnedPricingRows.json)
+    - reason for choosing JSON first:
+      - typed decoding is safer than an initial CSV parser
+      - it gives a stable adapter contract now
+      - future spreadsheet/CSV exports can normalize into the same imported row shape without redesigning the config layer
+  - Import behavior now works as follows:
+    - load imported rows from the bundle JSON adapter
+    - validate each row against known stable rule IDs
+    - validate optional `groupID` when supplied
+    - require numeric values for cost/price/allowance/fee/markup rows
+    - require `scheduleInputKey` plus numeric or string content for schedule-input rows
+    - upsert valid rows into rule-keyed config profiles
+    - keep untouched values and profiles from the embedded baseline
+  - Added import reporting to the domain snapshot:
+    - active config source kind (`embeddedDraftBaseline`, `importedJSONMerged`, or `importedJSONFallback`)
+    - adapter ID
+    - imported/applied row counts
+    - validation issues
+    - per-profile imported value kinds and imported schedule-input keys when a profile was overlaid by imported rows
+  - The debug inspector in [JobTreadDebugView.swift](/Users/maxx/Documents/major-league-home-services-scope-app/construction-scope-app/Views/JobTreadDebugView.swift) now shows:
+    - snapshot-level pricing import status
+    - adapter/source kind
+    - applied/imported row counts
+    - validation issues
+    - per-bucket profile source (`imported` vs `embedded`)
+    - imported value kinds and imported schedule keys when present
+  - Explicit deferrals for this pass:
+    - no polished spreadsheet import UI
+    - no CSV parser yet
+    - no editable pricing management UI
+    - no final totals engine
+    - no final PDF pricing output
+    - no final JobTread pricing sync submission
+  - Validation:
+    - compiled successfully with:
+      - `xcodebuild -project ConstructionScopeApp.xcodeproj -scheme ConstructionScopeApp -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' -derivedDataPath /tmp/ConstructionScopeAppDerivedData CODE_SIGNING_ALLOWED=NO build`
 - Milestone 5.2.33 external pricing configuration foundation:
   - Added a pricing configuration layer inside [PricingProposalFoundation.swift](/Users/maxx/Documents/major-league-home-services-scope-app/construction-scope-app/Models/PricingProposalFoundation.swift) that is separate from the pricing rule registry.
   - Why this is the smallest safe architecture:

@@ -1,13 +1,13 @@
 Read codex_context.md before making changes.
 
 Current working focus:
-Producing the first business-owned pricing intake deliverable that my brother can fill out and hand back so real pricing can be plugged into the app with minimal rework.
+Executing draft bucket subtotals from the existing pricing pipeline so imported/configured pricing data starts producing meaningful calculation output before final group totals, final proposal totals, PDF rendering, or JobTread pricing sync are added.
 
 Important constraint:
 Do not destabilize the current working JobTread customer search/select, linked-customer hydration, verified read-only ownership behavior, Documents / Attachments section, or debug inspector unless the task explicitly requires it.
 
 Current app phase:
-The JobTread-first customer linking flow is working. Proposal composition exists. Pricing buckets carry seed/config metadata. A pricing rule registry exists. An external pricing configuration foundation and first JSON import boundary now exist. The next phase is to turn that internal architecture into a real business-facing pricing intake deliverable.
+The JobTread-first customer linking flow is working. Proposal composition exists. Pricing buckets carry seed/config metadata. A pricing rule registry exists. An external pricing configuration foundation exists. Returned-sheet normalization/validation exists. The next phase is to make each pricing bucket capable of producing a draft subtotal from the existing rule/config/import pipeline.
 
 What is already true:
 - SwiftUI iPad construction scope app exists
@@ -45,19 +45,20 @@ What is already true:
 - Each pricing bucket carries structured draft seed/config metadata
 - A pricing rule registry exists
 - A separate external pricing configuration foundation exists
-- A first machine-readable JSON import boundary exists
 - Imported structured pricing rows can hydrate pricing configuration snapshots by stable rule ID while falling back safely to the embedded baseline
+- A business-facing pricing intake deliverable exists
+- Returned-sheet normalization and validation exist
+- The debug inspector can surface returned-sheet status, rule resolution, config source, and pricing seed/config details
 
 Known limitations / current truths:
 - Phone/email hydration from JobTread is still not verified from the available docs/schema and should not be assumed
 - Do not assume arbitrary uploaded PDFs can be parsed by JobTread to populate structured fields automatically
 - Not every app field will necessarily map 1:1 to a native JobTread field
-- Full real pricing and final business cost group definitions are not complete yet
 - Final polished PDF rendering is not implemented yet
 - Final structured JobTread sync submission is not implemented yet
-- Real business-owned pricing intake template/deliverable for my brother is not finished yet
-- CSV normalization/import is not implemented yet
-- Final totals engine and final proposal totals are not implemented yet
+- Final group totals and final proposal totals are not implemented yet
+- Bucket subtotals are not fully executed yet
+- Real completed business pricing has not been returned yet
 
 Current architectural direction:
 - JobTread is the source of truth for customer records
@@ -81,11 +82,11 @@ Target end-state workflow:
 1. Search/select existing JobTread customer
 2. Pull linked customer/location data into the scope
 3. Capture scope details and estimate-relevant selections in the app
-4. Collect business-owned pricing data through a structured pricing intake template
-5. Normalize that pricing data into the app’s stable imported row contract
-6. Resolve pricing rules from the structured rules/config layer
-7. Build proposal composition from structured app data
-8. Generate draft subtotals, group totals, and eventually proposal totals
+4. Collect/normalize business-owned pricing data through the structured pricing intake/import boundary
+5. Resolve pricing rules from the structured rules/config layer
+6. Execute bucket-level draft subtotals
+7. Roll up future group totals and eventually proposal totals
+8. Build proposal composition from structured app data
 9. Generate a polished customer-facing PDF proposal in-app
 10. Sync as much structured data as possible directly into JobTread where supported
 11. Upload generated PDF and related files to JobTread as attachments where appropriate
@@ -99,38 +100,44 @@ Proposal-generation guidance:
 - Proposal composition should be built from structured data, not assembled ad hoc inside the PDF renderer
 - Real pricing values should remain externally configurable and business-owned
 - Stable rule IDs and schedule-input keys are the import boundary for future spreadsheet/CSV/JSON pricing data
-- The business-facing pricing deliverable must be easy to read, easy to fill out, and clearly mappable back into the app
+- Bucket subtotals should be explainable and traceable in the debug inspector before final totals are built
 
 Immediate implementation direction:
-- Finish everything needed to hand my brother a real pricing intake deliverable
-- This pass should define:
-  - the business-facing pricing sheet/template structure
-  - the exact columns/fields he needs to fill out
-  - how those fields map back to stable rule IDs and optional schedule-input keys
-  - how blank/optional values should be handled
-  - what supporting documentation/instructions need to accompany the sheet
-- Prefer a spreadsheet-first deliverable if that is the clearest business-owned format
-- The resulting deliverable should be something I can immediately hand to my brother, have him fill out, then bring back to Codex/ChatGPT for plug-and-play incorporation
+- Build bucket subtotal execution next
+- Use the existing:
+  - rule registry
+  - bucket seed/config metadata
+  - external pricing config
+  - returned-sheet normalization/import path
+to compute draft subtotals per bucket
+- Support clear fallback/missing-input behavior when subtotal cannot be computed yet
+- Expose subtotal status and calculation trace in the debug inspector if useful
+- Keep subtotal execution separate from:
+  - raw scope capture
+  - final group-total rollups
+  - final proposal totals
+  - final PDF rendering
+  - final JobTread sync submission
+- Avoid hardcoding business logic directly in SwiftUI views or PDF rendering code
 
 Most relevant near-term domains to build:
-- pricing intake/export contract
-- business-facing pricing spreadsheet/template
-- row normalization contract
-- import validation expectations
-- rule ID / group ID reference guidance
-- business instructions / fill guide
-- future CSV normalization path
-- future subtotal/group-total derivation from imported values
+- bucket subtotal execution
+- formula strategy execution
+- missing-input handling
+- calculation trace/debug metadata
+- future group total scaffolding
+- future proposal total scaffolding
+- future PDF rendering inputs
+- future JobTread sync inputs
 
 Current priorities:
-1. Produce the business-owned pricing intake deliverable
-2. Define the exact structured row/column contract my brother will fill out
-3. Align the business-facing template with stable rule IDs and existing pricing buckets
-4. Add whatever docs/samples/templates are needed so the filled deliverable can later be plugged in with minimal friction
-5. Preserve current working customer lookup/hydration/read-only behavior
-6. Continue evolving pricing architecture without disrupting the integration baseline
-7. Avoid guessing unsupported JobTread behaviors, especially PDF-import parsing and unverified field ownership
-8. Avoid overcommitting to incomplete final totals logic before business inputs are confirmed
+1. Execute bucket-level draft subtotals from current rule/config/import data
+2. Define clear success/fallback states for subtotal execution
+3. Surface subtotal readiness and calculation trace in the debug inspector
+4. Preserve current working customer lookup/hydration/read-only behavior
+5. Continue evolving pricing architecture without disrupting the integration baseline
+6. Avoid guessing unsupported JobTread behaviors, especially PDF-import parsing and unverified field ownership
+7. Avoid overcommitting to final totals logic before business inputs are confirmed
 
 Editing rules:
 - Follow READ → PLAN → EDIT

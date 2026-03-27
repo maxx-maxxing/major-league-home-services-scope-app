@@ -34,6 +34,7 @@
 - Milestone 5.2.33: Implemented (external pricing configuration foundation)
 - Milestone 5.2.34: Implemented (business-owned pricing import boundary)
 - Milestone 5.2.35: Implemented (business-facing pricing intake deliverable)
+- Milestone 5.2.36: Implemented (returned pricing workbook normalization + validation)
 - Milestone 6: Implemented (photo attachment flow + PDF photo appendix)
 - Milestone 7.1: In progress (interaction animation polish)
 - Milestone 7.2: In progress (acceptance closeout)
@@ -43,6 +44,46 @@
 - Milestone 7.5.1: In progress (documents responsiveness regression recovery)
 
 ## Decisions
+- Milestone 5.2.36 returned pricing workbook normalization + validation:
+  - Added a returned-sheet normalization layer in [PricingProposalFoundation.swift](/Users/maxx/Documents/major-league-home-services-scope-app/construction-scope-app/Models/PricingProposalFoundation.swift) that sits in front of the existing `ImportedPricingRow` import boundary instead of replacing it.
+  - Why this is the smallest safe architecture:
+    - the downstream pricing config hydration seam stays `ImportedPricingRow`-based
+    - the embedded draft snapshot remains the safe fallback/default
+    - workbook return-path logic is isolated from proposal composition, SwiftUI Views, PDF rendering, and JobTread sync work
+    - later CSV/XLSX parsing can target the same returned-sheet row contract without redesigning the pricing layer
+  - Added a typed returned-sheet row model matching the business-facing fill-sheet columns, plus a first supported structured return resource at [ReturnedPricingSheetRows.json](/Users/maxx/Documents/major-league-home-services-scope-app/construction-scope-app/Resources/ReturnedPricingSheetRows.json).
+  - The provider now resolves pricing sources in this order:
+    - returned-sheet JSON normalization path when `ReturnedPricingSheetRows.json` exists
+    - existing direct `ImportedPricingRow` JSON fallback from [BusinessOwnedPricingRows.json](/Users/maxx/Documents/major-league-home-services-scope-app/construction-scope-app/Resources/BusinessOwnedPricingRows.json)
+    - embedded draft baseline when neither path yields trusted rows
+  - Returned-sheet normalization now handles and reports:
+    - missing `ruleID`
+    - unknown `ruleID`
+    - mismatched `groupID`
+    - invalid or missing numeric values
+    - conflicting filled numeric/text values
+    - duplicate rows for the same normalized pricing slot
+    - conflicting duplicate rows
+    - intentionally skipped / not-ready rows
+  - Merge behavior is now hardened for both return paths:
+    - duplicate imported rows no longer silently overwrite each other
+    - conflicting duplicates are ignored so ambiguous business pricing cannot override the baseline
+    - valid normalized/imported rows still merge onto the embedded draft snapshot by stable rule ID
+  - The debug inspector in [JobTreadDebugView.swift](/Users/maxx/Documents/major-league-home-services-scope-app/construction-scope-app/Views/JobTreadDebugView.swift) now shows:
+    - returned-sheet normalization counts
+    - skipped / not-ready row counts
+    - issue stage (`adapter`, `normalization`, `merge`)
+    - active pricing source/report context for the currently composed scope
+  - Updated [Resources/PricingIntake/PricingIntakeNormalization.md](/Users/maxx/Documents/major-league-home-services-scope-app/construction-scope-app/Resources/PricingIntake/PricingIntakeNormalization.md) so the documented return workflow matches the implemented path.
+  - Explicit deferrals for this pass:
+    - no polished spreadsheet import UI
+    - no XLSX parser yet
+    - no automatic CSV ingestion yet
+    - no final PDF pricing rendering
+    - no final JobTread pricing sync submission
+  - Validation:
+    - compiled successfully with:
+      - `xcodebuild -project ConstructionScopeApp.xcodeproj -scheme ConstructionScopeApp -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' -derivedDataPath /tmp/ConstructionScopeAppDerivedData CODE_SIGNING_ALLOWED=NO build`
 - Milestone 5.2.35 business-facing pricing intake deliverable:
   - Added a spreadsheet-first pricing intake handoff under [Resources/PricingIntake/PricingIntake_FillSheet.csv](/Users/maxx/Documents/major-league-home-services-scope-app/construction-scope-app/Resources/PricingIntake/PricingIntake_FillSheet.csv), [Resources/PricingIntake/PricingIntake_RuleReference.csv](/Users/maxx/Documents/major-league-home-services-scope-app/construction-scope-app/Resources/PricingIntake/PricingIntake_RuleReference.csv), [Resources/PricingIntake/PricingIntakeGuide.md](/Users/maxx/Documents/major-league-home-services-scope-app/construction-scope-app/Resources/PricingIntake/PricingIntakeGuide.md), and [Resources/PricingIntake/PricingIntakeNormalization.md](/Users/maxx/Documents/major-league-home-services-scope-app/construction-scope-app/Resources/PricingIntake/PricingIntakeNormalization.md).
   - Why this is the smallest safe deliverable:

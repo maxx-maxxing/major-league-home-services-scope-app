@@ -237,6 +237,20 @@ Keep milestones small, testable, and reviewable.
   - Include human-readable bucket/group names, fill instructions, optional examples, and explicit guidance for blank vs required values
   - Add a normalization reference that shows how the completed spreadsheet maps back into the existing `ImportedPricingRow` JSON boundary without redesigning the pricing layer
   - Preserve the current pricing rule registry, embedded baseline, JSON import adapter, debug inspector, JobTread integration baseline, and existing SwiftUI boundaries
+- Milestone 5.2.36 – Returned Pricing Workbook Normalization + Validation
+  - Add a typed returned-sheet row model that mirrors the business-facing fill-sheet columns without committing to a final XLSX parser yet
+  - Normalize returned-sheet rows into the existing `ImportedPricingRow` contract so the downstream config hydration seam stays unchanged
+  - Validate common return-path issues before rows affect pricing configuration:
+    - missing `ruleID`
+    - unknown `ruleID`
+    - duplicate rows for the same normalized import key
+    - invalid numeric values
+    - conflicting duplicate values
+    - intentionally skipped / not-ready rows
+  - Keep the embedded pricing snapshot as the safe baseline and merge only validated normalized rows
+  - Surface the active pricing source plus returned-sheet normalization / validation status through the domain snapshot and debug inspector
+  - Keep workbook normalization, imported-row merge logic, proposal composition, and SwiftUI inspector rendering clearly separated
+  - Defer polished import UI, XLSX parsing, final PDF pricing rendering, and final JobTread pricing sync submission
 - Milestone 5.2.32 – Pricing Rule Registry Foundation
   - Add stable pricing rule-definition types in the domain/foundation layer
   - Resolve existing bucket `draftRuleKey` / formula placeholder metadata through a registry instead of leaving buckets as unstructured placeholders

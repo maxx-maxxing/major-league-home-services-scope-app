@@ -22,6 +22,7 @@
 		JT0000010000000000000002 /* JobTreadClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = JT0000010000000000000012 /* JobTreadClient.swift */; };
 		JT0000010000000000000003 /* JobTreadDebugView.swift in Sources */ = {isa = PBXBuildFile; fileRef = JT0000010000000000000013 /* JobTreadDebugView.swift */; };
 		PR0000010000000000000001 /* BusinessOwnedPricingRows.json in Resources */ = {isa = PBXBuildFile; fileRef = PR0000010000000000000011 /* BusinessOwnedPricingRows.json */; };
+		PR0000010000000000000002 /* ReturnedPricingSheetRows.json in Resources */ = {isa = PBXBuildFile; fileRef = PR0000010000000000000012 /* ReturnedPricingSheetRows.json */; };
 		DB90FC9F2F6976C300A6516A /* JobTreadSecrets.xcconfig in Resources */ = {isa = PBXBuildFile; fileRef = DB90FC9D2F6976C300A6516A /* JobTreadSecrets.xcconfig */; };
 /* End PBXBuildFile section */
 
@@ -42,6 +43,7 @@
 		JT0000010000000000000012 /* JobTreadClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JobTreadClient.swift; sourceTree = "<group>"; };
 		JT0000010000000000000013 /* JobTreadDebugView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JobTreadDebugView.swift; sourceTree = "<group>"; };
 		PR0000010000000000000011 /* BusinessOwnedPricingRows.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = BusinessOwnedPricingRows.json; sourceTree = "<group>"; };
+		PR0000010000000000000012 /* ReturnedPricingSheetRows.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = ReturnedPricingSheetRows.json; sourceTree = "<group>"; };
 		DB90FC9D2F6976C300A6516A /* JobTreadSecrets.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = JobTreadSecrets.xcconfig; sourceTree = "<group>"; };
 		DB90FCA02F697B0800A6516A /* ConstructionScopeApp-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = "ConstructionScopeApp-Info.plist"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -149,6 +151,7 @@
 			isa = PBXGroup;
 			children = (
 				PR0000010000000000000011 /* BusinessOwnedPricingRows.json */,
+				PR0000010000000000000012 /* ReturnedPricingSheetRows.json */,
 			);
 			path = Resources;
 			sourceTree = "<group>";
@@ -227,6 +230,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				PR0000010000000000000001 /* BusinessOwnedPricingRows.json in Resources */,
+				PR0000010000000000000002 /* ReturnedPricingSheetRows.json in Resources */,
 				DB90FC9F2F6976C300A6516A /* JobTreadSecrets.xcconfig in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

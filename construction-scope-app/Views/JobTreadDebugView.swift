@@ -498,6 +498,18 @@ private struct ProposalInspectorPricingImportReportView: View {
                 meta: importReport.issues.isEmpty ? "validated" : "\(importReport.issues.count) issues"
             )
 
+            if let normalizationReport = importReport.normalizationReport {
+                ProposalInspectorValueRow(
+                    title: "Returned Sheet",
+                    detail: "\(normalizationReport.normalizedRowCount) normalized / \(normalizationReport.sourceRowCount) source",
+                    meta: "\(normalizationReport.skippedRowCount) skipped • \(normalizationReport.notReadyRowCount) not ready"
+                )
+
+                Text(normalizationReport.status)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
             Text(importReport.status)
                 .font(.caption)
                 .foregroundStyle(.secondary)
@@ -507,12 +519,19 @@ private struct ProposalInspectorPricingImportReportView: View {
                     ProposalInspectorValueRow(
                         title: issue.severity.rawValue.capitalized,
                         detail: issue.message,
-                        meta: issue.rowID ?? "snapshot"
+                        meta: issueMeta(issue)
                     )
                 }
             }
         }
         .padding(.vertical, 4)
+    }
+
+    private func issueMeta(_ issue: PricingImportIssue) -> String {
+        if let rowID = issue.rowID {
+            return "\(issue.stage.rawValue) • \(rowID)"
+        }
+        return issue.stage.rawValue
     }
 }
 

@@ -482,6 +482,8 @@ enum PricingImportedRowValueKind: String, Codable, CaseIterable {
 
 enum PricingConfigurationSourceKind: String, Codable, CaseIterable {
     case embeddedDraftBaseline
+    case returnedSheetNormalizedMerged
+    case returnedSheetNormalizedFallback
     case importedJSONMerged
     case importedJSONFallback
 }
@@ -489,6 +491,12 @@ enum PricingConfigurationSourceKind: String, Codable, CaseIterable {
 enum PricingImportIssueSeverity: String, Codable, CaseIterable {
     case warning
     case error
+}
+
+enum PricingImportIssueStage: String, Codable, CaseIterable {
+    case adapter
+    case normalization
+    case merge
 }
 
 struct PricingConfiguredNumericValue: Codable, Hashable, Identifiable {
@@ -544,11 +552,49 @@ struct ImportedPricingRow: Codable, Hashable, Identifiable {
     }
 }
 
+struct ReturnedPricingSheetRow: Codable, Hashable, Identifiable {
+    let fillStatus: String?
+    let pricingGroupTitle: String?
+    let pricingItemTitle: String?
+    let businessLabel: String?
+    let whatToEnter: String?
+    let ruleID: String?
+    let groupID: String?
+    let valueKind: String?
+    let scheduleInputKey: String?
+    let expectedValueType: String?
+    let unitLabel: String?
+    let currentDraftBaseline: String?
+    let businessNumericValue: String?
+    let businessTextValue: String?
+    let businessNotes: String?
+
+    var id: String {
+        [
+            ruleID?.nilIfBlank ?? "missing_rule",
+            groupID?.nilIfBlank ?? "missing_group",
+            valueKind?.nilIfBlank ?? "missing_value_kind",
+            scheduleInputKey?.nilIfBlank ?? businessLabel?.nilIfBlank ?? "row"
+        ]
+        .joined(separator: ":")
+    }
+}
+
 struct PricingImportIssue: Codable, Hashable, Identifiable {
     let id: String
     let severity: PricingImportIssueSeverity
+    let stage: PricingImportIssueStage
     let rowID: String?
     let message: String
+}
+
+struct PricingReturnedSheetNormalizationReport: Codable, Hashable {
+    let sourceRowCount: Int
+    let normalizedRowCount: Int
+    let skippedRowCount: Int
+    let intentionallySkippedRowCount: Int
+    let notReadyRowCount: Int
+    let status: String
 }
 
 struct PricingConfigurationProfileImportMetadata: Codable, Hashable {
@@ -579,6 +625,7 @@ struct PricingConfigurationImportReport: Codable, Hashable {
     let status: String
     let importedRowCount: Int
     let appliedRowCount: Int
+    let normalizationReport: PricingReturnedSheetNormalizationReport?
     let issues: [PricingImportIssue]
 }
 
@@ -2211,7 +2258,88 @@ private enum PricingRuleRegistry {
 private enum PricingConfigurationProvider {
     static func activeSnapshot() -> PricingConfigurationSnapshot {
         let baseline = PricingConfigurationSnapshot.embeddedDraftBaselineV1
+        if let returnedSheetSnapshot = ReturnedPricingSheetImportAdapter.activeSnapshot(fallback: baseline) {
+            return returnedSheetSnapshot
+        }
         return BundlePricingConfigurationImportAdapter.activeSnapshot(fallback: baseline)
+    }
+}
+
+private enum ReturnedPricingSheetImportAdapter {
+    private static let adapterID = "returned-sheet-json-normalizer-v1"
+    private static let resourceName = "ReturnedPricingSheetRows"
+
+    static func activeSnapshot(fallback baseline: PricingConfigurationSnapshot) -> PricingConfigurationSnapshot? {
+        guard let url = Bundle.main.url(forResource: resourceName, withExtension: "json") else {
+            return nil
+        }
+
+        do {
+            let data = try Data(contentsOf: url)
+            let rows = try JSONDecoder().decode([ReturnedPricingSheetRow].self, from: data)
+            let normalizationResult = PricingReturnedSheetRowNormalizer.normalize(
+                rows: rows,
+                template: .editableFoundationV1
+            )
+
+            return PricingImportedConfigurationMerger.merge(
+                rows: normalizationResult.rows,
+                onto: baseline,
+                template: .editableFoundationV1,
+                adapterID: adapterID,
+                sourceDescription: "Returned pricing sheet rows normalized and merged onto the embedded draft baseline.",
+                mergedSourceKind: .returnedSheetNormalizedMerged,
+                fallbackSourceKind: .returnedSheetNormalizedFallback,
+                additionalIssues: normalizationResult.issues,
+                normalizationReport: normalizationResult.report
+            )
+        } catch let decodingError as DecodingError {
+            return baseline.withImportReport(
+                sourceKind: .returnedSheetNormalizedFallback,
+                sourceDescription: "Embedded draft pricing baseline only. Returned pricing sheet rows could not be decoded.",
+                report: PricingConfigurationImportReport(
+                    sourceKind: .returnedSheetNormalizedFallback,
+                    adapterID: adapterID,
+                    sourceDescription: "Returned pricing sheet normalization failed to decode, so the embedded draft baseline remains active.",
+                    status: "Using embedded fallback because returned pricing sheet JSON could not be decoded.",
+                    importedRowCount: 0,
+                    appliedRowCount: 0,
+                    normalizationReport: nil,
+                    issues: [
+                        PricingImportIssue(
+                            id: "returned-sheet-decode-failed",
+                            severity: .error,
+                            stage: .adapter,
+                            rowID: nil,
+                            message: "Failed to decode \(resourceName).json: \(decodingError.localizedDescription)"
+                        )
+                    ]
+                )
+            )
+        } catch {
+            return baseline.withImportReport(
+                sourceKind: .returnedSheetNormalizedFallback,
+                sourceDescription: "Embedded draft pricing baseline only. Returned pricing sheet rows hit an unexpected error.",
+                report: PricingConfigurationImportReport(
+                    sourceKind: .returnedSheetNormalizedFallback,
+                    adapterID: adapterID,
+                    sourceDescription: "Returned pricing sheet normalization failed unexpectedly, so the embedded draft baseline remains active.",
+                    status: "Using embedded fallback because returned pricing sheet JSON could not be read safely.",
+                    importedRowCount: 0,
+                    appliedRowCount: 0,
+                    normalizationReport: nil,
+                    issues: [
+                        PricingImportIssue(
+                            id: "returned-sheet-unexpected-error",
+                            severity: .error,
+                            stage: .adapter,
+                            rowID: nil,
+                            message: error.localizedDescription
+                        )
+                    ]
+                )
+            )
+        }
     }
 }
 
@@ -2227,7 +2355,11 @@ private enum BundlePricingConfigurationImportAdapter {
                 onto: baseline,
                 template: .editableFoundationV1,
                 adapterID: adapterID,
-                sourceDescription: "Bundle JSON pricing import merged onto the embedded draft baseline."
+                sourceDescription: "Bundle JSON pricing import merged onto the embedded draft baseline.",
+                mergedSourceKind: .importedJSONMerged,
+                fallbackSourceKind: .importedJSONFallback,
+                additionalIssues: [],
+                normalizationReport: nil
             )
         } catch PricingImportAdapterError.missingResource {
             return baseline.withImportReport(
@@ -2240,10 +2372,12 @@ private enum BundlePricingConfigurationImportAdapter {
                     status: "Using embedded fallback because \(resourceName).json is missing from the app bundle.",
                     importedRowCount: 0,
                     appliedRowCount: 0,
+                    normalizationReport: nil,
                     issues: [
                         PricingImportIssue(
                             id: "missing-resource",
                             severity: .warning,
+                            stage: .adapter,
                             rowID: nil,
                             message: "\(resourceName).json is missing from the app bundle."
                         )
@@ -2261,10 +2395,12 @@ private enum BundlePricingConfigurationImportAdapter {
                     status: "Using embedded fallback because imported pricing JSON could not be decoded.",
                     importedRowCount: 0,
                     appliedRowCount: 0,
+                    normalizationReport: nil,
                     issues: [
                         PricingImportIssue(
                             id: "decode-failed",
                             severity: .error,
+                            stage: .adapter,
                             rowID: nil,
                             message: description
                         )
@@ -2282,10 +2418,12 @@ private enum BundlePricingConfigurationImportAdapter {
                     status: "Using embedded fallback because imported pricing JSON could not be read safely.",
                     importedRowCount: 0,
                     appliedRowCount: 0,
+                    normalizationReport: nil,
                     issues: [
                         PricingImportIssue(
                             id: "unexpected-error",
                             severity: .error,
+                            stage: .adapter,
                             rowID: nil,
                             message: error.localizedDescription
                         )
@@ -2316,28 +2454,361 @@ private enum PricingImportAdapterError: Error {
     case decodingFailed(String)
 }
 
+private struct PricingReturnedSheetNormalizationResult {
+    let rows: [ImportedPricingRow]
+    let issues: [PricingImportIssue]
+    let report: PricingReturnedSheetNormalizationReport
+}
+
+private enum PricingReturnedSheetRowNormalizer {
+    static func normalize(
+        rows: [ReturnedPricingSheetRow],
+        template: ProposalTemplateDefinition
+    ) -> PricingReturnedSheetNormalizationResult {
+        let expectedGroupByRuleID = PricingImportedConfigurationMerger.ruleGroupMap(template: template)
+        var candidatesByRowID: [String: [ImportedPricingRow]] = [:]
+        var issues: [PricingImportIssue] = []
+        var skippedRowCount = 0
+        var intentionallySkippedRowCount = 0
+        var notReadyRowCount = 0
+
+        for (index, row) in rows.enumerated() {
+            let issuePrefix = "returned-row-\(index + 1)"
+            let fillStatus = row.fillStatus?.nilIfBlank?.uppercased()
+            let numericEntry = row.businessNumericValue?.nilIfBlank
+            let textEntry = row.businessTextValue?.nilIfBlank
+            let hasBusinessValue = numericEntry != nil || textEntry != nil
+
+            if fillStatus == "SKIP" {
+                intentionallySkippedRowCount += 1
+                skippedRowCount += 1
+
+                if hasBusinessValue {
+                    issues.append(
+                        PricingImportIssue(
+                            id: "\(issuePrefix)-skip-with-value",
+                            severity: .warning,
+                            stage: .normalization,
+                            rowID: row.id,
+                            message: "Row marked SKIP still contains a business value. The row was ignored."
+                        )
+                    )
+                }
+                continue
+            }
+
+            if !hasBusinessValue {
+                skippedRowCount += 1
+                if fillStatus == "TODO" || fillStatus == "HOLD" || fillStatus == "NOT_READY" {
+                    notReadyRowCount += 1
+                }
+                continue
+            }
+
+            guard let ruleID = row.ruleID?.nilIfBlank else {
+                issues.append(
+                    PricingImportIssue(
+                        id: "\(issuePrefix)-missing-rule-id",
+                        severity: .error,
+                        stage: .normalization,
+                        rowID: row.id,
+                        message: "Returned sheet row is missing ruleID. The row was ignored."
+                    )
+                )
+                continue
+            }
+
+            guard expectedGroupByRuleID[ruleID] != nil else {
+                issues.append(
+                    PricingImportIssue(
+                        id: "\(issuePrefix)-unknown-rule-id",
+                        severity: .warning,
+                        stage: .normalization,
+                        rowID: row.id,
+                        message: "Returned sheet row references unknown rule ID \(ruleID). The row was ignored."
+                    )
+                )
+                continue
+            }
+
+            guard let valueKindRawValue = row.valueKind?.nilIfBlank,
+                  let valueKind = PricingImportedRowValueKind(rawValue: valueKindRawValue) else {
+                issues.append(
+                    PricingImportIssue(
+                        id: "\(issuePrefix)-invalid-value-kind",
+                        severity: .warning,
+                        stage: .normalization,
+                        rowID: row.id,
+                        message: "Returned sheet row for \(ruleID) does not provide a supported valueKind. The row was ignored."
+                    )
+                )
+                continue
+            }
+
+            if numericEntry != nil && textEntry != nil {
+                issues.append(
+                    PricingImportIssue(
+                        id: "\(issuePrefix)-conflicting-filled-values",
+                        severity: .error,
+                        stage: .normalization,
+                        rowID: row.id,
+                        message: "Returned sheet row for \(ruleID) contains both businessNumericValue and businessTextValue. The row was ignored."
+                    )
+                )
+                continue
+            }
+
+            if let suppliedGroupID = row.groupID?.nilIfBlank,
+               let expectedGroupID = expectedGroupByRuleID[ruleID],
+               suppliedGroupID != expectedGroupID {
+                issues.append(
+                    PricingImportIssue(
+                        id: "\(issuePrefix)-group-mismatch",
+                        severity: .warning,
+                        stage: .normalization,
+                        rowID: row.id,
+                        message: "Returned sheet row for \(ruleID) supplied pricing group \(suppliedGroupID), but the registry expects \(expectedGroupID). The row was ignored."
+                    )
+                )
+                continue
+            }
+
+            guard let normalizedRow = normalizedImportedRow(
+                from: row,
+                ruleID: ruleID,
+                valueKind: valueKind,
+                issuePrefix: issuePrefix,
+                issues: &issues
+            ) else {
+                continue
+            }
+
+            candidatesByRowID[normalizedRow.id, default: []].append(normalizedRow)
+        }
+
+        let duplicateResolution = PricingImportedConfigurationMerger.deduplicatedRows(
+            candidatesByRowID: candidatesByRowID,
+            stage: .normalization
+        )
+        issues.append(contentsOf: duplicateResolution.issues)
+
+        let normalizedRowCount = duplicateResolution.rows.count
+        let report = PricingReturnedSheetNormalizationReport(
+            sourceRowCount: rows.count,
+            normalizedRowCount: normalizedRowCount,
+            skippedRowCount: skippedRowCount,
+            intentionallySkippedRowCount: intentionallySkippedRowCount,
+            notReadyRowCount: notReadyRowCount,
+            status: normalizationStatus(
+                sourceRowCount: rows.count,
+                normalizedRowCount: normalizedRowCount,
+                skippedRowCount: skippedRowCount,
+                notReadyRowCount: notReadyRowCount,
+                issueCount: issues.count
+            )
+        )
+
+        return PricingReturnedSheetNormalizationResult(
+            rows: duplicateResolution.rows,
+            issues: issues.sorted { $0.id < $1.id },
+            report: report
+        )
+    }
+
+    private static func normalizedImportedRow(
+        from row: ReturnedPricingSheetRow,
+        ruleID: String,
+        valueKind: PricingImportedRowValueKind,
+        issuePrefix: String,
+        issues: inout [PricingImportIssue]
+    ) -> ImportedPricingRow? {
+        let numericEntry = row.businessNumericValue?.nilIfBlank
+        let textEntry = row.businessTextValue?.nilIfBlank
+
+        switch valueKind {
+        case .draftUnitCost, .draftUnitPrice, .allowanceAmount, .feeAmount, .markupPercent:
+            guard let numericEntry else {
+                issues.append(
+                    PricingImportIssue(
+                        id: "\(issuePrefix)-missing-numeric-value",
+                        severity: .warning,
+                        stage: .normalization,
+                        rowID: row.id,
+                        message: "Returned sheet row for \(ruleID) requires a numeric business value for \(valueKind.rawValue). The row was ignored."
+                    )
+                )
+                return nil
+            }
+
+            guard let numericValue = parsedNumericValue(from: numericEntry) else {
+                issues.append(
+                    PricingImportIssue(
+                        id: "\(issuePrefix)-invalid-numeric-value",
+                        severity: .warning,
+                        stage: .normalization,
+                        rowID: row.id,
+                        message: "Returned sheet row for \(ruleID) contains an invalid numeric value '\(numericEntry)' for \(valueKind.rawValue). The row was ignored."
+                    )
+                )
+                return nil
+            }
+
+            return ImportedPricingRow(
+                ruleID: ruleID,
+                groupID: row.groupID?.nilIfBlank,
+                scheduleInputKey: nil,
+                valueKind: valueKind,
+                numericValue: numericValue,
+                stringValue: nil,
+                title: nil,
+                unitLabel: row.unitLabel?.nilIfBlank,
+                notes: row.businessNotes?.nilIfBlank,
+                assumptions: nil
+            )
+
+        case .scheduleInput:
+            guard let scheduleInputKey = row.scheduleInputKey?.nilIfBlank else {
+                issues.append(
+                    PricingImportIssue(
+                        id: "\(issuePrefix)-missing-schedule-input-key",
+                        severity: .warning,
+                        stage: .normalization,
+                        rowID: row.id,
+                        message: "Returned sheet scheduleInput row for \(ruleID) is missing scheduleInputKey. The row was ignored."
+                    )
+                )
+                return nil
+            }
+
+            if let numericEntry {
+                guard let numericValue = parsedNumericValue(from: numericEntry) else {
+                    issues.append(
+                        PricingImportIssue(
+                            id: "\(issuePrefix)-invalid-schedule-numeric-value",
+                            severity: .warning,
+                            stage: .normalization,
+                            rowID: row.id,
+                            message: "Returned sheet scheduleInput row for \(ruleID) contains an invalid numeric value '\(numericEntry)'. The row was ignored."
+                        )
+                    )
+                    return nil
+                }
+
+                return ImportedPricingRow(
+                    ruleID: ruleID,
+                    groupID: row.groupID?.nilIfBlank,
+                    scheduleInputKey: scheduleInputKey,
+                    valueKind: .scheduleInput,
+                    numericValue: numericValue,
+                    stringValue: nil,
+                    title: row.businessLabel?.nilIfBlank,
+                    unitLabel: row.unitLabel?.nilIfBlank,
+                    notes: row.businessNotes?.nilIfBlank,
+                    assumptions: nil
+                )
+            }
+
+            guard let stringValue = textEntry else {
+                issues.append(
+                    PricingImportIssue(
+                        id: "\(issuePrefix)-missing-schedule-value",
+                        severity: .warning,
+                        stage: .normalization,
+                        rowID: row.id,
+                        message: "Returned sheet scheduleInput row for \(ruleID) must provide either businessNumericValue or businessTextValue. The row was ignored."
+                    )
+                )
+                return nil
+            }
+
+            return ImportedPricingRow(
+                ruleID: ruleID,
+                groupID: row.groupID?.nilIfBlank,
+                scheduleInputKey: scheduleInputKey,
+                valueKind: .scheduleInput,
+                numericValue: nil,
+                stringValue: stringValue,
+                title: row.businessLabel?.nilIfBlank,
+                unitLabel: row.unitLabel?.nilIfBlank,
+                notes: row.businessNotes?.nilIfBlank,
+                assumptions: nil
+            )
+        }
+    }
+
+    private static func normalizationStatus(
+        sourceRowCount: Int,
+        normalizedRowCount: Int,
+        skippedRowCount: Int,
+        notReadyRowCount: Int,
+        issueCount: Int
+    ) -> String {
+        guard sourceRowCount > 0 else {
+            return "No returned pricing sheet rows were supplied."
+        }
+
+        var parts = ["\(normalizedRowCount) row(s) normalized from \(sourceRowCount) returned sheet row(s)."]
+        if skippedRowCount > 0 {
+            parts.append("\(skippedRowCount) row(s) skipped.")
+        }
+        if notReadyRowCount > 0 {
+            parts.append("\(notReadyRowCount) row(s) were marked TODO/HOLD/NOT_READY with no business value.")
+        }
+        if issueCount > 0 {
+            parts.append("\(issueCount) validation issue(s) were reported.")
+        }
+        return parts.joined(separator: " ")
+    }
+
+    private static func parsedNumericValue(from entry: String) -> Double? {
+        let trimmed = entry.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return nil }
+
+        let isNegative = trimmed.hasPrefix("(") && trimmed.hasSuffix(")")
+        let sanitized = trimmed
+            .replacingOccurrences(of: "(", with: "")
+            .replacingOccurrences(of: ")", with: "")
+            .replacingOccurrences(of: "$", with: "")
+            .replacingOccurrences(of: ",", with: "")
+            .replacingOccurrences(of: "%", with: "")
+            .replacingOccurrences(of: " ", with: "")
+
+        guard let value = Double(sanitized) else { return nil }
+        return isNegative ? (value * -1) : value
+    }
+}
+
 private enum PricingImportedConfigurationMerger {
     static func merge(
         rows: [ImportedPricingRow],
         onto baseline: PricingConfigurationSnapshot,
         template: ProposalTemplateDefinition,
         adapterID: String,
-        sourceDescription: String
+        sourceDescription: String,
+        mergedSourceKind: PricingConfigurationSourceKind,
+        fallbackSourceKind: PricingConfigurationSourceKind,
+        additionalIssues: [PricingImportIssue],
+        normalizationReport: PricingReturnedSheetNormalizationReport?
     ) -> PricingConfigurationSnapshot {
         let expectedGroupByRuleID = ruleGroupMap(template: template)
         var profilesByRuleID = Dictionary(
             uniqueKeysWithValues: baseline.profiles.map { ($0.id, MutablePricingRuleConfigurationProfile(profile: $0)) }
         )
-        var issues: [PricingImportIssue] = []
+        let deduplicated = deduplicatedRows(
+            candidatesByRowID: Dictionary(grouping: rows, by: \.id),
+            stage: .merge
+        )
+        var issues: [PricingImportIssue] = additionalIssues + deduplicated.issues
         var appliedRowCount = 0
 
-        for (index, row) in rows.enumerated() {
+        for (index, row) in deduplicated.rows.enumerated() {
             let issuePrefix = "row-\(index + 1)"
             guard var profile = profilesByRuleID[row.ruleID] else {
                 issues.append(
                     PricingImportIssue(
                         id: "\(issuePrefix)-unknown-rule",
                         severity: .warning,
+                        stage: .merge,
                         rowID: row.id,
                         message: "Unknown rule ID \(row.ruleID). The row was ignored."
                     )
@@ -2352,6 +2823,7 @@ private enum PricingImportedConfigurationMerger {
                     PricingImportIssue(
                         id: "\(issuePrefix)-group-mismatch",
                         severity: .warning,
+                        stage: .merge,
                         rowID: row.id,
                         message: "Rule \(row.ruleID) belongs to pricing group \(expectedGroupID), not \(suppliedGroupID). The row was ignored."
                     )
@@ -2368,12 +2840,15 @@ private enum PricingImportedConfigurationMerger {
         }
 
         let mergedProfiles = baseline.profiles.compactMap { baselineProfile in
-            profilesByRuleID[baselineProfile.id]?.resolvedProfile(sourceDescription: sourceDescription)
+            profilesByRuleID[baselineProfile.id]?.resolvedProfile(
+                sourceKind: mergedSourceKind,
+                sourceDescription: sourceDescription
+            )
         }
 
-        let sourceKind: PricingConfigurationSourceKind = appliedRowCount > 0 ? .importedJSONMerged : .importedJSONFallback
+        let sourceKind: PricingConfigurationSourceKind = appliedRowCount > 0 ? mergedSourceKind : fallbackSourceKind
         let sourceSummary = appliedRowCount > 0
-            ? "Bundle JSON pricing import is active. Imported rows merge onto the embedded draft baseline by stable rule ID."
+            ? sourceDescription
             : "Embedded draft pricing baseline remains active because no imported rows were applied."
 
         let report = PricingConfigurationImportReport(
@@ -2381,13 +2856,15 @@ private enum PricingImportedConfigurationMerger {
             adapterID: adapterID,
             sourceDescription: sourceDescription,
             status: importStatus(
-                importedRowCount: rows.count,
+                importedRowCount: deduplicated.rows.count,
                 appliedRowCount: appliedRowCount,
-                issueCount: issues.count
+                issueCount: issues.count,
+                normalizationReport: normalizationReport
             ),
-            importedRowCount: rows.count,
+            importedRowCount: deduplicated.rows.count,
             appliedRowCount: appliedRowCount,
-            issues: issues
+            normalizationReport: normalizationReport,
+            issues: issues.sorted { $0.id < $1.id }
         )
 
         return PricingConfigurationSnapshot(
@@ -2448,6 +2925,7 @@ private enum PricingImportedConfigurationMerger {
                     PricingImportIssue(
                         id: "\(issueIDPrefix)-missing-schedule-key",
                         severity: .warning,
+                        stage: .merge,
                         rowID: row.id,
                         message: "Schedule input rows must provide a scheduleInputKey. The row was ignored."
                     )
@@ -2461,6 +2939,7 @@ private enum PricingImportedConfigurationMerger {
                     PricingImportIssue(
                         id: "\(issueIDPrefix)-missing-schedule-value",
                         severity: .warning,
+                        stage: .merge,
                         rowID: row.id,
                         message: "Schedule input row \(key) must provide either numericValue or stringValue. The row was ignored."
                     )
@@ -2493,6 +2972,7 @@ private enum PricingImportedConfigurationMerger {
         PricingImportIssue(
             id: "\(prefix)-missing-numeric-value",
             severity: .warning,
+            stage: .merge,
             rowID: row.id,
             message: "Imported row for \(row.ruleID) requires numericValue for \(row.valueKind.rawValue). The row was ignored."
         )
@@ -2509,7 +2989,28 @@ private enum PricingImportedConfigurationMerger {
         .nilIfBlank
     }
 
-    private static func importStatus(importedRowCount: Int, appliedRowCount: Int, issueCount: Int) -> String {
+    private static func importStatus(
+        importedRowCount: Int,
+        appliedRowCount: Int,
+        issueCount: Int,
+        normalizationReport: PricingReturnedSheetNormalizationReport?
+    ) -> String {
+        if let normalizationReport {
+            if normalizationReport.normalizedRowCount == 0 {
+                return "Returned sheet loaded, but no rows normalized into trusted pricing rows. Embedded draft pricing remains active."
+            }
+
+            if appliedRowCount == 0 {
+                return "Returned sheet normalized, but no rows passed merge validation. Embedded draft pricing remains active."
+            }
+
+            if issueCount == 0 {
+                return "Returned sheet rows normalized successfully and merged onto the embedded draft baseline."
+            }
+
+            return "Returned sheet rows normalized and merged with validation issues. Invalid rows were skipped and embedded values remain in place where needed."
+        }
+
         if importedRowCount == 0 {
             return "No imported pricing rows were found. Embedded draft pricing remains active."
         }
@@ -2532,7 +3033,7 @@ private enum PricingImportedConfigurationMerger {
             .joined(separator: " ")
     }
 
-    private static func ruleGroupMap(template: ProposalTemplateDefinition) -> [String: String] {
+    static func ruleGroupMap(template: ProposalTemplateDefinition) -> [String: String] {
         var map: [String: String] = [:]
         for group in template.pricingGroups {
             for component in group.components {
@@ -2541,6 +3042,52 @@ private enum PricingImportedConfigurationMerger {
             }
         }
         return map
+    }
+
+    static func deduplicatedRows(
+        candidatesByRowID: [String: [ImportedPricingRow]],
+        stage: PricingImportIssueStage
+    ) -> (rows: [ImportedPricingRow], issues: [PricingImportIssue]) {
+        var uniqueRows: [ImportedPricingRow] = []
+        var issues: [PricingImportIssue] = []
+
+        for key in candidatesByRowID.keys.sorted() {
+            guard let candidates = candidatesByRowID[key], let first = candidates.first else { continue }
+
+            if candidates.count == 1 {
+                uniqueRows.append(first)
+                continue
+            }
+
+            let equivalent = candidates.dropFirst().allSatisfy { candidate in
+                candidate.isPricingEquivalent(to: first)
+            }
+
+            if equivalent {
+                uniqueRows.append(first)
+                issues.append(
+                    PricingImportIssue(
+                        id: "\(stage.rawValue)-duplicate-\(key)",
+                        severity: .warning,
+                        stage: stage,
+                        rowID: key,
+                        message: "Duplicate rows were supplied for \(key). The first normalized value was kept."
+                    )
+                )
+            } else {
+                issues.append(
+                    PricingImportIssue(
+                        id: "\(stage.rawValue)-conflicting-duplicate-\(key)",
+                        severity: .error,
+                        stage: stage,
+                        rowID: key,
+                        message: "Conflicting duplicate rows were supplied for \(key). All duplicates for this pricing slot were ignored."
+                    )
+                )
+            }
+        }
+
+        return (uniqueRows.sorted { $0.id < $1.id }, issues.sorted { $0.id < $1.id })
     }
 }
 
@@ -2586,7 +3133,10 @@ private struct MutablePricingRuleConfigurationProfile {
         notes.append(note)
     }
 
-    func resolvedProfile(sourceDescription: String) -> PricingRuleConfigurationProfile {
+    func resolvedProfile(
+        sourceKind: PricingConfigurationSourceKind,
+        sourceDescription: String
+    ) -> PricingRuleConfigurationProfile {
         PricingRuleConfigurationProfile(
             id: id,
             title: title,
@@ -2599,7 +3149,7 @@ private struct MutablePricingRuleConfigurationProfile {
             notes: notes,
             importMetadata: importedRowCount > 0
                 ? PricingConfigurationProfileImportMetadata(
-                    sourceKind: .importedJSONMerged,
+                    sourceKind: sourceKind,
                     sourceDescription: sourceDescription,
                     importedRowCount: importedRowCount,
                     importedValueKinds: importedValueKinds.sorted { $0.rawValue < $1.rawValue },
@@ -3234,6 +3784,17 @@ private enum ProposalFoundationFormatter {
 private extension Array where Element == String {
     var nilIfEmpty: [String]? {
         isEmpty ? nil : self
+    }
+}
+
+private extension ImportedPricingRow {
+    func isPricingEquivalent(to other: ImportedPricingRow) -> Bool {
+        ruleID == other.ruleID &&
+            groupID?.nilIfBlank == other.groupID?.nilIfBlank &&
+            scheduleInputKey?.nilIfBlank == other.scheduleInputKey?.nilIfBlank &&
+            valueKind == other.valueKind &&
+            numericValue == other.numericValue &&
+            stringValue?.nilIfBlank == other.stringValue?.nilIfBlank
     }
 }
 

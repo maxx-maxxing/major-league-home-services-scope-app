@@ -263,6 +263,20 @@ Keep milestones small, testable, and reviewable.
   - Keep bucket subtotal execution separate from raw scope capture, future group totals, proposal totals, PDF pricing rendering, and JobTread sync submission
   - Surface subtotal execution/readiness through the existing internal debug inspector by reading the domain snapshot only
   - Preserve the current JobTread customer search/select, linked-customer hydration/read-only behavior, proposal composition, pricing rule registry, and pricing config import baseline
+- Milestone 5.2.38 – Lookup-Adjusted Buckets + Aggregate Total Scaffolding
+  - Add the first safe lookup-adjusted subtotal contract in the pricing domain using only already trusted inputs:
+    - quantity seeds already derived from the scope
+    - configured draft unit price when present
+    - configured fee/package amount when present
+    - configured markup percent when present
+    - schedule-input keys as trace metadata only
+  - Execute lookup-adjusted buckets only when the safe contract can run without inventing unverified business rules
+  - Preserve explicit `missingInputs` / `deferred` states when lookup tables, tier thresholds, jurisdiction schedules, or other business-specific adjustment logic remain incomplete
+  - Add group total result types and rollup scaffolding that aggregate bucket subtotal results from the domain snapshot
+  - Add proposal total result types and rollup scaffolding that aggregate group total results from the domain snapshot
+  - Expose aggregate readiness, amount, missing-input, and trace metadata through the debug inspector without duplicating pricing logic in SwiftUI
+  - Preserve proposal composition, direct bucket subtotal execution, pricing config import behavior, rule registry behavior, and the current JobTread integration baseline
+  - Defer final customer-facing proposal pricing UI, final PDF pricing rendering, and final JobTread pricing sync submission until the business pricing contract is more complete
 - Milestone 5.2.32 – Pricing Rule Registry Foundation
   - Add stable pricing rule-definition types in the domain/foundation layer
   - Resolve existing bucket `draftRuleKey` / formula placeholder metadata through a registry instead of leaving buckets as unstructured placeholders

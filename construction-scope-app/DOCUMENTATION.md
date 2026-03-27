@@ -36,6 +36,7 @@
 - Milestone 5.2.35: Implemented (business-facing pricing intake deliverable)
 - Milestone 5.2.36: Implemented (returned pricing workbook normalization + validation)
 - Milestone 5.2.37: Implemented (bucket subtotal execution)
+- Milestone 5.2.38: Implemented (lookup-adjusted buckets + aggregate total scaffolding)
 - Milestone 6: Implemented (photo attachment flow + PDF photo appendix)
 - Milestone 7.1: In progress (interaction animation polish)
 - Milestone 7.2: In progress (acceptance closeout)
@@ -45,6 +46,50 @@
 - Milestone 7.5.1: In progress (documents responsiveness regression recovery)
 
 ## Decisions
+- Milestone 5.2.38 lookup-adjusted buckets + aggregate total scaffolding:
+  - Added the next pricing-domain pass in [PricingProposalFoundation.swift](/Users/maxx/Documents/major-league-home-services-scope-app/construction-scope-app/Models/PricingProposalFoundation.swift) without changing the current proposal composition boundary or moving pricing logic into Views.
+  - Why this is the smallest safe architecture:
+    - lookup-adjusted execution still runs inside the existing foundation builder where rule resolution, config hydration, and bucket subtotals already live
+    - the new execution contract consumes only already trusted inputs from the current system:
+      - scope-derived quantity seeds
+      - configured draft unit price
+      - configured fee/package amount
+      - configured markup percent
+      - imported or embedded schedule-input keys as trace metadata only
+    - string lookup tables, tier thresholds, jurisdiction rules, vendor catalogs, and other incomplete business logic remain deferred instead of being guessed
+    - group totals and proposal totals now roll up from domain-owned child results rather than from view-owned calculations
+  - Implemented lookup-adjusted bucket behavior in this pass:
+    - safe base execution from `quantity x configured draft unit price` when both are available
+    - optional configured fee/package add on top of the supported base
+    - optional configured markup-percent adjustment on the supported base amount
+    - preserved schedule-input keys and values as explainable trace metadata
+    - explicit `missingInputs` or `deferred` states when the safe base contract cannot run yet
+  - Deferred on purpose in this pass:
+    - business-specific lookup-table interpretation
+    - textual tier-key to price-table resolution
+    - jurisdiction fee schedules
+    - vendor/product-family catalog logic
+    - final customer-facing proposal pricing UI
+    - final PDF pricing rendering
+    - final JobTread pricing sync submission
+  - Added new aggregate result models for:
+    - group totals rolled up from bucket subtotal results
+    - proposal totals rolled up from group total results
+  - Aggregate totals now expose:
+    - execution readiness (`inactive`, `calculated`, `partial`, `missingInputs`, `deferred`, `unavailable`)
+    - aggregate amount when a full or partial rollup is available
+    - missing-input rollup metadata
+    - child-trace rows suitable for the debug inspector
+  - Updated the debug inspector in [JobTreadDebugView.swift](/Users/maxx/Documents/major-league-home-services-scope-app/construction-scope-app/Views/JobTreadDebugView.swift) to read the new domain-owned results and show:
+    - proposal total status, amount, missing inputs, and trace
+    - group total status, amount, missing inputs, and trace
+    - bucket lookup-adjustment contract status, supported base components, and observed/deferred schedule keys
+  - Validation:
+    - attempted:
+      - `xcodebuild -project ConstructionScopeApp.xcodeproj -scheme ConstructionScopeApp -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' -derivedDataPath /tmp/ConstructionScopeAppDerivedData CODE_SIGNING_ALLOWED=NO build`
+    - result:
+      - build validation is currently blocked in this sandbox by SwiftData macro/plugin resolution failures (`SwiftDataMacros.PersistentModelMacro` malformed response) and `sandbox-exec` / CoreSimulator service errors before a trustworthy full-app compile result can be produced
+      - the last app-level errors reported were environment/macro related in [SchemaModels.swift](/Users/maxx/Documents/major-league-home-services-scope-app/construction-scope-app/Models/SchemaModels.swift), not new domain-model or debug-inspector type errors from this milestone
 - Milestone 5.2.37 bucket subtotal execution:
   - Added bucket-level subtotal execution directly inside [PricingProposalFoundation.swift](/Users/maxx/Documents/major-league-home-services-scope-app/construction-scope-app/Models/PricingProposalFoundation.swift) so the existing proposal composition pass now emits a structured subtotal execution result for every pricing bucket.
   - Why this is the smallest safe architecture:

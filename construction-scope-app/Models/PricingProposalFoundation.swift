@@ -216,6 +216,7 @@ enum PricingSubtotalExecutionSource: String, Codable, CaseIterable {
     case configuredDraftUnitPrice
     case configuredFeeAmount
     case configuredAllowanceAmount
+    case lookupAdjustedComposite
     case none
 }
 
@@ -223,6 +224,28 @@ enum PricingGroupRollupStatus: String, Codable, CaseIterable {
     case pendingBucketSubtotals
     case readyForFutureRollup
     case inactive
+}
+
+enum PricingLookupAdjustmentStatus: String, Codable, CaseIterable {
+    case inactive
+    case supported
+    case missingInputs
+    case deferred
+}
+
+enum PricingAggregateExecutionStatus: String, Codable, CaseIterable {
+    case inactive
+    case calculated
+    case partial
+    case missingInputs
+    case deferred
+    case unavailable
+}
+
+enum PricingAggregateExecutionSource: String, Codable, CaseIterable {
+    case bucketRollup
+    case groupRollup
+    case none
 }
 
 enum PricingQuantitySource: String, Codable, CaseIterable {
@@ -425,6 +448,7 @@ struct PricingSubtotalSeed: Codable, Hashable {
     let explanation: String
     let missingInputs: [String]
     let trace: [PricingFormulaInputReference]
+    let lookupAdjustment: PricingLookupAdjustmentContract?
 }
 
 struct PricingRateSlotReference: Codable, Hashable {
@@ -457,6 +481,15 @@ struct PricingSubtotalDerivationDraft: Codable, Hashable {
     let formulaKey: String?
     let inputs: [PricingFormulaInputReference]
     let status: String
+}
+
+struct PricingLookupAdjustmentContract: Codable, Hashable {
+    let status: PricingLookupAdjustmentStatus
+    let supportedBaseComponents: [String]
+    let supportedAdjustments: [String]
+    let observedScheduleInputKeys: [String]
+    let deferredScheduleInputKeys: [String]
+    let explanation: String
 }
 
 struct PricingGroupRollupReference: Codable, Hashable {
@@ -712,6 +745,7 @@ struct ComposedPricingGroup: Codable, Hashable, Identifiable {
     let isIncluded: Bool
     let components: [ComposedPricingComponent]
     let futureTotal: PricingGroupRollupDraft
+    let total: PricingGroupTotalResult
 }
 
 struct PricingGroupRollupDraft: Codable, Hashable {
@@ -719,6 +753,30 @@ struct PricingGroupRollupDraft: Codable, Hashable {
     let componentSubtotalKeys: [String]
     let status: PricingGroupRollupStatus
     let explanation: String
+}
+
+struct PricingGroupTotalResult: Codable, Hashable {
+    let placeholderKey: String
+    let componentSubtotalKeys: [String]
+    let executionStatus: PricingAggregateExecutionStatus
+    let source: PricingAggregateExecutionSource
+    let amount: Double?
+    let status: String
+    let explanation: String
+    let missingInputs: [String]
+    let trace: [PricingFormulaInputReference]
+}
+
+struct PricingProposalTotalResult: Codable, Hashable {
+    let placeholderKey: String
+    let groupTotalKeys: [String]
+    let executionStatus: PricingAggregateExecutionStatus
+    let source: PricingAggregateExecutionSource
+    let amount: Double?
+    let status: String
+    let explanation: String
+    let missingInputs: [String]
+    let trace: [PricingFormulaInputReference]
 }
 
 struct ProposalSyncCandidate: Codable, Hashable, Identifiable {
@@ -739,6 +797,7 @@ struct ProposalCompositionDraft: Codable, Hashable {
     let customerName: String?
     let sections: [ComposedProposalSection]
     let pricingGroups: [ComposedPricingGroup]
+    let total: PricingProposalTotalResult
 
     var customerFacingSections: [ComposedProposalSection] {
         sections.filter { $0.isIncluded && !$0.customerFacingValues.isEmpty }
@@ -1082,6 +1141,11 @@ enum ProposalFoundationBuilder {
                 components: components,
                 isIncluded: isIncluded
             )
+            let total = makePricingGroupTotalResult(
+                for: group,
+                components: components,
+                isIncluded: isIncluded
+            )
 
             return ComposedPricingGroup(
                 id: group.id,
@@ -1090,15 +1154,19 @@ enum ProposalFoundationBuilder {
                 outputChannels: group.outputChannels,
                 isIncluded: isIncluded,
                 components: components,
-                futureTotal: futureTotal
+                futureTotal: futureTotal,
+                total: total
             )
         }
+
+        let proposalTotal = makeProposalTotalResult(for: pricingGroups)
 
         return ProposalCompositionDraft(
             proposalTitle: scope.resolvedDocumentTitle,
             customerName: scope.resolvedExportCustomerName,
             sections: sections,
-            pricingGroups: pricingGroups
+            pricingGroups: pricingGroups,
+            total: proposalTotal
         )
     }
 
@@ -1491,6 +1559,46 @@ enum ProposalFoundationBuilder {
         )
     }
 
+    private static func makePricingGroupTotalResult(
+        for group: PricingGroupDefinition,
+        components: [ComposedPricingComponent],
+        isIncluded: Bool
+    ) -> PricingGroupTotalResult {
+        let activeComponents = components.filter(\.isCandidate)
+        return aggregateResult(
+            placeholderKey: "draft.group.\(group.id).total",
+            childKeys: activeComponents.map(\.seedConfig.subtotal.placeholderKey),
+            childResults: activeComponents.map(\.seedConfig.subtotal),
+            isIncluded: isIncluded,
+            source: .bucketRollup,
+            activeUnitTitle: "bucket subtotal",
+            inactiveExplanation: "Group total remains defined but inactive because no pricing buckets are currently included.",
+            calculatedExplanation: "Group total rolled up from calculated bucket subtotals in the pricing domain layer.",
+            partialExplanation: "Group total currently reflects only calculated bucket subtotals while other buckets remain unresolved.",
+            missingExplanation: "Group total is waiting on required bucket subtotal inputs before a complete rollup is available.",
+            deferredExplanation: "Group total is deferred because the included buckets are still waiting on lookup-adjusted execution or other deferred subtotal logic."
+        )
+    }
+
+    private static func makeProposalTotalResult(
+        for pricingGroups: [ComposedPricingGroup]
+    ) -> PricingProposalTotalResult {
+        let activeGroups = pricingGroups.filter(\.isIncluded)
+        return aggregateResult(
+            placeholderKey: "draft.proposal.total",
+            childKeys: activeGroups.map(\.total.placeholderKey),
+            childResults: activeGroups.map(\.total),
+            isIncluded: !activeGroups.isEmpty,
+            source: .groupRollup,
+            activeUnitTitle: "group total",
+            inactiveExplanation: "Proposal total remains defined but inactive because no pricing groups are currently included.",
+            calculatedExplanation: "Proposal total rolled up from calculated pricing-group totals in the pricing domain layer.",
+            partialExplanation: "Proposal total currently reflects only calculated group totals while other groups remain unresolved.",
+            missingExplanation: "Proposal total is waiting on one or more pricing groups that still have missing subtotal inputs.",
+            deferredExplanation: "Proposal total is deferred because one or more included pricing groups still depend on deferred lookup-adjusted pricing."
+        )
+    }
+
     private static func uniqueValues(from values: [ProposalInputValue]) -> [ProposalInputValue] {
         var seen = Set<ScopeInputKey>()
         return values.filter { value in
@@ -1618,7 +1726,8 @@ enum ProposalFoundationBuilder {
                 status: "Subtotal placeholder is inactive because the bucket is excluded.",
                 explanation: "The bucket is currently excluded by proposal composition, so subtotal execution is intentionally skipped.",
                 missingInputs: [],
-                trace: []
+                trace: [],
+                lookupAdjustment: nil
             )
         }
 
@@ -1650,7 +1759,8 @@ enum ProposalFoundationBuilder {
                     status: "Awaiting a seeded quantity before draft subtotal derivation can use the configured unit price.",
                     explanation: "This rule can execute once the scope produces a usable quantity seed for the bucket.",
                     missingInputs: ["quantity_seed"],
-                    trace: [quantityTrace, unitPriceTrace]
+                    trace: [quantityTrace, unitPriceTrace],
+                    lookupAdjustment: nil
                 )
             }
 
@@ -1665,7 +1775,8 @@ enum ProposalFoundationBuilder {
                     status: "Awaiting configured draft unit price before subtotal derivation can use the seeded quantity.",
                     explanation: "The scope already provides quantity, but the pricing configuration snapshot does not currently provide the unit price needed for execution.",
                     missingInputs: ["draft_unit_price"],
-                    trace: [quantityTrace, unitPriceTrace]
+                    trace: [quantityTrace, unitPriceTrace],
+                    lookupAdjustment: nil
                 )
             }
 
@@ -1690,7 +1801,8 @@ enum ProposalFoundationBuilder {
                         unitLabel: nil,
                         missingDetail: "Subtotal unavailable"
                     )
-                ]
+                ],
+                lookupAdjustment: nil
             )
         case .manualEntry:
             if let feeAmount = resolvedConfiguration.feeAmount?.amount {
@@ -1712,7 +1824,8 @@ enum ProposalFoundationBuilder {
                             unitLabel: nil,
                             missingDetail: "Missing configured fee amount"
                         )
-                    ]
+                    ],
+                    lookupAdjustment: nil
                 )
             }
 
@@ -1744,7 +1857,8 @@ enum ProposalFoundationBuilder {
                             unitLabel: component.unitLabel.map { "/ \($0)" },
                             missingDetail: "Missing configured draft unit price"
                         )
-                    ]
+                    ],
+                    lookupAdjustment: nil
                 )
             }
 
@@ -1773,7 +1887,8 @@ enum ProposalFoundationBuilder {
                         unitLabel: component.unitLabel.map { "/ \($0)" },
                         missingDetail: "Missing configured draft unit price"
                     )
-                ]
+                ],
+                lookupAdjustment: nil
             )
         case .allowanceEntry:
             if let allowanceAmount = resolvedConfiguration.allowanceAmount?.amount {
@@ -1795,7 +1910,8 @@ enum ProposalFoundationBuilder {
                             unitLabel: nil,
                             missingDetail: "Missing configured allowance amount"
                         )
-                    ]
+                    ],
+                    lookupAdjustment: nil
                 )
             }
 
@@ -1817,41 +1933,16 @@ enum ProposalFoundationBuilder {
                         unitLabel: nil,
                         missingDetail: "Missing configured allowance amount"
                     )
-                ]
+                ],
+                lookupAdjustment: nil
             )
         case .deferredLookup:
-            if resolvedConfiguration.draftUnitPrice?.amount != nil || resolvedConfiguration.feeAmount?.amount != nil {
-                return PricingSubtotalSeed(
-                    placeholderKey: component.subtotalPlaceholderKey,
-                    executionStatus: .deferred,
-                    derivationKind: derivationKind,
-                    formulaStrategy: formulaStrategy,
-                    source: .none,
-                    amount: nil,
-                    status: "Config-fed draft values are present, but subtotal derivation remains deferred until lookup adjustments are finalized.",
-                    explanation: "The bucket has usable pricing signals in configuration, but execution is intentionally deferred because the lookup-adjustment table or modifier logic is not finalized yet.",
-                    missingInputs: ["lookup_adjustment_logic"],
-                    trace: subtotalDeferredTrace(
-                        component: component,
-                        resolvedConfiguration: resolvedConfiguration
-                    )
-                )
-            }
-
-            return PricingSubtotalSeed(
-                placeholderKey: component.subtotalPlaceholderKey,
-                executionStatus: .deferred,
+            return executeLookupAdjustedSubtotal(
+                for: component,
+                quantityValue: quantityValue,
                 derivationKind: derivationKind,
                 formulaStrategy: formulaStrategy,
-                source: .none,
-                amount: nil,
-                status: "Awaiting config-fed draft values and future lookup adjustment logic before deriving a subtotal.",
-                explanation: "This bucket remains intentionally deferred until a later phase defines the lookup-driven business rules and any needed pricing schedule values.",
-                missingInputs: ["pricing_inputs", "lookup_adjustment_logic"],
-                trace: subtotalDeferredTrace(
-                    component: component,
-                    resolvedConfiguration: resolvedConfiguration
-                )
+                resolvedConfiguration: resolvedConfiguration
             )
         case .none:
             return PricingSubtotalSeed(
@@ -1864,9 +1955,164 @@ enum ProposalFoundationBuilder {
                 status: "Awaiting subtotal derivation definition.",
                 explanation: "No subtotal derivation definition is attached to this bucket yet, so execution is unavailable.",
                 missingInputs: ["subtotal_derivation_definition"],
-                trace: []
+                trace: [],
+                lookupAdjustment: nil
             )
         }
+    }
+
+    private static func executeLookupAdjustedSubtotal(
+        for component: PricingComponentDefinition,
+        quantityValue: Double?,
+        derivationKind: PricingSubtotalDerivationKind?,
+        formulaStrategy: PricingFormulaStrategyKind?,
+        resolvedConfiguration: ResolvedPricingConfiguration
+    ) -> PricingSubtotalSeed {
+        let scheduleKeys = resolvedConfiguration.scheduleInputs.map(\.key).sorted()
+        let supportedBaseComponents = lookupSupportedBaseComponents(
+            component: component,
+            quantityValue: quantityValue,
+            resolvedConfiguration: resolvedConfiguration
+        )
+        let deferredScheduleKeys = resolvedConfiguration.scheduleInputs
+            .filter { $0.stringValue?.nilIfBlank != nil || $0.numericValue != nil }
+            .map(\.key)
+            .sorted()
+        let quantityTrace = subtotalTraceInput(
+            key: component.quantitySource?.rawValue ?? "quantity_seed",
+            title: component.quantityBasisLabel ?? defaultQuantityBasisLabel(for: component.quantitySource) ?? "Quantity Seed",
+            amount: quantityValue,
+            unitLabel: component.unitLabel,
+            missingDetail: "Missing quantity seed"
+        )
+        let unitPriceTrace = subtotalTraceInput(
+            key: component.draftUnitPricePlaceholderKey,
+            title: "Configured Draft Unit Price",
+            amount: resolvedConfiguration.draftUnitPrice?.amount,
+            unitLabel: component.unitLabel.map { "/ \($0)" },
+            missingDetail: "No configured draft unit price"
+        )
+        let feeTrace = currencyTraceInput(
+            key: resolvedConfiguration.feeAmount?.key ?? "\(component.id).fee_amount",
+            title: resolvedConfiguration.feeAmount?.title ?? "Configured Fee Amount",
+            amount: resolvedConfiguration.feeAmount?.amount,
+            missingDetail: "No configured fee amount"
+        )
+        let markupTrace = percentTraceInput(
+            key: resolvedConfiguration.markupPercent?.key ?? "\(component.id).markup_percent",
+            title: resolvedConfiguration.markupPercent?.title ?? "Configured Markup Percent",
+            amount: resolvedConfiguration.markupPercent?.amount,
+            missingDetail: "No configured markup percent"
+        )
+        let scheduleTrace = resolvedConfiguration.scheduleInputs.map {
+            PricingFormulaInputReference(
+                key: $0.key,
+                title: $0.title,
+                detail: $0.displayValue.isEmpty ? "No configured schedule value" : $0.displayValue,
+                isResolvedFromScope: !$0.displayValue.isEmpty
+            )
+        }
+        var trace: [PricingFormulaInputReference] = [quantityTrace, unitPriceTrace, feeTrace, markupTrace]
+        trace.append(contentsOf: scheduleTrace)
+
+        let quantityBasedExecutionExpected = resolvedConfiguration.draftUnitPrice != nil
+        let feeBasedExecutionExpected = resolvedConfiguration.feeAmount != nil
+        var missingInputs: [String] = []
+
+        if quantityBasedExecutionExpected && quantityValue == nil {
+            missingInputs.append("quantity_seed")
+        }
+        if !quantityBasedExecutionExpected && !feeBasedExecutionExpected {
+            missingInputs.append("pricing_inputs")
+        }
+
+        let baseAmount = lookupAdjustedBaseAmount(
+            quantityValue: quantityValue,
+            unitPrice: resolvedConfiguration.draftUnitPrice?.amount,
+            feeAmount: resolvedConfiguration.feeAmount?.amount
+        )
+
+        guard missingInputs.isEmpty, let baseAmount else {
+            let contractStatus: PricingLookupAdjustmentStatus = missingInputs.contains("pricing_inputs") ? .deferred : .missingInputs
+            let contract = PricingLookupAdjustmentContract(
+                status: contractStatus,
+                supportedBaseComponents: supportedBaseComponents,
+                supportedAdjustments: resolvedConfiguration.markupPercent == nil ? [] : ["markupPercent"],
+                observedScheduleInputKeys: scheduleKeys,
+                deferredScheduleInputKeys: deferredScheduleKeys,
+                explanation: contractStatus == .deferred
+                    ? "Lookup-adjusted execution still lacks a safe base amount in the active pricing configuration, so the bucket remains deferred."
+                    : "Lookup-adjusted execution can run in this phase, but the current scope/config snapshot is missing one or more supported base inputs."
+            )
+            return PricingSubtotalSeed(
+                placeholderKey: component.subtotalPlaceholderKey,
+                executionStatus: contractStatus == .deferred ? .deferred : .missingInputs,
+                derivationKind: derivationKind,
+                formulaStrategy: formulaStrategy,
+                source: .lookupAdjustedComposite,
+                amount: nil,
+                status: contractStatus == .deferred
+                    ? "Awaiting safe lookup-adjusted base inputs before subtotal execution can proceed."
+                    : "Lookup-adjusted subtotal is missing one or more supported inputs.",
+                explanation: contract.explanation,
+                missingInputs: missingInputs,
+                trace: trace,
+                lookupAdjustment: contract
+            )
+        }
+
+        let markupPercent = resolvedConfiguration.markupPercent?.amount ?? 0
+        let markupAmount = markupPercent == 0 ? 0 : baseAmount * (markupPercent / 100)
+        let subtotalAmount = baseAmount + markupAmount
+        let lookupAdjustment = PricingLookupAdjustmentContract(
+            status: .supported,
+            supportedBaseComponents: supportedBaseComponents,
+            supportedAdjustments: resolvedConfiguration.markupPercent == nil ? [] : ["markupPercent"],
+            observedScheduleInputKeys: scheduleKeys,
+            deferredScheduleInputKeys: deferredScheduleKeys,
+            explanation: "This pass supports only safe lookup-adjusted scaffolding: quantity x configured unit price, optional configured fee add, optional markup percent adjustment, and schedule-key capture for traceability."
+        )
+
+        trace.append(
+            currencyTraceInput(
+                key: "\(component.id).lookup_adjusted_base_amount",
+                title: "Lookup-Adjusted Base Amount",
+                amount: baseAmount,
+                missingDetail: "Base amount unavailable"
+            )
+        )
+        if resolvedConfiguration.markupPercent != nil {
+            trace.append(
+                currencyTraceInput(
+                    key: "\(component.id).lookup_adjusted_markup_amount",
+                    title: "Markup Amount",
+                    amount: markupAmount,
+                    missingDetail: "Markup amount unavailable"
+                )
+            )
+        }
+        trace.append(
+            currencyTraceInput(
+                key: component.subtotalPlaceholderKey,
+                title: "Lookup-Adjusted Subtotal",
+                amount: subtotalAmount,
+                missingDetail: "Subtotal unavailable"
+            )
+        )
+
+        return PricingSubtotalSeed(
+            placeholderKey: component.subtotalPlaceholderKey,
+            executionStatus: .calculated,
+            derivationKind: derivationKind,
+            formulaStrategy: formulaStrategy,
+            source: .lookupAdjustedComposite,
+            amount: subtotalAmount,
+            status: "Executed from the first safe lookup-adjusted contract.",
+            explanation: "The bucket executed from supported base contributors plus optional markup percent while retaining schedule keys and deferred business lookups for later phases.",
+            missingInputs: [],
+            trace: trace,
+            lookupAdjustment: lookupAdjustment
+        )
     }
 
     private static func subtotalTraceInput(
@@ -1896,32 +2142,308 @@ enum ProposalFoundationBuilder {
         )
     }
 
-    private static func subtotalDeferredTrace(
+    private static func currencyTraceInput(
+        key: String,
+        title: String,
+        amount: Double?,
+        missingDetail: String
+    ) -> PricingFormulaInputReference {
+        let detail = amount.map { ProposalFoundationFormatter.currencyString(from: $0) } ?? missingDetail
+        return PricingFormulaInputReference(
+            key: key,
+            title: title,
+            detail: detail,
+            isResolvedFromScope: amount != nil
+        )
+    }
+
+    private static func percentTraceInput(
+        key: String,
+        title: String,
+        amount: Double?,
+        missingDetail: String
+    ) -> PricingFormulaInputReference {
+        let detail: String
+        if let amount {
+            detail = "\(ProposalFoundationFormatter.number.string(from: NSNumber(value: amount)) ?? "\(amount)")%"
+        } else {
+            detail = missingDetail
+        }
+
+        return PricingFormulaInputReference(
+            key: key,
+            title: title,
+            detail: detail,
+            isResolvedFromScope: amount != nil
+        )
+    }
+
+    private static func lookupAdjustedBaseAmount(
+        quantityValue: Double?,
+        unitPrice: Double?,
+        feeAmount: Double?
+    ) -> Double? {
+        var amount: Double = 0
+        var hasContributor = false
+
+        if let quantityValue, let unitPrice {
+            amount += quantityValue * unitPrice
+            hasContributor = true
+        }
+
+        if let feeAmount {
+            amount += feeAmount
+            hasContributor = true
+        }
+
+        return hasContributor ? amount : nil
+    }
+
+    private static func lookupSupportedBaseComponents(
         component: PricingComponentDefinition,
+        quantityValue: Double?,
         resolvedConfiguration: ResolvedPricingConfiguration
-    ) -> [PricingFormulaInputReference] {
-        [
-            subtotalTraceInput(
-                key: component.draftUnitPricePlaceholderKey,
-                title: "Configured Draft Unit Price",
-                amount: resolvedConfiguration.draftUnitPrice?.amount,
-                unitLabel: component.unitLabel.map { "/ \($0)" },
-                missingDetail: "No configured draft unit price"
-            ),
-            subtotalTraceInput(
-                key: resolvedConfiguration.feeAmount?.key ?? "\(component.id).fee_amount",
-                title: "Configured Fee Amount",
-                amount: resolvedConfiguration.feeAmount?.amount,
-                unitLabel: nil,
-                missingDetail: "No configured fee amount"
-            ),
-            PricingFormulaInputReference(
-                key: "lookup_adjustment_logic",
-                title: "Lookup Adjustment Logic",
-                detail: "Deferred for a later pricing phase",
-                isResolvedFromScope: false
+    ) -> [String] {
+        var components: [String] = []
+
+        if resolvedConfiguration.draftUnitPrice != nil {
+            let quantityLabel = component.quantityBasisLabel ?? defaultQuantityBasisLabel(for: component.quantitySource) ?? "Quantity"
+            if quantityValue != nil {
+                components.append("\(quantityLabel) x configuredDraftUnitPrice")
+            } else {
+                components.append("\(quantityLabel) x configuredDraftUnitPrice (awaiting quantity)")
+            }
+        }
+
+        if resolvedConfiguration.feeAmount != nil {
+            components.append("configuredFeeAmount")
+        }
+
+        return components
+    }
+
+    private static func aggregateResult(
+        placeholderKey: String,
+        childKeys: [String],
+        childResults: [PricingSubtotalSeed],
+        isIncluded: Bool,
+        source: PricingAggregateExecutionSource,
+        activeUnitTitle: String,
+        inactiveExplanation: String,
+        calculatedExplanation: String,
+        partialExplanation: String,
+        missingExplanation: String,
+        deferredExplanation: String
+    ) -> PricingGroupTotalResult {
+        guard isIncluded else {
+            return PricingGroupTotalResult(
+                placeholderKey: placeholderKey,
+                componentSubtotalKeys: childKeys,
+                executionStatus: .inactive,
+                source: .none,
+                amount: nil,
+                status: "Inactive because no included \(activeUnitTitle)s are currently rolling up.",
+                explanation: inactiveExplanation,
+                missingInputs: [],
+                trace: []
             )
-        ]
+        }
+
+        let calculatedResults = childResults.filter { $0.executionStatus == .calculated }
+        let unresolvedResults = childResults.filter { $0.executionStatus != .calculated && $0.executionStatus != .inactive }
+        let amount = calculatedResults.compactMap(\.amount).reduce(0, +)
+        let hasCalculated = !calculatedResults.isEmpty
+        let missingInputs = Array(Set(unresolvedResults.flatMap(\.missingInputs))).sorted()
+        let trace = childResults.map { result in
+            PricingFormulaInputReference(
+                key: result.placeholderKey,
+                title: result.placeholderKey,
+                detail: aggregateTraceDetail(for: result),
+                isResolvedFromScope: result.executionStatus == .calculated
+            )
+        }
+
+        if unresolvedResults.isEmpty {
+            return PricingGroupTotalResult(
+                placeholderKey: placeholderKey,
+                componentSubtotalKeys: childKeys,
+                executionStatus: .calculated,
+                source: source,
+                amount: amount,
+                status: "Calculated from resolved \(activeUnitTitle)s.",
+                explanation: calculatedExplanation,
+                missingInputs: [],
+                trace: trace
+            )
+        }
+
+        if hasCalculated {
+            return PricingGroupTotalResult(
+                placeholderKey: placeholderKey,
+                componentSubtotalKeys: childKeys,
+                executionStatus: .partial,
+                source: source,
+                amount: amount,
+                status: "Partially rolled up from currently calculated \(activeUnitTitle)s.",
+                explanation: partialExplanation,
+                missingInputs: missingInputs,
+                trace: trace
+            )
+        }
+
+        let unresolvedStatuses = Set(unresolvedResults.map(\.executionStatus))
+        let executionStatus: PricingAggregateExecutionStatus
+        let status: String
+        let explanation: String
+
+        if unresolvedStatuses.contains(.missingInputs) {
+            executionStatus = .missingInputs
+            status = "Awaiting missing child inputs before rollup can execute."
+            explanation = missingExplanation
+        } else if unresolvedStatuses.contains(.deferred) {
+            executionStatus = .deferred
+            status = "Child results remain deferred, so rollup is not yet executable."
+            explanation = deferredExplanation
+        } else {
+            executionStatus = .unavailable
+            status = "Child results are not yet available for rollup."
+            explanation = "The aggregate remains scaffolded, but its child totals are not yet executable."
+        }
+
+        return PricingGroupTotalResult(
+            placeholderKey: placeholderKey,
+            componentSubtotalKeys: childKeys,
+            executionStatus: executionStatus,
+            source: source,
+            amount: nil,
+            status: status,
+            explanation: explanation,
+            missingInputs: missingInputs,
+            trace: trace
+        )
+    }
+
+    private static func aggregateResult(
+        placeholderKey: String,
+        childKeys: [String],
+        childResults: [PricingGroupTotalResult],
+        isIncluded: Bool,
+        source: PricingAggregateExecutionSource,
+        activeUnitTitle: String,
+        inactiveExplanation: String,
+        calculatedExplanation: String,
+        partialExplanation: String,
+        missingExplanation: String,
+        deferredExplanation: String
+    ) -> PricingProposalTotalResult {
+        guard isIncluded else {
+            return PricingProposalTotalResult(
+                placeholderKey: placeholderKey,
+                groupTotalKeys: childKeys,
+                executionStatus: .inactive,
+                source: .none,
+                amount: nil,
+                status: "Inactive because no included \(activeUnitTitle)s are currently rolling up.",
+                explanation: inactiveExplanation,
+                missingInputs: [],
+                trace: []
+            )
+        }
+
+        let contributingResults = childResults.filter {
+            $0.executionStatus == .calculated || $0.executionStatus == .partial
+        }
+        let unresolvedResults = childResults.filter {
+            $0.executionStatus != .calculated && $0.executionStatus != .inactive
+        }
+        let amount = contributingResults.compactMap(\.amount).reduce(0, +)
+        let hasCalculated = !contributingResults.isEmpty
+        let missingInputs = Array(Set(unresolvedResults.flatMap(\.missingInputs))).sorted()
+        let trace = childResults.map { result in
+            PricingFormulaInputReference(
+                key: result.placeholderKey,
+                title: result.placeholderKey,
+                detail: aggregateTraceDetail(for: result),
+                isResolvedFromScope: result.executionStatus == .calculated || result.executionStatus == .partial
+            )
+        }
+
+        if unresolvedResults.isEmpty {
+            return PricingProposalTotalResult(
+                placeholderKey: placeholderKey,
+                groupTotalKeys: childKeys,
+                executionStatus: .calculated,
+                source: source,
+                amount: amount,
+                status: "Calculated from resolved \(activeUnitTitle)s.",
+                explanation: calculatedExplanation,
+                missingInputs: [],
+                trace: trace
+            )
+        }
+
+        if hasCalculated {
+            return PricingProposalTotalResult(
+                placeholderKey: placeholderKey,
+                groupTotalKeys: childKeys,
+                executionStatus: .partial,
+                source: source,
+                amount: amount,
+                status: "Partially rolled up from currently calculated \(activeUnitTitle)s.",
+                explanation: partialExplanation,
+                missingInputs: missingInputs,
+                trace: trace
+            )
+        }
+
+        let unresolvedStatuses = Set(unresolvedResults.map(\.executionStatus))
+        let executionStatus: PricingAggregateExecutionStatus
+        let status: String
+        let explanation: String
+
+        if unresolvedStatuses.contains(.missingInputs) {
+            executionStatus = .missingInputs
+            status = "Awaiting missing child inputs before rollup can execute."
+            explanation = missingExplanation
+        } else if unresolvedStatuses.contains(.deferred) {
+            executionStatus = .deferred
+            status = "Child results remain deferred, so rollup is not yet executable."
+            explanation = deferredExplanation
+        } else {
+            executionStatus = .unavailable
+            status = "Child results are not yet available for rollup."
+            explanation = "The aggregate remains scaffolded, but its child totals are not yet executable."
+        }
+
+        return PricingProposalTotalResult(
+            placeholderKey: placeholderKey,
+            groupTotalKeys: childKeys,
+            executionStatus: executionStatus,
+            source: source,
+            amount: nil,
+            status: status,
+            explanation: explanation,
+            missingInputs: missingInputs,
+            trace: trace
+        )
+    }
+
+    private static func aggregateTraceDetail(
+        for result: PricingSubtotalSeed
+    ) -> String {
+        if let amount = result.amount {
+            return ProposalFoundationFormatter.currencyString(from: amount)
+        }
+        return result.executionStatus.rawValue
+    }
+
+    private static func aggregateTraceDetail(
+        for result: PricingGroupTotalResult
+    ) -> String {
+        if let amount = result.amount {
+            return ProposalFoundationFormatter.currencyString(from: amount)
+        }
+        return result.executionStatus.rawValue
     }
 
     private static func configuredValue(

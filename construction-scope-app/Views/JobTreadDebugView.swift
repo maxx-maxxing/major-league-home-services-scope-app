@@ -292,6 +292,14 @@ private struct ProposalInspectorInputsView: View {
             }
         }
     }
+
+    private func aggregateDetail(placeholderKey: String, amount: Double?) -> String {
+        if let amount {
+            let formatted = proposalInspectorCurrencyFormatter.string(from: NSNumber(value: amount)) ?? "\(amount)"
+            return "\(placeholderKey) = \(formatted)"
+        }
+        return placeholderKey
+    }
 }
 
 private struct ProposalInspectorSectionsView: View {
@@ -383,6 +391,39 @@ private struct ProposalInspectorPricingView: View {
                 ProposalInspectorPricingImportReportView(importReport: importReport)
             }
 
+            ProposalInspectorValueRow(
+                title: "Proposal Total",
+                detail: aggregateDetail(
+                    placeholderKey: snapshot.proposal.total.placeholderKey,
+                    amount: snapshot.proposal.total.amount
+                ),
+                meta: snapshot.proposal.total.executionStatus.rawValue
+            )
+
+            Text(snapshot.proposal.total.explanation)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+
+            if !snapshot.proposal.total.missingInputs.isEmpty {
+                Text("Proposal Missing Inputs: \(snapshot.proposal.total.missingInputs.joined(separator: ", "))")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
+            if !snapshot.proposal.total.trace.isEmpty {
+                Text("Proposal Total Trace")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.secondary)
+
+                ForEach(snapshot.proposal.total.trace) { traceEntry in
+                    ProposalInspectorValueRow(
+                        title: traceEntry.title,
+                        detail: traceEntry.detail,
+                        meta: traceEntry.key
+                    )
+                }
+            }
+
             ForEach(snapshot.proposal.pricingGroups) { group in
                 VStack(alignment: .leading, spacing: 8) {
                     HStack(alignment: .firstTextBaseline) {
@@ -416,6 +457,39 @@ private struct ProposalInspectorPricingView: View {
                         Text("Rolls Up: \(group.futureTotal.componentSubtotalKeys.joined(separator: ", "))")
                             .font(.caption)
                             .foregroundStyle(.secondary)
+                    }
+
+                    ProposalInspectorValueRow(
+                        title: "Group Total",
+                        detail: aggregateDetail(
+                            placeholderKey: group.total.placeholderKey,
+                            amount: group.total.amount
+                        ),
+                        meta: group.total.executionStatus.rawValue
+                    )
+
+                    Text(group.total.explanation)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+
+                    if !group.total.missingInputs.isEmpty {
+                        Text("Group Missing Inputs: \(group.total.missingInputs.joined(separator: ", "))")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+
+                    if !group.total.trace.isEmpty {
+                        Text("Group Total Trace")
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(.secondary)
+
+                        ForEach(group.total.trace) { traceEntry in
+                            ProposalInspectorValueRow(
+                                title: traceEntry.title,
+                                detail: traceEntry.detail,
+                                meta: traceEntry.key
+                            )
+                        }
                     }
 
                     ForEach(group.components) { component in
@@ -475,6 +549,14 @@ private struct ProposalInspectorPricingView: View {
                 .padding(.vertical, 4)
             }
         }
+    }
+
+    private func aggregateDetail(placeholderKey: String, amount: Double?) -> String {
+        if let amount {
+            let formatted = proposalInspectorCurrencyFormatter.string(from: NSNumber(value: amount)) ?? "\(amount)"
+            return "\(placeholderKey) = \(formatted)"
+        }
+        return placeholderKey
     }
 }
 
@@ -655,6 +737,36 @@ private struct ProposalInspectorSeedConfigView: View {
                 }
             }
 
+            if let lookupAdjustment = seedConfig.subtotal.lookupAdjustment {
+                ProposalInspectorValueRow(
+                    title: "Lookup Contract",
+                    detail: lookupAdjustment.status.rawValue,
+                    meta: lookupAdjustment.supportedAdjustments.joined(separator: ", ").nilIfBlank ?? "no_supported_adjustments"
+                )
+
+                Text(lookupAdjustment.explanation)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+
+                if !lookupAdjustment.supportedBaseComponents.isEmpty {
+                    Text("Supported Base Components: \(lookupAdjustment.supportedBaseComponents.joined(separator: ", "))")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+
+                if !lookupAdjustment.observedScheduleInputKeys.isEmpty {
+                    Text("Observed Schedule Keys: \(lookupAdjustment.observedScheduleInputKeys.joined(separator: ", "))")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+
+                if !lookupAdjustment.deferredScheduleInputKeys.isEmpty {
+                    Text("Deferred Schedule Keys: \(lookupAdjustment.deferredScheduleInputKeys.joined(separator: ", "))")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+
             ProposalInspectorResolvedRuleView(resolvedRule: seedConfig.resolvedRule)
             ProposalInspectorResolvedConfigurationView(resolvedConfiguration: seedConfig.resolvedConfiguration)
 
@@ -773,6 +885,14 @@ private struct ProposalInspectorResolvedConfigurationView: View {
         }
 
         return formatted
+    }
+
+    private func aggregateDetail(placeholderKey: String, amount: Double?) -> String {
+        if let amount {
+            let formatted = proposalInspectorCurrencyFormatter.string(from: NSNumber(value: amount)) ?? "\(amount)"
+            return "\(placeholderKey) = \(formatted)"
+        }
+        return placeholderKey
     }
 }
 

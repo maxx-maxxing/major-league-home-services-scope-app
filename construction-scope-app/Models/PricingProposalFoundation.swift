@@ -233,6 +233,22 @@ enum PricingLookupAdjustmentStatus: String, Codable, CaseIterable {
     case deferred
 }
 
+enum PricingLookupExecutionPath: String, Codable, CaseIterable {
+    case genericScaffold
+    case typedLookupTable
+}
+
+enum PricingTypedLookupExecutionStatus: String, Codable, CaseIterable {
+    case calculated
+    case missingInputs
+    case deferred
+}
+
+enum PricingTypedLookupFamily: String, Codable, CaseIterable {
+    case documentReviewTier
+    case siteReviewComplexity
+}
+
 enum PricingAggregateExecutionStatus: String, Codable, CaseIterable {
     case inactive
     case calculated
@@ -485,10 +501,22 @@ struct PricingSubtotalDerivationDraft: Codable, Hashable {
 
 struct PricingLookupAdjustmentContract: Codable, Hashable {
     let status: PricingLookupAdjustmentStatus
+    let executionPath: PricingLookupExecutionPath
     let supportedBaseComponents: [String]
     let supportedAdjustments: [String]
     let observedScheduleInputKeys: [String]
     let deferredScheduleInputKeys: [String]
+    let explanation: String
+    let typedExecution: PricingTypedLookupExecutionContract?
+}
+
+struct PricingTypedLookupExecutionContract: Codable, Hashable {
+    let family: PricingTypedLookupFamily
+    let status: PricingTypedLookupExecutionStatus
+    let scheduleInputKey: String
+    let scheduleValue: String?
+    let matchedContractID: String?
+    let normalizedInputDetails: [String]
     let explanation: String
 }
 
@@ -1338,6 +1366,7 @@ enum ProposalFoundationBuilder {
         )
         let subtotalSeed = makeSubtotalSeed(
             for: component,
+            mappedValues: mappedValues,
             quantityValue: quantityValue,
             isIncluded: isIncluded,
             resolvedRule: resolvedRule,
@@ -1707,6 +1736,7 @@ enum ProposalFoundationBuilder {
 
     private static func makeSubtotalSeed(
         for component: PricingComponentDefinition,
+        mappedValues: [ProposalInputValue],
         quantityValue: Double?,
         isIncluded: Bool,
         resolvedRule: ResolvedPricingRule,
@@ -1939,9 +1969,11 @@ enum ProposalFoundationBuilder {
         case .deferredLookup:
             return executeLookupAdjustedSubtotal(
                 for: component,
+                mappedValues: mappedValues,
                 quantityValue: quantityValue,
                 derivationKind: derivationKind,
                 formulaStrategy: formulaStrategy,
+                resolvedRule: resolvedRule,
                 resolvedConfiguration: resolvedConfiguration
             )
         case .none:
@@ -1962,6 +1994,37 @@ enum ProposalFoundationBuilder {
     }
 
     private static func executeLookupAdjustedSubtotal(
+        for component: PricingComponentDefinition,
+        mappedValues: [ProposalInputValue],
+        quantityValue: Double?,
+        derivationKind: PricingSubtotalDerivationKind?,
+        formulaStrategy: PricingFormulaStrategyKind?,
+        resolvedRule: ResolvedPricingRule,
+        resolvedConfiguration: ResolvedPricingConfiguration
+    ) -> PricingSubtotalSeed {
+        if let resolvedRuleID = resolvedRule.resolvedRuleID,
+           let typedExecution = executeTypedLookupSubtotal(
+            ruleID: resolvedRuleID,
+            component: component,
+            mappedValues: mappedValues,
+            quantityValue: quantityValue,
+            derivationKind: derivationKind,
+            formulaStrategy: formulaStrategy,
+            resolvedConfiguration: resolvedConfiguration
+           ) {
+            return typedExecution
+        }
+
+        return executeGenericLookupAdjustedSubtotal(
+            for: component,
+            quantityValue: quantityValue,
+            derivationKind: derivationKind,
+            formulaStrategy: formulaStrategy,
+            resolvedConfiguration: resolvedConfiguration
+        )
+    }
+
+    private static func executeGenericLookupAdjustedSubtotal(
         for component: PricingComponentDefinition,
         quantityValue: Double?,
         derivationKind: PricingSubtotalDerivationKind?,
@@ -2036,13 +2099,15 @@ enum ProposalFoundationBuilder {
             let contractStatus: PricingLookupAdjustmentStatus = missingInputs.contains("pricing_inputs") ? .deferred : .missingInputs
             let contract = PricingLookupAdjustmentContract(
                 status: contractStatus,
+                executionPath: .genericScaffold,
                 supportedBaseComponents: supportedBaseComponents,
                 supportedAdjustments: resolvedConfiguration.markupPercent == nil ? [] : ["markupPercent"],
                 observedScheduleInputKeys: scheduleKeys,
                 deferredScheduleInputKeys: deferredScheduleKeys,
                 explanation: contractStatus == .deferred
                     ? "Lookup-adjusted execution still lacks a safe base amount in the active pricing configuration, so the bucket remains deferred."
-                    : "Lookup-adjusted execution can run in this phase, but the current scope/config snapshot is missing one or more supported base inputs."
+                    : "Lookup-adjusted execution can run in this phase, but the current scope/config snapshot is missing one or more supported base inputs.",
+                typedExecution: nil
             )
             return PricingSubtotalSeed(
                 placeholderKey: component.subtotalPlaceholderKey,
@@ -2066,11 +2131,13 @@ enum ProposalFoundationBuilder {
         let subtotalAmount = baseAmount + markupAmount
         let lookupAdjustment = PricingLookupAdjustmentContract(
             status: .supported,
+            executionPath: .genericScaffold,
             supportedBaseComponents: supportedBaseComponents,
             supportedAdjustments: resolvedConfiguration.markupPercent == nil ? [] : ["markupPercent"],
             observedScheduleInputKeys: scheduleKeys,
             deferredScheduleInputKeys: deferredScheduleKeys,
-            explanation: "This pass supports only safe lookup-adjusted scaffolding: quantity x configured unit price, optional configured fee add, optional markup percent adjustment, and schedule-key capture for traceability."
+            explanation: "This pass supports only safe lookup-adjusted scaffolding: quantity x configured unit price, optional configured fee add, optional markup percent adjustment, and schedule-key capture for traceability.",
+            typedExecution: nil
         )
 
         trace.append(
@@ -2113,6 +2180,572 @@ enum ProposalFoundationBuilder {
             trace: trace,
             lookupAdjustment: lookupAdjustment
         )
+    }
+
+    private static func executeTypedLookupSubtotal(
+        ruleID: String,
+        component: PricingComponentDefinition,
+        mappedValues: [ProposalInputValue],
+        quantityValue: Double?,
+        derivationKind: PricingSubtotalDerivationKind?,
+        formulaStrategy: PricingFormulaStrategyKind?,
+        resolvedConfiguration: ResolvedPricingConfiguration
+    ) -> PricingSubtotalSeed? {
+        switch ruleID {
+        case "documents.review_tier":
+            return executeDocumentReviewTierSubtotal(
+                for: component,
+                mappedValues: mappedValues,
+                derivationKind: derivationKind,
+                formulaStrategy: formulaStrategy,
+                resolvedConfiguration: resolvedConfiguration
+            )
+        case "site_review.scope_complexity":
+            return executeSiteReviewComplexitySubtotal(
+                for: component,
+                mappedValues: mappedValues,
+                quantityValue: quantityValue,
+                derivationKind: derivationKind,
+                formulaStrategy: formulaStrategy,
+                resolvedConfiguration: resolvedConfiguration
+            )
+        default:
+            return nil
+        }
+    }
+
+    private static func executeDocumentReviewTierSubtotal(
+        for component: PricingComponentDefinition,
+        mappedValues: [ProposalInputValue],
+        derivationKind: PricingSubtotalDerivationKind?,
+        formulaStrategy: PricingFormulaStrategyKind?,
+        resolvedConfiguration: ResolvedPricingConfiguration
+    ) -> PricingSubtotalSeed {
+        let scheduleKeys = resolvedConfiguration.scheduleInputs.map(\.key).sorted()
+        let scheduleInput = resolvedConfiguration.scheduleInputs.first(where: { $0.key == "document_review_tier" })
+        let normalizedDocumentCount = normalizedSupportingDocumentCount(from: mappedValues)
+        let normalizedDetails = [
+            "Supporting documents: \(normalizedDocumentCount.formattedForPricingInspector)",
+            "Includes fixed irrigation/property-survey slots when present."
+        ]
+        let feeAmount = resolvedConfiguration.feeAmount?.amount
+        let markupPercent = resolvedConfiguration.markupPercent?.amount ?? 0
+        let quantityTrace = subtotalTraceInput(
+            key: "normalized_supporting_document_count",
+            title: "Normalized Supporting Document Count",
+            amount: normalizedDocumentCount,
+            unitLabel: "document",
+            missingDetail: "No supporting documents counted"
+        )
+        let tierTrace = PricingFormulaInputReference(
+            key: "document_review_tier",
+            title: "Document Review Tier",
+            detail: scheduleInput?.stringValue?.nilIfBlank ?? "Missing configured tier key",
+            isResolvedFromScope: scheduleInput?.stringValue?.nilIfBlank != nil
+        )
+        let feeTrace = currencyTraceInput(
+            key: resolvedConfiguration.feeAmount?.key ?? "\(component.id).fee_amount",
+            title: resolvedConfiguration.feeAmount?.title ?? "Configured Fee Amount",
+            amount: feeAmount,
+            missingDetail: "No configured fee amount"
+        )
+        let markupTrace = percentTraceInput(
+            key: resolvedConfiguration.markupPercent?.key ?? "\(component.id).markup_percent",
+            title: resolvedConfiguration.markupPercent?.title ?? "Configured Markup Percent",
+            amount: resolvedConfiguration.markupPercent?.amount,
+            missingDetail: "No configured markup percent"
+        )
+        let trace = [quantityTrace, tierTrace, feeTrace, markupTrace]
+
+        guard let tierKey = scheduleInput?.stringValue?.nilIfBlank else {
+            return typedLookupMissingOrDeferredSubtotal(
+                placeholderKey: component.subtotalPlaceholderKey,
+                executionStatus: .missingInputs,
+                derivationKind: derivationKind,
+                formulaStrategy: formulaStrategy,
+                missingInputs: ["document_review_tier"],
+                trace: trace,
+                contract: PricingLookupAdjustmentContract(
+                    status: .missingInputs,
+                    executionPath: .typedLookupTable,
+                    supportedBaseComponents: ["configuredFeeAmount"],
+                    supportedAdjustments: resolvedConfiguration.markupPercent == nil ? [] : ["markupPercent"],
+                    observedScheduleInputKeys: scheduleKeys,
+                    deferredScheduleInputKeys: [],
+                    explanation: "Typed document-review execution requires a configured `document_review_tier` schedule value.",
+                    typedExecution: PricingTypedLookupExecutionContract(
+                        family: .documentReviewTier,
+                        status: .missingInputs,
+                        scheduleInputKey: "document_review_tier",
+                        scheduleValue: nil,
+                        matchedContractID: nil,
+                        normalizedInputDetails: normalizedDetails,
+                        explanation: "No typed document-review tier key was available."
+                    )
+                ),
+                status: "Typed document-review subtotal is missing its tier key.",
+                explanation: "The selected typed document-review family only executes when the pricing configuration provides a `document_review_tier` contract key."
+            )
+        }
+
+        guard let tier = PricingDocumentReviewTier(rawValue: tierKey) else {
+            return typedLookupMissingOrDeferredSubtotal(
+                placeholderKey: component.subtotalPlaceholderKey,
+                executionStatus: .deferred,
+                derivationKind: derivationKind,
+                formulaStrategy: formulaStrategy,
+                missingInputs: [],
+                trace: trace,
+                contract: PricingLookupAdjustmentContract(
+                    status: .deferred,
+                    executionPath: .typedLookupTable,
+                    supportedBaseComponents: ["configuredFeeAmount"],
+                    supportedAdjustments: resolvedConfiguration.markupPercent == nil ? [] : ["markupPercent"],
+                    observedScheduleInputKeys: scheduleKeys,
+                    deferredScheduleInputKeys: ["document_review_tier"],
+                    explanation: "The configured document-review tier key is not yet part of the typed domain contract, so this bucket remains deferred.",
+                    typedExecution: PricingTypedLookupExecutionContract(
+                        family: .documentReviewTier,
+                        status: .deferred,
+                        scheduleInputKey: "document_review_tier",
+                        scheduleValue: tierKey,
+                        matchedContractID: nil,
+                        normalizedInputDetails: normalizedDetails,
+                        explanation: "Only confirmed document-review tier contracts execute in this phase."
+                    )
+                ),
+                status: "Typed document-review subtotal remains deferred for the configured tier key.",
+                explanation: "This pass supports only explicitly typed document-review tiers. Unknown tier keys stay deferred instead of falling back to guessed pricing."
+            )
+        }
+
+        guard normalizedDocumentCount > 0 else {
+            return typedLookupMissingOrDeferredSubtotal(
+                placeholderKey: component.subtotalPlaceholderKey,
+                executionStatus: .missingInputs,
+                derivationKind: derivationKind,
+                formulaStrategy: formulaStrategy,
+                missingInputs: ["normalized_supporting_document_count"],
+                trace: trace,
+                contract: PricingLookupAdjustmentContract(
+                    status: .missingInputs,
+                    executionPath: .typedLookupTable,
+                    supportedBaseComponents: ["configuredFeeAmount"],
+                    supportedAdjustments: resolvedConfiguration.markupPercent == nil ? [] : ["markupPercent"],
+                    observedScheduleInputKeys: scheduleKeys,
+                    deferredScheduleInputKeys: [],
+                    explanation: "Typed document-review execution requires at least one normalized supporting document.",
+                    typedExecution: PricingTypedLookupExecutionContract(
+                        family: .documentReviewTier,
+                        status: .missingInputs,
+                        scheduleInputKey: "document_review_tier",
+                        scheduleValue: tier.rawValue,
+                        matchedContractID: nil,
+                        normalizedInputDetails: normalizedDetails,
+                        explanation: "No supported documents were normalized for the document-review family."
+                    )
+                ),
+                status: "Typed document-review subtotal is missing normalized document count.",
+                explanation: "The bucket is included only for meaningful document inputs, but the typed contract still requires a positive normalized document count."
+            )
+        }
+
+        guard let feeAmount else {
+            return typedLookupMissingOrDeferredSubtotal(
+                placeholderKey: component.subtotalPlaceholderKey,
+                executionStatus: .missingInputs,
+                derivationKind: derivationKind,
+                formulaStrategy: formulaStrategy,
+                missingInputs: ["fee_amount"],
+                trace: trace,
+                contract: PricingLookupAdjustmentContract(
+                    status: .missingInputs,
+                    executionPath: .typedLookupTable,
+                    supportedBaseComponents: ["configuredFeeAmount"],
+                    supportedAdjustments: resolvedConfiguration.markupPercent == nil ? [] : ["markupPercent"],
+                    observedScheduleInputKeys: scheduleKeys,
+                    deferredScheduleInputKeys: [],
+                    explanation: "Typed document-review execution needs the configured package fee for the matched tier.",
+                    typedExecution: PricingTypedLookupExecutionContract(
+                        family: .documentReviewTier,
+                        status: .missingInputs,
+                        scheduleInputKey: "document_review_tier",
+                        scheduleValue: tier.rawValue,
+                        matchedContractID: tier.contractID,
+                        normalizedInputDetails: normalizedDetails,
+                        explanation: "The tier matched, but the package fee is missing from the active pricing snapshot."
+                    )
+                ),
+                status: "Typed document-review subtotal is missing configured fee amount.",
+                explanation: "The typed document-review family uses the configured package fee plus optional markup."
+            )
+        }
+
+        guard tier.supports(documentCount: normalizedDocumentCount) else {
+            return typedLookupMissingOrDeferredSubtotal(
+                placeholderKey: component.subtotalPlaceholderKey,
+                executionStatus: .deferred,
+                derivationKind: derivationKind,
+                formulaStrategy: formulaStrategy,
+                missingInputs: [],
+                trace: trace,
+                contract: PricingLookupAdjustmentContract(
+                    status: .deferred,
+                    executionPath: .typedLookupTable,
+                    supportedBaseComponents: ["configuredFeeAmount"],
+                    supportedAdjustments: resolvedConfiguration.markupPercent == nil ? [] : ["markupPercent"],
+                    observedScheduleInputKeys: scheduleKeys,
+                    deferredScheduleInputKeys: ["document_review_tier"],
+                    explanation: "The current document count exceeds the supported typed tier contract, so this family remains deferred until more tiers are defined.",
+                    typedExecution: PricingTypedLookupExecutionContract(
+                        family: .documentReviewTier,
+                        status: .deferred,
+                        scheduleInputKey: "document_review_tier",
+                        scheduleValue: tier.rawValue,
+                        matchedContractID: tier.contractID,
+                        normalizedInputDetails: normalizedDetails,
+                        explanation: "The active typed contract covers up to \(tier.maxDocumentCount) documents, but the scope normalized \(normalizedDocumentCount.formattedForPricingInspector)."
+                    )
+                ),
+                status: "Typed document-review subtotal remains deferred because the normalized document count exceeds the supported tier.",
+                explanation: "Only the confirmed `up_to_three_docs` contract executes in this pass. Higher review tiers remain deferred until business-owned contracts are supplied."
+            )
+        }
+
+        let markupAmount = markupPercent == 0 ? 0 : feeAmount * (markupPercent / 100)
+        let subtotalAmount = feeAmount + markupAmount
+        var calculatedTrace = trace
+        calculatedTrace.append(
+            currencyTraceInput(
+                key: "\(component.id).typed_lookup_base_amount",
+                title: "Typed Lookup Base Amount",
+                amount: feeAmount,
+                missingDetail: "Base amount unavailable"
+            )
+        )
+        if resolvedConfiguration.markupPercent != nil {
+            calculatedTrace.append(
+                currencyTraceInput(
+                    key: "\(component.id).typed_lookup_markup_amount",
+                    title: "Markup Amount",
+                    amount: markupAmount,
+                    missingDetail: "Markup amount unavailable"
+                )
+            )
+        }
+        calculatedTrace.append(
+            currencyTraceInput(
+                key: component.subtotalPlaceholderKey,
+                title: "Typed Lookup Subtotal",
+                amount: subtotalAmount,
+                missingDetail: "Subtotal unavailable"
+            )
+        )
+
+        return PricingSubtotalSeed(
+            placeholderKey: component.subtotalPlaceholderKey,
+            executionStatus: .calculated,
+            derivationKind: derivationKind,
+            formulaStrategy: formulaStrategy,
+            source: .lookupAdjustedComposite,
+            amount: subtotalAmount,
+            status: "Executed from typed document-review lookup contract.",
+            explanation: "The bucket executed through the typed document-review tier contract using normalized supporting-document count, configured package fee, and optional markup.",
+            missingInputs: [],
+            trace: calculatedTrace,
+            lookupAdjustment: PricingLookupAdjustmentContract(
+                status: .supported,
+                executionPath: .typedLookupTable,
+                supportedBaseComponents: ["configuredFeeAmount"],
+                supportedAdjustments: resolvedConfiguration.markupPercent == nil ? [] : ["markupPercent"],
+                observedScheduleInputKeys: scheduleKeys,
+                deferredScheduleInputKeys: [],
+                explanation: "This family no longer uses the generic lookup scaffold in this pass. It executes only when the typed document-review tier contract matches the normalized document count.",
+                typedExecution: PricingTypedLookupExecutionContract(
+                    family: .documentReviewTier,
+                    status: .calculated,
+                    scheduleInputKey: "document_review_tier",
+                    scheduleValue: tier.rawValue,
+                    matchedContractID: tier.contractID,
+                    normalizedInputDetails: normalizedDetails,
+                    explanation: "Matched the `\(tier.rawValue)` typed contract."
+                )
+            )
+        )
+    }
+
+    private static func executeSiteReviewComplexitySubtotal(
+        for component: PricingComponentDefinition,
+        mappedValues: [ProposalInputValue],
+        quantityValue: Double?,
+        derivationKind: PricingSubtotalDerivationKind?,
+        formulaStrategy: PricingFormulaStrategyKind?,
+        resolvedConfiguration: ResolvedPricingConfiguration
+    ) -> PricingSubtotalSeed {
+        let scheduleKeys = resolvedConfiguration.scheduleInputs.map(\.key).sorted()
+        let tierInput = resolvedConfiguration.scheduleInputs.first(where: { $0.key == "complexity_tier" })
+        let crewHoursInput = resolvedConfiguration.scheduleInputs.first(where: { $0.key == "crew_visit_hours" })
+        let meaningfulSignalCount = Double(mappedValues.filter(isAffirmativeOrMeaningful).count)
+        let normalizedDetails = [
+            "Meaningful site signals: \(meaningfulSignalCount.formattedForPricingInspector)",
+            "Crew visit hours: \(crewHoursInput?.displayValue.nilIfBlank ?? "Not configured")",
+            "Scoped review quantity: \((quantityValue ?? 1).formattedForPricingInspector)"
+        ]
+        let feeAmount = resolvedConfiguration.feeAmount?.amount
+        let markupPercent = resolvedConfiguration.markupPercent?.amount ?? 0
+        let trace = [
+            subtotalTraceInput(
+                key: "meaningful_site_signal_count",
+                title: "Meaningful Site Signal Count",
+                amount: meaningfulSignalCount,
+                unitLabel: "signals",
+                missingDetail: "No site signals counted"
+            ),
+            PricingFormulaInputReference(
+                key: "complexity_tier",
+                title: "Complexity Tier",
+                detail: tierInput?.stringValue?.nilIfBlank ?? "Missing configured complexity tier",
+                isResolvedFromScope: tierInput?.stringValue?.nilIfBlank != nil
+            ),
+            PricingFormulaInputReference(
+                key: "crew_visit_hours",
+                title: "Crew Visit Hours",
+                detail: crewHoursInput?.displayValue.nilIfBlank ?? "Missing configured crew visit hours",
+                isResolvedFromScope: crewHoursInput?.numericValue != nil
+            ),
+            currencyTraceInput(
+                key: resolvedConfiguration.feeAmount?.key ?? "\(component.id).fee_amount",
+                title: resolvedConfiguration.feeAmount?.title ?? "Configured Fee Amount",
+                amount: feeAmount,
+                missingDetail: "No configured fee amount"
+            ),
+            percentTraceInput(
+                key: resolvedConfiguration.markupPercent?.key ?? "\(component.id).markup_percent",
+                title: resolvedConfiguration.markupPercent?.title ?? "Configured Markup Percent",
+                amount: resolvedConfiguration.markupPercent?.amount,
+                missingDetail: "No configured markup percent"
+            )
+        ]
+
+        guard let tierKey = tierInput?.stringValue?.nilIfBlank else {
+            return typedLookupMissingOrDeferredSubtotal(
+                placeholderKey: component.subtotalPlaceholderKey,
+                executionStatus: .missingInputs,
+                derivationKind: derivationKind,
+                formulaStrategy: formulaStrategy,
+                missingInputs: ["complexity_tier"],
+                trace: trace,
+                contract: PricingLookupAdjustmentContract(
+                    status: .missingInputs,
+                    executionPath: .typedLookupTable,
+                    supportedBaseComponents: ["configuredFeeAmount"],
+                    supportedAdjustments: resolvedConfiguration.markupPercent == nil ? [] : ["markupPercent"],
+                    observedScheduleInputKeys: scheduleKeys,
+                    deferredScheduleInputKeys: [],
+                    explanation: "Typed site-review execution requires a configured `complexity_tier` key.",
+                    typedExecution: PricingTypedLookupExecutionContract(
+                        family: .siteReviewComplexity,
+                        status: .missingInputs,
+                        scheduleInputKey: "complexity_tier",
+                        scheduleValue: nil,
+                        matchedContractID: nil,
+                        normalizedInputDetails: normalizedDetails,
+                        explanation: "No typed complexity tier key was available."
+                    )
+                ),
+                status: "Typed site-review subtotal is missing its complexity tier key.",
+                explanation: "The selected site-review family executes only from a typed complexity-tier contract."
+            )
+        }
+
+        guard let tier = PricingSiteReviewComplexityTier(rawValue: tierKey) else {
+            return typedLookupMissingOrDeferredSubtotal(
+                placeholderKey: component.subtotalPlaceholderKey,
+                executionStatus: .deferred,
+                derivationKind: derivationKind,
+                formulaStrategy: formulaStrategy,
+                missingInputs: [],
+                trace: trace,
+                contract: PricingLookupAdjustmentContract(
+                    status: .deferred,
+                    executionPath: .typedLookupTable,
+                    supportedBaseComponents: ["configuredFeeAmount"],
+                    supportedAdjustments: resolvedConfiguration.markupPercent == nil ? [] : ["markupPercent"],
+                    observedScheduleInputKeys: scheduleKeys,
+                    deferredScheduleInputKeys: ["complexity_tier"],
+                    explanation: "The configured site-review tier key is not yet part of the typed domain contract.",
+                    typedExecution: PricingTypedLookupExecutionContract(
+                        family: .siteReviewComplexity,
+                        status: .deferred,
+                        scheduleInputKey: "complexity_tier",
+                        scheduleValue: tierKey,
+                        matchedContractID: nil,
+                        normalizedInputDetails: normalizedDetails,
+                        explanation: "Only confirmed site-review tier contracts execute in this phase."
+                    )
+                ),
+                status: "Typed site-review subtotal remains deferred for the configured tier key.",
+                explanation: "Unknown complexity tiers stay deferred instead of falling back to guessed package logic."
+            )
+        }
+
+        guard meaningfulSignalCount > 0 else {
+            return typedLookupMissingOrDeferredSubtotal(
+                placeholderKey: component.subtotalPlaceholderKey,
+                executionStatus: .missingInputs,
+                derivationKind: derivationKind,
+                formulaStrategy: formulaStrategy,
+                missingInputs: ["meaningful_site_signal_count"],
+                trace: trace,
+                contract: PricingLookupAdjustmentContract(
+                    status: .missingInputs,
+                    executionPath: .typedLookupTable,
+                    supportedBaseComponents: ["configuredFeeAmount"],
+                    supportedAdjustments: resolvedConfiguration.markupPercent == nil ? [] : ["markupPercent"],
+                    observedScheduleInputKeys: scheduleKeys,
+                    deferredScheduleInputKeys: [],
+                    explanation: "Typed site-review execution requires at least one meaningful scope signal.",
+                    typedExecution: PricingTypedLookupExecutionContract(
+                        family: .siteReviewComplexity,
+                        status: .missingInputs,
+                        scheduleInputKey: "complexity_tier",
+                        scheduleValue: tier.rawValue,
+                        matchedContractID: nil,
+                        normalizedInputDetails: normalizedDetails,
+                        explanation: "The site-review family found no meaningful scope signals."
+                    )
+                ),
+                status: "Typed site-review subtotal is missing meaningful scope signals.",
+                explanation: "The bucket should only execute when the scope actually expresses site-review complexity."
+            )
+        }
+
+        guard let feeAmount else {
+            return typedLookupMissingOrDeferredSubtotal(
+                placeholderKey: component.subtotalPlaceholderKey,
+                executionStatus: .missingInputs,
+                derivationKind: derivationKind,
+                formulaStrategy: formulaStrategy,
+                missingInputs: ["fee_amount"],
+                trace: trace,
+                contract: PricingLookupAdjustmentContract(
+                    status: .missingInputs,
+                    executionPath: .typedLookupTable,
+                    supportedBaseComponents: ["configuredFeeAmount"],
+                    supportedAdjustments: resolvedConfiguration.markupPercent == nil ? [] : ["markupPercent"],
+                    observedScheduleInputKeys: scheduleKeys,
+                    deferredScheduleInputKeys: [],
+                    explanation: "Typed site-review execution needs the configured scoped-review fee.",
+                    typedExecution: PricingTypedLookupExecutionContract(
+                        family: .siteReviewComplexity,
+                        status: .missingInputs,
+                        scheduleInputKey: "complexity_tier",
+                        scheduleValue: tier.rawValue,
+                        matchedContractID: tier.contractID,
+                        normalizedInputDetails: normalizedDetails,
+                        explanation: "The typed complexity tier matched, but the scoped-review fee is missing."
+                    )
+                ),
+                status: "Typed site-review subtotal is missing configured fee amount.",
+                explanation: "The typed site-review family currently prices from the configured package fee plus optional markup."
+            )
+        }
+
+        let markupAmount = markupPercent == 0 ? 0 : feeAmount * (markupPercent / 100)
+        let subtotalAmount = feeAmount + markupAmount
+        var calculatedTrace = trace
+        calculatedTrace.append(
+            currencyTraceInput(
+                key: "\(component.id).typed_lookup_base_amount",
+                title: "Typed Lookup Base Amount",
+                amount: feeAmount,
+                missingDetail: "Base amount unavailable"
+            )
+        )
+        if resolvedConfiguration.markupPercent != nil {
+            calculatedTrace.append(
+                currencyTraceInput(
+                    key: "\(component.id).typed_lookup_markup_amount",
+                    title: "Markup Amount",
+                    amount: markupAmount,
+                    missingDetail: "Markup amount unavailable"
+                )
+            )
+        }
+        calculatedTrace.append(
+            currencyTraceInput(
+                key: component.subtotalPlaceholderKey,
+                title: "Typed Lookup Subtotal",
+                amount: subtotalAmount,
+                missingDetail: "Subtotal unavailable"
+            )
+        )
+
+        return PricingSubtotalSeed(
+            placeholderKey: component.subtotalPlaceholderKey,
+            executionStatus: .calculated,
+            derivationKind: derivationKind,
+            formulaStrategy: formulaStrategy,
+            source: .lookupAdjustedComposite,
+            amount: subtotalAmount,
+            status: "Executed from typed site-review lookup contract.",
+            explanation: "The bucket executed through the typed site-review complexity contract using the configured scoped-review fee plus optional markup.",
+            missingInputs: [],
+            trace: calculatedTrace,
+            lookupAdjustment: PricingLookupAdjustmentContract(
+                status: .supported,
+                executionPath: .typedLookupTable,
+                supportedBaseComponents: ["configuredFeeAmount"],
+                supportedAdjustments: resolvedConfiguration.markupPercent == nil ? [] : ["markupPercent"],
+                observedScheduleInputKeys: scheduleKeys,
+                deferredScheduleInputKeys: crewHoursInput == nil ? ["crew_visit_hours"] : [],
+                explanation: "This family now executes through the typed site-review tier contract. `crew_visit_hours` remains visible as schedule context but does not drive subtotal math yet.",
+                typedExecution: PricingTypedLookupExecutionContract(
+                    family: .siteReviewComplexity,
+                    status: .calculated,
+                    scheduleInputKey: "complexity_tier",
+                    scheduleValue: tier.rawValue,
+                    matchedContractID: tier.contractID,
+                    normalizedInputDetails: normalizedDetails,
+                    explanation: "Matched the `\(tier.rawValue)` typed site-review contract."
+                )
+            )
+        )
+    }
+
+    private static func typedLookupMissingOrDeferredSubtotal(
+        placeholderKey: String,
+        executionStatus: PricingSubtotalExecutionStatus,
+        derivationKind: PricingSubtotalDerivationKind?,
+        formulaStrategy: PricingFormulaStrategyKind?,
+        missingInputs: [String],
+        trace: [PricingFormulaInputReference],
+        contract: PricingLookupAdjustmentContract,
+        status: String,
+        explanation: String
+    ) -> PricingSubtotalSeed {
+        PricingSubtotalSeed(
+            placeholderKey: placeholderKey,
+            executionStatus: executionStatus,
+            derivationKind: derivationKind,
+            formulaStrategy: formulaStrategy,
+            source: .lookupAdjustedComposite,
+            amount: nil,
+            status: status,
+            explanation: explanation,
+            missingInputs: missingInputs,
+            trace: trace,
+            lookupAdjustment: contract
+        )
+    }
+
+    private static func normalizedSupportingDocumentCount(
+        from mappedValues: [ProposalInputValue]
+    ) -> Double {
+        let additionalDocumentCount = mappedValues.first(where: { $0.key == .additionalDocumentCount })?.numericValue ?? 0
+        let irrigationCount = mappedValues.first(where: { $0.key == .irrigationDocument })?.isMeaningful == true ? 1.0 : 0.0
+        let propertySurveyCount = mappedValues.first(where: { $0.key == .propertySurveyDocument })?.isMeaningful == true ? 1.0 : 0.0
+        return additionalDocumentCount + irrigationCount + propertySurveyCount
     }
 
     private static func subtotalTraceInput(
@@ -4530,6 +5163,33 @@ extension JobScope {
     }
 }
 
+private enum PricingDocumentReviewTier: String {
+    case upToThreeDocs = "up_to_three_docs"
+
+    var maxDocumentCount: Double {
+        switch self {
+        case .upToThreeDocs:
+            return 3
+        }
+    }
+
+    var contractID: String {
+        "documents.review_tier.\(rawValue)"
+    }
+
+    func supports(documentCount: Double) -> Bool {
+        documentCount <= maxDocumentCount
+    }
+}
+
+private enum PricingSiteReviewComplexityTier: String {
+    case standardReview = "standard_review"
+
+    var contractID: String {
+        "site_review.scope_complexity.\(rawValue)"
+    }
+}
+
 private enum ProposalFoundationFormatter {
     static let number: NumberFormatter = {
         let formatter = NumberFormatter()
@@ -4555,6 +5215,12 @@ private enum ProposalFoundationFormatter {
 private extension Array where Element == String {
     var nilIfEmpty: [String]? {
         isEmpty ? nil : self
+    }
+}
+
+private extension Double {
+    var formattedForPricingInspector: String {
+        ProposalFoundationFormatter.number.string(from: NSNumber(value: self)) ?? "\(self)"
     }
 }
 

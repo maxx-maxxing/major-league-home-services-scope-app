@@ -37,6 +37,7 @@
 - Milestone 5.2.36: Implemented (returned pricing workbook normalization + validation)
 - Milestone 5.2.37: Implemented (bucket subtotal execution)
 - Milestone 5.2.38: Implemented (lookup-adjusted buckets + aggregate total scaffolding)
+- Milestone 5.2.39: Implemented (typed lookup execution for selected deferred families)
 - Milestone 6: Implemented (photo attachment flow + PDF photo appendix)
 - Milestone 7.1: In progress (interaction animation polish)
 - Milestone 7.2: In progress (acceptance closeout)
@@ -46,6 +47,55 @@
 - Milestone 7.5.1: In progress (documents responsiveness regression recovery)
 
 ## Decisions
+- Milestone 5.2.39 typed lookup execution for selected deferred families:
+  - Added the next pricing-domain pass in [PricingProposalFoundation.swift](/Users/maxx/Documents/major-league-home-services-scope-app/construction-scope-app/Models/PricingProposalFoundation.swift) by inserting a narrow typed-lookup seam ahead of the existing generic lookup-adjusted scaffold.
+  - Why this is the smallest safe architecture:
+    - typed lookup execution still lives in the existing proposal/pricing foundation path, so rule resolution, config hydration, bucket execution, and aggregate rollups remain domain-owned and inspectable from one snapshot
+    - the config import boundary and stable rule IDs remain unchanged
+    - only two high-confidence deferred families were converted:
+      - `documents.review_tier`
+      - `site_review.scope_complexity`
+    - remaining lookup-style families still fall back to the existing generic scaffold or explicit deferred states instead of forcing guessed pricing logic into Views or broad config parsing
+  - Implemented typed contracts in this pass:
+    - `documents.review_tier`
+      - added a typed `up_to_three_docs` family contract
+      - normalized supporting-document count now includes:
+        - irrigation document slot when present
+        - property survey slot when present
+        - repeatable additional document count
+      - execution now requires:
+        - a typed `document_review_tier` schedule key
+        - a normalized document count supported by the typed contract
+        - configured fee amount
+      - unsupported or overflow document tiers remain explicitly deferred instead of silently falling through to guessed package pricing
+    - `site_review.scope_complexity`
+      - added a typed `standard_review` family contract
+      - execution now requires:
+        - a typed `complexity_tier` schedule key
+        - at least one meaningful site-review signal from the mapped scope inputs
+        - configured fee amount
+      - `crew_visit_hours` is now surfaced as typed schedule context in the domain result even though it does not yet change subtotal math
+  - Remaining deferred on purpose in this pass:
+    - attachment/support condition tables
+    - screen/wall product-family tables
+    - electrical adder tables
+    - jurisdiction schedules
+    - vendor/product catalogs
+    - final proposal preview UI
+    - final PDF pricing rendering
+    - final JobTread pricing sync submission
+  - Updated the debug inspector in [JobTreadDebugView.swift](/Users/maxx/Documents/major-league-home-services-scope-app/construction-scope-app/Views/JobTreadDebugView.swift) to read the richer domain result and show:
+    - whether a bucket used `genericScaffold` or `typedLookupTable`
+    - typed lookup family
+    - typed schedule input key/value
+    - matched typed contract ID when available
+    - family-specific normalized input details used by the typed execution path
+  - Validation:
+    - attempted:
+      - `xcodebuild -project ConstructionScopeApp.xcodeproj -scheme ConstructionScopeApp -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' -derivedDataPath /tmp/ConstructionScopeAppDerivedData CODE_SIGNING_ALLOWED=NO build`
+    - result:
+      - build validation remains blocked in this sandbox by the same SwiftData macro/plugin failure in [SchemaModels.swift](/Users/maxx/Documents/major-league-home-services-scope-app/construction-scope-app/Models/SchemaModels.swift) plus `sandbox-exec` restrictions during Swift module emission
+      - the surfaced app-level failures were still environment/macro related rather than new pricing-domain type errors from this pass
 - Milestone 5.2.38 lookup-adjusted buckets + aggregate total scaffolding:
   - Added the next pricing-domain pass in [PricingProposalFoundation.swift](/Users/maxx/Documents/major-league-home-services-scope-app/construction-scope-app/Models/PricingProposalFoundation.swift) without changing the current proposal composition boundary or moving pricing logic into Views.
   - Why this is the smallest safe architecture:

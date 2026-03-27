@@ -277,6 +277,25 @@ Keep milestones small, testable, and reviewable.
   - Expose aggregate readiness, amount, missing-input, and trace metadata through the debug inspector without duplicating pricing logic in SwiftUI
   - Preserve proposal composition, direct bucket subtotal execution, pricing config import behavior, rule registry behavior, and the current JobTread integration baseline
   - Defer final customer-facing proposal pricing UI, final PDF pricing rendering, and final JobTread pricing sync submission until the business pricing contract is more complete
+- Milestone 5.2.39 – Typed Lookup Execution for Selected Deferred Families
+  - Keep typed lookup execution in the existing pricing domain/foundation layer so rule resolution, config hydration, bucket execution, and aggregate rollups still come from one domain-owned snapshot
+  - Convert only the smallest safe deferred families first:
+    - `documents.review_tier`
+    - `site_review.scope_complexity`
+  - Add narrow typed lookup/schedule contract types keyed by stable rule ID and stable schedule-input keys instead of introducing broad generic table parsing
+  - Normalize only the family-specific inputs needed for those contracts:
+    - total supporting-document count for document review
+    - scoped review tier/schedule context for site review
+  - Execute selected families through typed domain strategies and keep unsupported tiers/keys explicitly `deferred` or `missingInputs`
+  - Preserve current direct subtotal behavior for non-lookup families and preserve the existing generic fallback/deferred behavior for the remaining unsupported lookup families
+  - Surface typed lookup execution path, matched schedule contract, and remaining deferrals through the debug inspector from domain-owned results only
+  - Preserve current JobTread customer search/select, linked-customer hydration/read-only ownership, documents/attachments behavior, pricing config import behavior, and aggregate total scaffolding
+  - Defer broader table families until business-owned contracts are clearer:
+    - attachment/support condition tables
+    - screen/wall product-family tables
+    - electrical adder tables
+    - jurisdiction schedules
+    - vendor/product catalogs
 - Milestone 5.2.32 – Pricing Rule Registry Foundation
   - Add stable pricing rule-definition types in the domain/foundation layer
   - Resolve existing bucket `draftRuleKey` / formula placeholder metadata through a registry instead of leaving buckets as unstructured placeholders

@@ -744,9 +744,47 @@ private struct ProposalInspectorSeedConfigView: View {
                     meta: lookupAdjustment.supportedAdjustments.joined(separator: ", ").nilIfBlank ?? "no_supported_adjustments"
                 )
 
+                ProposalInspectorValueRow(
+                    title: "Lookup Execution Path",
+                    detail: lookupAdjustment.executionPath.rawValue,
+                    meta: lookupAdjustment.typedExecution?.family.rawValue ?? "generic_lookup"
+                )
+
                 Text(lookupAdjustment.explanation)
                     .font(.caption)
                     .foregroundStyle(.secondary)
+
+                if let typedExecution = lookupAdjustment.typedExecution {
+                    ProposalInspectorValueRow(
+                        title: "Typed Lookup Family",
+                        detail: typedExecution.family.rawValue,
+                        meta: typedExecution.status.rawValue
+                    )
+
+                    ProposalInspectorValueRow(
+                        title: "Typed Schedule Input",
+                        detail: typedExecution.scheduleInputKey,
+                        meta: typedExecution.scheduleValue ?? "no_schedule_value"
+                    )
+
+                    if let matchedContractID = typedExecution.matchedContractID {
+                        ProposalInspectorValueRow(
+                            title: "Matched Contract",
+                            detail: matchedContractID,
+                            meta: "typed_lookup_contract"
+                        )
+                    }
+
+                    Text(typedExecution.explanation)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+
+                    ForEach(Array(typedExecution.normalizedInputDetails.enumerated()), id: \.offset) { item in
+                        Text(item.element)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
 
                 if !lookupAdjustment.supportedBaseComponents.isEmpty {
                     Text("Supported Base Components: \(lookupAdjustment.supportedBaseComponents.joined(separator: ", "))")

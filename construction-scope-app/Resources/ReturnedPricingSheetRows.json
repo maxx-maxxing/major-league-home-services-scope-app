@@ -1,0 +1,81 @@
+[
+  {
+    "fillStatus": "READY",
+    "pricingGroupTitle": "Base Structure",
+    "pricingItemTitle": "Frame and Roof Package",
+    "businessLabel": "Structure base unit cost",
+    "ruleID": "structure.base_package",
+    "groupID": "base-structure",
+    "valueKind": "draftUnitCost",
+    "expectedValueType": "currency",
+    "unitLabel": "sq ft",
+    "currentDraftBaseline": "24",
+    "businessNumericValue": "24",
+    "businessNotes": "Sample returned-sheet value mirroring the current baseline."
+  },
+  {
+    "fillStatus": "READY",
+    "pricingGroupTitle": "Base Structure",
+    "pricingItemTitle": "Frame and Roof Package",
+    "businessLabel": "Structure base unit price",
+    "ruleID": "structure.base_package",
+    "groupID": "base-structure",
+    "valueKind": "draftUnitPrice",
+    "expectedValueType": "currency",
+    "unitLabel": "sq ft",
+    "currentDraftBaseline": "36",
+    "businessNumericValue": "36",
+    "businessNotes": "Sample returned-sheet value mirroring the current baseline."
+  },
+  {
+    "fillStatus": "READY",
+    "pricingGroupTitle": "Enclosure Options",
+    "pricingItemTitle": "Window System Package",
+    "businessLabel": "Glass modifier table key",
+    "ruleID": "windows.system_selection",
+    "groupID": "enclosure-options",
+    "valueKind": "scheduleInput",
+    "scheduleInputKey": "glass_modifier_table",
+    "expectedValueType": "text",
+    "currentDraftBaseline": "glass_default",
+    "businessTextValue": "glass_default",
+    "businessNotes": "Sample returned-sheet schedule key."
+  },
+  {
+    "fillStatus": "READY",
+    "pricingGroupTitle": "Finishes, Permits, and Closeout",
+    "pricingItemTitle": "Permit and Engineering Allowance",
+    "businessLabel": "Permit/admin fee",
+    "ruleID": "permits.requirements",
+    "groupID": "finishes-permits-and-closeout",
+    "valueKind": "feeAmount",
+    "expectedValueType": "currency",
+    "currentDraftBaseline": "450",
+    "businessNumericValue": "450",
+    "businessNotes": "Sample returned-sheet fee."
+  },
+  {
+    "fillStatus": "TODO",
+    "pricingGroupTitle": "Electrical and Drainage",
+    "pricingItemTitle": "Drainage Package",
+    "businessLabel": "Drainage package type key",
+    "ruleID": "drainage.scope_package",
+    "groupID": "electrical-drainage",
+    "valueKind": "scheduleInput",
+    "scheduleInputKey": "drainage_package_type",
+    "expectedValueType": "text",
+    "currentDraftBaseline": "standard_package"
+  },
+  {
+    "fillStatus": "SKIP",
+    "pricingGroupTitle": "Base Structure",
+    "pricingItemTitle": "Attachment and Support Package",
+    "businessLabel": "Mount condition table key",
+    "ruleID": "structure.attachment_support_conditions",
+    "groupID": "base-structure",
+    "valueKind": "scheduleInput",
+    "scheduleInputKey": "mount_condition_table",
+    "expectedValueType": "text",
+    "currentDraftBaseline": "baseline"
+  }
+]

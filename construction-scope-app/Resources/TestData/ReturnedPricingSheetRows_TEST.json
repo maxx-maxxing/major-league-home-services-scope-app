@@ -1,0 +1,110 @@
+[
+  {
+    "ruleID": "site_review.scope_complexity",
+    "groupID": "site-readiness-and-coordination",
+    "valueKind": "feeAmount",
+    "numericValue": 325,
+    "notes": "Test case: updated site review fee"
+  },
+  {
+    "ruleID": "site_review.scope_complexity",
+    "groupID": "site-readiness-and-coordination",
+    "valueKind": "markupPercent",
+    "numericValue": 20,
+    "notes": "Test case: markup percent"
+  },
+  {
+    "ruleID": "site_review.scope_complexity",
+    "groupID": "site-readiness-and-coordination",
+    "valueKind": "scheduleInput",
+    "scheduleInputKey": "complexity_tier",
+    "title": "Complexity tier key",
+    "stringValue": "complex_review",
+    "notes": "Test case: text schedule input"
+  },
+  {
+    "ruleID": "site_review.scope_complexity",
+    "groupID": "site-readiness-and-coordination",
+    "valueKind": "scheduleInput",
+    "scheduleInputKey": "crew_visit_hours",
+    "title": "Crew visit hours",
+    "numericValue": 3,
+    "notes": "Test case: crew visit hours"
+  },
+  {
+    "ruleID": "documents.review_tier",
+    "groupID": "site-readiness-and-coordination",
+    "valueKind": "feeAmount",
+    "numericValue": 240,
+    "notes": "Test case: document review fee"
+  },
+  {
+    "ruleID": "documents.review_tier",
+    "groupID": "site-readiness-and-coordination",
+    "valueKind": "markupPercent",
+    "numericValue": 17,
+    "notes": "Test case: document review markup"
+  },
+  {
+    "ruleID": "documents.review_tier",
+    "groupID": "site-readiness-and-coordination",
+    "valueKind": "scheduleInput",
+    "scheduleInputKey": "document_review_tier",
+    "title": "Document review tier key",
+    "stringValue": "four_to_six_docs",
+    "notes": "Test case: review tier key"
+  },
+  {
+    "ruleID": "structure.base_package",
+    "groupID": "base-structure",
+    "valueKind": "draftUnitCost",
+    "numericValue": 28,
+    "notes": "Test case: structure unit cost"
+  },
+  {
+    "ruleID": "structure.base_package",
+    "groupID": "base-structure",
+    "valueKind": "draftUnitPrice",
+    "numericValue": 42,
+    "notes": "Test case: structure unit price"
+  },
+  {
+    "ruleID": "structure.base_package",
+    "groupID": "base-structure",
+    "valueKind": "scheduleInput",
+    "scheduleInputKey": "material_factor",
+    "title": "Material factor",
+    "numericValue": 1.15,
+    "notes": "Test case: material factor multiplier"
+  },
+  {
+    "ruleID": "structure.base_package",
+    "groupID": "base-structure",
+    "valueKind": "scheduleInput",
+    "scheduleInputKey": "lead_time_weeks",
+    "title": "Lead time weeks",
+    "numericValue": 6,
+    "notes": "Test case: lead time weeks"
+  },
+  {
+    "ruleID": "structure.attachment_support_conditions",
+    "groupID": "base-structure",
+    "valueKind": "draftUnitCost",
+    "numericValue": 9,
+    "notes": "Test case: attachment/support unit cost"
+  },
+  {
+    "ruleID": "structure.attachment_support_conditions",
+    "groupID": "base-structure",
+    "valueKind": "draftUnitPrice",
+    "numericValue": 14,
+    "notes": "Test case: attachment/support unit price"
+  },
+  {
+    "ruleID": "structure.attachment_support_conditions",
+    "groupID": "base-structure",
+    "valueKind": "feeAmount",
+    "numericValue": 265,
+    "notes": "Test case: attachment/support fee"
+  }
+]

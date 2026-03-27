@@ -7,6 +7,12 @@ The current import boundary is already implemented in:
 - [PricingProposalFoundation.swift](/Users/maxx/Documents/major-league-home-services-scope-app/construction-scope-app/Models/PricingProposalFoundation.swift)
 - [BusinessOwnedPricingRows.json](/Users/maxx/Documents/major-league-home-services-scope-app/construction-scope-app/Resources/BusinessOwnedPricingRows.json)
 
+The first supported completed-sheet return format is now:
+
+- [ReturnedPricingSheetRows.json](/Users/maxx/Documents/major-league-home-services-scope-app/construction-scope-app/Resources/ReturnedPricingSheetRows.json)
+
+This file mirrors the business-facing fill-sheet columns directly so returned workbook rows can be normalized and validated before they are converted into `ImportedPricingRow`.
+
 ## Current import row shape
 
 The app currently imports rows shaped like this:
@@ -37,6 +43,24 @@ Schedule-input rows use the same shape plus `scheduleInputKey`, and may use eith
 
 ## Spreadsheet-to-JSON mapping
 
+For the first supported return path, each completed worksheet row should first be represented as one `ReturnedPricingSheetRow` JSON object with the same columns as the fill sheet:
+
+- `fillStatus`
+- `pricingGroupTitle`
+- `pricingItemTitle`
+- `businessLabel`
+- `whatToEnter`
+- `ruleID`
+- `groupID`
+- `valueKind`
+- `scheduleInputKey`
+- `expectedValueType`
+- `unitLabel`
+- `currentDraftBaseline`
+- `businessNumericValue`
+- `businessTextValue`
+- `businessNotes`
+
 For each row in `PricingIntake_FillSheet.csv`:
 
 - Keep `ruleID` as `ruleID`
@@ -64,13 +88,19 @@ If `fillStatus` is `TODO` or `HOLD` and a business value is still blank, omit th
 
 ## Validation expectations
 
-The current importer already enforces these rules:
+The completed-sheet normalizer/importer now enforces these rules:
 
+- missing `ruleID` rows are ignored
 - unknown `ruleID` rows are ignored
 - mismatched `groupID` rows are ignored
+- conflicting filled values (`businessNumericValue` plus `businessTextValue`) are ignored
+- duplicate normalized rows are de-duplicated safely
+- conflicting duplicate normalized rows are ignored
 - `draftUnitCost`, `draftUnitPrice`, `allowanceAmount`, `feeAmount`, and `markupPercent` require `numericValue`
 - `scheduleInput` rows require `scheduleInputKey`
 - `scheduleInput` rows must provide either `numericValue` or `stringValue`
+- `SKIP` rows are intentionally ignored
+- blank `TODO` / `HOLD` rows are skipped without affecting the embedded baseline
 
 ## Practical normalization rules
 
@@ -87,11 +117,15 @@ Use these normalization rules when converting the completed sheet:
 
 When the completed sheet comes back:
 
-1. Filter rows to `READY` plus any other rows that have a real business value.
-2. Normalize those rows into an array of `ImportedPricingRow` objects.
-3. Save the normalized file as JSON.
-4. Replace or supplement the sample content in [BusinessOwnedPricingRows.json](/Users/maxx/Documents/major-league-home-services-scope-app/construction-scope-app/Resources/BusinessOwnedPricingRows.json).
-5. Rebuild the app and inspect the active scope in the debug pricing inspector.
+1. Export or transcribe the completed workbook rows into [ReturnedPricingSheetRows.json](/Users/maxx/Documents/major-league-home-services-scope-app/construction-scope-app/Resources/ReturnedPricingSheetRows.json) using the same columns as the fill sheet.
+2. Rebuild the app.
+3. Let the app normalize those returned rows into `ImportedPricingRow` data internally.
+4. Inspect the active scope in the debug pricing inspector for:
+   - active pricing source
+   - returned-sheet normalization counts
+   - validation issues
+   - applied imported rows
+5. Use [BusinessOwnedPricingRows.json](/Users/maxx/Documents/major-league-home-services-scope-app/construction-scope-app/Resources/BusinessOwnedPricingRows.json) only for the older direct-import fallback path.
 
 ## Example normalization result
 

@@ -204,6 +204,21 @@ enum PricingSubtotalDerivationKind: String, Codable, CaseIterable {
     case deferredLookup
 }
 
+enum PricingSubtotalExecutionStatus: String, Codable, CaseIterable {
+    case inactive
+    case calculated
+    case missingInputs
+    case deferred
+    case unavailable
+}
+
+enum PricingSubtotalExecutionSource: String, Codable, CaseIterable {
+    case configuredDraftUnitPrice
+    case configuredFeeAmount
+    case configuredAllowanceAmount
+    case none
+}
+
 enum PricingGroupRollupStatus: String, Codable, CaseIterable {
     case pendingBucketSubtotals
     case readyForFutureRollup
@@ -401,8 +416,15 @@ struct PricingDraftAmountSlot: Codable, Hashable {
 
 struct PricingSubtotalSeed: Codable, Hashable {
     let placeholderKey: String
+    let executionStatus: PricingSubtotalExecutionStatus
+    let derivationKind: PricingSubtotalDerivationKind?
+    let formulaStrategy: PricingFormulaStrategyKind?
+    let source: PricingSubtotalExecutionSource
     let amount: Double?
     let status: String
+    let explanation: String
+    let missingInputs: [String]
+    let trace: [PricingFormulaInputReference]
 }
 
 struct PricingRateSlotReference: Codable, Hashable {
@@ -1582,44 +1604,115 @@ enum ProposalFoundationBuilder {
         resolvedRule: ResolvedPricingRule,
         resolvedConfiguration: ResolvedPricingConfiguration
     ) -> PricingSubtotalSeed {
+        let derivationKind = resolvedRule.definition?.subtotalDerivation.kind
+        let formulaStrategy = resolvedRule.definition?.formula?.strategy
+
         guard isIncluded else {
             return PricingSubtotalSeed(
                 placeholderKey: component.subtotalPlaceholderKey,
+                executionStatus: .inactive,
+                derivationKind: derivationKind,
+                formulaStrategy: formulaStrategy,
+                source: .none,
                 amount: nil,
-                status: "Subtotal placeholder is inactive because the bucket is excluded."
+                status: "Subtotal placeholder is inactive because the bucket is excluded.",
+                explanation: "The bucket is currently excluded by proposal composition, so subtotal execution is intentionally skipped.",
+                missingInputs: [],
+                trace: []
             )
         }
 
-        let subtotalKind = resolvedRule.definition?.subtotalDerivation.kind
-        switch subtotalKind {
+        switch derivationKind {
         case .quantityTimesUnitPrice:
+            let quantityTrace = subtotalTraceInput(
+                key: component.quantitySource?.rawValue ?? "quantity_seed",
+                title: component.quantityBasisLabel ?? defaultQuantityBasisLabel(for: component.quantitySource) ?? "Quantity Seed",
+                amount: quantityValue,
+                unitLabel: component.unitLabel,
+                missingDetail: "Missing quantity seed"
+            )
+            let unitPriceTrace = subtotalTraceInput(
+                key: component.draftUnitPricePlaceholderKey,
+                title: "Configured Draft Unit Price",
+                amount: resolvedConfiguration.draftUnitPrice?.amount,
+                unitLabel: component.unitLabel.map { "/ \($0)" },
+                missingDetail: "Missing configured draft unit price"
+            )
+
             guard let quantityValue else {
                 return PricingSubtotalSeed(
                     placeholderKey: component.subtotalPlaceholderKey,
+                    executionStatus: .missingInputs,
+                    derivationKind: derivationKind,
+                    formulaStrategy: formulaStrategy,
+                    source: .configuredDraftUnitPrice,
                     amount: nil,
-                    status: "Awaiting a seeded quantity before draft subtotal derivation can use the configured unit price."
+                    status: "Awaiting a seeded quantity before draft subtotal derivation can use the configured unit price.",
+                    explanation: "This rule can execute once the scope produces a usable quantity seed for the bucket.",
+                    missingInputs: ["quantity_seed"],
+                    trace: [quantityTrace, unitPriceTrace]
                 )
             }
 
             guard let unitPrice = resolvedConfiguration.draftUnitPrice?.amount else {
                 return PricingSubtotalSeed(
                     placeholderKey: component.subtotalPlaceholderKey,
+                    executionStatus: .missingInputs,
+                    derivationKind: derivationKind,
+                    formulaStrategy: formulaStrategy,
+                    source: .configuredDraftUnitPrice,
                     amount: nil,
-                    status: "Awaiting configured draft unit price before subtotal derivation can use the seeded quantity."
+                    status: "Awaiting configured draft unit price before subtotal derivation can use the seeded quantity.",
+                    explanation: "The scope already provides quantity, but the pricing configuration snapshot does not currently provide the unit price needed for execution.",
+                    missingInputs: ["draft_unit_price"],
+                    trace: [quantityTrace, unitPriceTrace]
                 )
             }
 
+            let subtotalAmount = quantityValue * unitPrice
             return PricingSubtotalSeed(
                 placeholderKey: component.subtotalPlaceholderKey,
-                amount: quantityValue * unitPrice,
-                status: "Derived from seeded quantity and configured draft unit price."
+                executionStatus: .calculated,
+                derivationKind: derivationKind,
+                formulaStrategy: formulaStrategy,
+                source: .configuredDraftUnitPrice,
+                amount: subtotalAmount,
+                status: "Derived from seeded quantity and configured draft unit price.",
+                explanation: "The bucket executed as quantity x configured draft unit price using the current pricing configuration snapshot.",
+                missingInputs: [],
+                trace: [
+                    quantityTrace,
+                    unitPriceTrace,
+                    subtotalTraceInput(
+                        key: component.subtotalPlaceholderKey,
+                        title: "Draft Subtotal",
+                        amount: subtotalAmount,
+                        unitLabel: nil,
+                        missingDetail: "Subtotal unavailable"
+                    )
+                ]
             )
         case .manualEntry:
             if let feeAmount = resolvedConfiguration.feeAmount?.amount {
                 return PricingSubtotalSeed(
                     placeholderKey: component.subtotalPlaceholderKey,
+                    executionStatus: .calculated,
+                    derivationKind: derivationKind,
+                    formulaStrategy: formulaStrategy,
+                    source: .configuredFeeAmount,
                     amount: feeAmount,
-                    status: "Seeded from configured fee/package placeholder."
+                    status: "Seeded from configured fee/package placeholder.",
+                    explanation: "This bucket executes from the configured package or fee amount without requiring a formula quantity.",
+                    missingInputs: [],
+                    trace: [
+                        subtotalTraceInput(
+                            key: resolvedConfiguration.feeAmount?.key ?? "\(component.id).fee_amount",
+                            title: resolvedConfiguration.feeAmount?.title ?? "Configured Fee Amount",
+                            amount: feeAmount,
+                            unitLabel: nil,
+                            missingDetail: "Missing configured fee amount"
+                        )
+                    ]
                 )
             }
 
@@ -1628,51 +1721,207 @@ enum ProposalFoundationBuilder {
                let unitPrice = resolvedConfiguration.draftUnitPrice?.amount {
                 return PricingSubtotalSeed(
                     placeholderKey: component.subtotalPlaceholderKey,
+                    executionStatus: .calculated,
+                    derivationKind: derivationKind,
+                    formulaStrategy: formulaStrategy,
+                    source: .configuredDraftUnitPrice,
                     amount: unitPrice,
-                    status: "Seeded from configured package price with one scoped unit."
+                    status: "Seeded from configured package price with one scoped unit.",
+                    explanation: "The bucket falls back to one scoped unit because the current package-style rule does not yet capture a richer quantity.",
+                    missingInputs: [],
+                    trace: [
+                        subtotalTraceInput(
+                            key: component.quantitySource?.rawValue ?? "scoped_package_quantity",
+                            title: component.quantityBasisLabel ?? "Scoped Quantity",
+                            amount: quantityValue,
+                            unitLabel: component.unitLabel,
+                            missingDetail: "Missing scoped quantity"
+                        ),
+                        subtotalTraceInput(
+                            key: component.draftUnitPricePlaceholderKey,
+                            title: "Configured Draft Unit Price",
+                            amount: unitPrice,
+                            unitLabel: component.unitLabel.map { "/ \($0)" },
+                            missingDetail: "Missing configured draft unit price"
+                        )
+                    ]
                 )
             }
 
             return PricingSubtotalSeed(
                 placeholderKey: component.subtotalPlaceholderKey,
+                executionStatus: .missingInputs,
+                derivationKind: derivationKind,
+                formulaStrategy: formulaStrategy,
+                source: .none,
                 amount: nil,
-                status: "Awaiting configured package or fee amount for manual subtotal scaffolding."
+                status: "Awaiting configured package or fee amount for manual subtotal scaffolding.",
+                explanation: "Manual/package execution is supported, but this bucket does not yet have a usable configured package amount in the active pricing snapshot.",
+                missingInputs: ["fee_amount_or_package_price"],
+                trace: [
+                    subtotalTraceInput(
+                        key: resolvedConfiguration.feeAmount?.key ?? "\(component.id).fee_amount",
+                        title: "Configured Fee Amount",
+                        amount: resolvedConfiguration.feeAmount?.amount,
+                        unitLabel: nil,
+                        missingDetail: "Missing configured fee amount"
+                    ),
+                    subtotalTraceInput(
+                        key: component.draftUnitPricePlaceholderKey,
+                        title: "Configured Draft Unit Price",
+                        amount: resolvedConfiguration.draftUnitPrice?.amount,
+                        unitLabel: component.unitLabel.map { "/ \($0)" },
+                        missingDetail: "Missing configured draft unit price"
+                    )
+                ]
             )
         case .allowanceEntry:
             if let allowanceAmount = resolvedConfiguration.allowanceAmount?.amount {
                 return PricingSubtotalSeed(
                     placeholderKey: component.subtotalPlaceholderKey,
+                    executionStatus: .calculated,
+                    derivationKind: derivationKind,
+                    formulaStrategy: formulaStrategy,
+                    source: .configuredAllowanceAmount,
                     amount: allowanceAmount,
-                    status: "Seeded from configured allowance placeholder."
+                    status: "Seeded from configured allowance placeholder.",
+                    explanation: "The bucket executes directly from the configured allowance value while final lookup/schedule logic remains external.",
+                    missingInputs: [],
+                    trace: [
+                        subtotalTraceInput(
+                            key: resolvedConfiguration.allowanceAmount?.key ?? "\(component.id).allowance_amount",
+                            title: resolvedConfiguration.allowanceAmount?.title ?? "Configured Allowance",
+                            amount: allowanceAmount,
+                            unitLabel: nil,
+                            missingDetail: "Missing configured allowance amount"
+                        )
+                    ]
                 )
             }
 
             return PricingSubtotalSeed(
                 placeholderKey: component.subtotalPlaceholderKey,
+                executionStatus: .missingInputs,
+                derivationKind: derivationKind,
+                formulaStrategy: formulaStrategy,
+                source: .configuredAllowanceAmount,
                 amount: nil,
-                status: "Awaiting configured allowance placeholder."
+                status: "Awaiting configured allowance placeholder.",
+                explanation: "Allowance-style execution is ready in the domain layer, but the active pricing snapshot does not yet provide the allowance amount.",
+                missingInputs: ["allowance_amount"],
+                trace: [
+                    subtotalTraceInput(
+                        key: resolvedConfiguration.allowanceAmount?.key ?? "\(component.id).allowance_amount",
+                        title: resolvedConfiguration.allowanceAmount?.title ?? "Configured Allowance",
+                        amount: resolvedConfiguration.allowanceAmount?.amount,
+                        unitLabel: nil,
+                        missingDetail: "Missing configured allowance amount"
+                    )
+                ]
             )
         case .deferredLookup:
             if resolvedConfiguration.draftUnitPrice?.amount != nil || resolvedConfiguration.feeAmount?.amount != nil {
                 return PricingSubtotalSeed(
                     placeholderKey: component.subtotalPlaceholderKey,
+                    executionStatus: .deferred,
+                    derivationKind: derivationKind,
+                    formulaStrategy: formulaStrategy,
+                    source: .none,
                     amount: nil,
-                    status: "Config-fed draft values are present, but subtotal derivation remains deferred until lookup adjustments are finalized."
+                    status: "Config-fed draft values are present, but subtotal derivation remains deferred until lookup adjustments are finalized.",
+                    explanation: "The bucket has usable pricing signals in configuration, but execution is intentionally deferred because the lookup-adjustment table or modifier logic is not finalized yet.",
+                    missingInputs: ["lookup_adjustment_logic"],
+                    trace: subtotalDeferredTrace(
+                        component: component,
+                        resolvedConfiguration: resolvedConfiguration
+                    )
                 )
             }
 
             return PricingSubtotalSeed(
                 placeholderKey: component.subtotalPlaceholderKey,
+                executionStatus: .deferred,
+                derivationKind: derivationKind,
+                formulaStrategy: formulaStrategy,
+                source: .none,
                 amount: nil,
-                status: "Awaiting config-fed draft values and future lookup adjustment logic before deriving a subtotal."
+                status: "Awaiting config-fed draft values and future lookup adjustment logic before deriving a subtotal.",
+                explanation: "This bucket remains intentionally deferred until a later phase defines the lookup-driven business rules and any needed pricing schedule values.",
+                missingInputs: ["pricing_inputs", "lookup_adjustment_logic"],
+                trace: subtotalDeferredTrace(
+                    component: component,
+                    resolvedConfiguration: resolvedConfiguration
+                )
             )
         case .none:
             return PricingSubtotalSeed(
                 placeholderKey: component.subtotalPlaceholderKey,
+                executionStatus: .unavailable,
+                derivationKind: nil,
+                formulaStrategy: formulaStrategy,
+                source: .none,
                 amount: nil,
-                status: "Awaiting subtotal derivation definition."
+                status: "Awaiting subtotal derivation definition.",
+                explanation: "No subtotal derivation definition is attached to this bucket yet, so execution is unavailable.",
+                missingInputs: ["subtotal_derivation_definition"],
+                trace: []
             )
         }
+    }
+
+    private static func subtotalTraceInput(
+        key: String,
+        title: String,
+        amount: Double?,
+        unitLabel: String?,
+        missingDetail: String
+    ) -> PricingFormulaInputReference {
+        let detail: String
+        if let amount {
+            let formatted = ProposalFoundationFormatter.number.string(from: NSNumber(value: amount)) ?? "\(amount)"
+            if let unitLabel = unitLabel?.nilIfBlank {
+                detail = "\(formatted) \(unitLabel)"
+            } else {
+                detail = formatted
+            }
+        } else {
+            detail = missingDetail
+        }
+
+        return PricingFormulaInputReference(
+            key: key,
+            title: title,
+            detail: detail,
+            isResolvedFromScope: amount != nil
+        )
+    }
+
+    private static func subtotalDeferredTrace(
+        component: PricingComponentDefinition,
+        resolvedConfiguration: ResolvedPricingConfiguration
+    ) -> [PricingFormulaInputReference] {
+        [
+            subtotalTraceInput(
+                key: component.draftUnitPricePlaceholderKey,
+                title: "Configured Draft Unit Price",
+                amount: resolvedConfiguration.draftUnitPrice?.amount,
+                unitLabel: component.unitLabel.map { "/ \($0)" },
+                missingDetail: "No configured draft unit price"
+            ),
+            subtotalTraceInput(
+                key: resolvedConfiguration.feeAmount?.key ?? "\(component.id).fee_amount",
+                title: "Configured Fee Amount",
+                amount: resolvedConfiguration.feeAmount?.amount,
+                unitLabel: nil,
+                missingDetail: "No configured fee amount"
+            ),
+            PricingFormulaInputReference(
+                key: "lookup_adjustment_logic",
+                title: "Lookup Adjustment Logic",
+                detail: "Deferred for a later pricing phase",
+                isResolvedFromScope: false
+            )
+        ]
     }
 
     private static func configuredValue(

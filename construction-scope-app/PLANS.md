@@ -251,6 +251,18 @@ Keep milestones small, testable, and reviewable.
   - Surface the active pricing source plus returned-sheet normalization / validation status through the domain snapshot and debug inspector
   - Keep workbook normalization, imported-row merge logic, proposal composition, and SwiftUI inspector rendering clearly separated
   - Defer polished import UI, XLSX parsing, final PDF pricing rendering, and final JobTread pricing sync submission
+- Milestone 5.2.37 – Bucket Subtotal Execution
+  - Add a dedicated bucket subtotal execution layer in the pricing domain/foundation path instead of leaving subtotal output as ad hoc placeholder status text
+  - Execute bucket-level draft subtotals from the existing rule registry, bucket seed/config metadata, pricing configuration snapshot, and imported/returned pricing rows already merged into that snapshot
+  - Support only the currently defensible subtotal strategies:
+    - quantity-seeded x configured draft unit price
+    - configured package / fee execution for manual package buckets
+    - configured allowance execution for allowance-oriented buckets
+    - explicit deferred/not-ready states for lookup-adjusted buckets that still lack confirmed business adjustment logic
+  - Emit structured subtotal result metadata including readiness state, execution strategy, amount when available, missing-input reasons, and a calculation trace suitable for the debug inspector
+  - Keep bucket subtotal execution separate from raw scope capture, future group totals, proposal totals, PDF pricing rendering, and JobTread sync submission
+  - Surface subtotal execution/readiness through the existing internal debug inspector by reading the domain snapshot only
+  - Preserve the current JobTread customer search/select, linked-customer hydration/read-only behavior, proposal composition, pricing rule registry, and pricing config import baseline
 - Milestone 5.2.32 – Pricing Rule Registry Foundation
   - Add stable pricing rule-definition types in the domain/foundation layer
   - Resolve existing bucket `draftRuleKey` / formula placeholder metadata through a registry instead of leaving buckets as unstructured placeholders

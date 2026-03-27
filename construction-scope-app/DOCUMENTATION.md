@@ -35,6 +35,7 @@
 - Milestone 5.2.34: Implemented (business-owned pricing import boundary)
 - Milestone 5.2.35: Implemented (business-facing pricing intake deliverable)
 - Milestone 5.2.36: Implemented (returned pricing workbook normalization + validation)
+- Milestone 5.2.37: Implemented (bucket subtotal execution)
 - Milestone 6: Implemented (photo attachment flow + PDF photo appendix)
 - Milestone 7.1: In progress (interaction animation polish)
 - Milestone 7.2: In progress (acceptance closeout)
@@ -44,6 +45,43 @@
 - Milestone 7.5.1: In progress (documents responsiveness regression recovery)
 
 ## Decisions
+- Milestone 5.2.37 bucket subtotal execution:
+  - Added bucket-level subtotal execution directly inside [PricingProposalFoundation.swift](/Users/maxx/Documents/major-league-home-services-scope-app/construction-scope-app/Models/PricingProposalFoundation.swift) so the existing proposal composition pass now emits a structured subtotal execution result for every pricing bucket.
+  - Why this is the smallest safe architecture:
+    - proposal composition still owns bucket assembly, so subtotal execution stays in the same domain/foundation seam already used by the rule registry and pricing config snapshot
+    - the execution layer consumes only existing inputs:
+      - resolved rule definition
+      - bucket quantity/seed metadata
+      - resolved pricing configuration
+      - imported or returned-sheet pricing values already merged into the active config snapshot
+    - no pricing logic moved into SwiftUI views, PDF rendering, or JobTread sync code
+    - current JobTread customer search/select, hydration, and read-only ownership behavior remain untouched
+  - The bucket subtotal result now carries:
+    - structured readiness state (`inactive`, `calculated`, `missingInputs`, `deferred`, `unavailable`)
+    - derivation kind and formula strategy metadata
+    - execution source (`configuredDraftUnitPrice`, `configuredFeeAmount`, `configuredAllowanceAmount`, or `none`)
+    - subtotal amount when execution is possible
+    - explanation text, missing-input identifiers, and a compact calculation trace
+  - Supported execution in this pass:
+    - quantity-seeded buckets using configured draft unit price
+    - manual/package buckets using configured fee/package amount
+    - one-scoped-unit package fallback when a manual bucket has quantity `1` plus configured draft unit price
+    - allowance buckets using configured allowance amount
+    - explicit deferred states for lookup-adjusted buckets where adjustment logic is intentionally not finalized yet
+  - Deferred on purpose:
+    - lookup-adjustment math and schedule-table execution
+    - group totals
+    - proposal totals
+    - final PDF pricing rendering
+    - final JobTread pricing sync submission
+  - Updated the debug inspector in [JobTreadDebugView.swift](/Users/maxx/Documents/major-league-home-services-scope-app/construction-scope-app/Views/JobTreadDebugView.swift) to render the domain-owned subtotal result, including:
+    - subtotal readiness
+    - derivation/source metadata
+    - missing inputs
+    - calculation trace rows
+  - Validation:
+    - compiled successfully with:
+      - `xcodebuild -project ConstructionScopeApp.xcodeproj -scheme ConstructionScopeApp -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' -derivedDataPath /tmp/ConstructionScopeAppDerivedData CODE_SIGNING_ALLOWED=NO build`
 - Milestone 5.2.36 returned pricing workbook normalization + validation:
   - Added a returned-sheet normalization layer in [PricingProposalFoundation.swift](/Users/maxx/Documents/major-league-home-services-scope-app/construction-scope-app/Models/PricingProposalFoundation.swift) that sits in front of the existing `ImportedPricingRow` import boundary instead of replacing it.
   - Why this is the smallest safe architecture:

@@ -617,6 +617,44 @@ private struct ProposalInspectorSeedConfigView: View {
                 meta: seedConfig.subtotal.status
             )
 
+            ProposalInspectorValueRow(
+                title: "Subtotal Readiness",
+                detail: seedConfig.subtotal.executionStatus.rawValue,
+                meta: seedConfig.subtotal.source.rawValue
+            )
+
+            if let derivationKind = seedConfig.subtotal.derivationKind {
+                ProposalInspectorValueRow(
+                    title: "Subtotal Derivation Kind",
+                    detail: derivationKind.rawValue,
+                    meta: seedConfig.subtotal.formulaStrategy?.rawValue ?? "no_formula_strategy"
+                )
+            }
+
+            Text(seedConfig.subtotal.explanation)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+
+            if !seedConfig.subtotal.missingInputs.isEmpty {
+                Text("Missing Inputs: \(seedConfig.subtotal.missingInputs.joined(separator: ", "))")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
+            if !seedConfig.subtotal.trace.isEmpty {
+                Text("Subtotal Trace")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.secondary)
+
+                ForEach(seedConfig.subtotal.trace) { traceEntry in
+                    ProposalInspectorValueRow(
+                        title: traceEntry.title,
+                        detail: traceEntry.detail,
+                        meta: traceEntry.key
+                    )
+                }
+            }
+
             ProposalInspectorResolvedRuleView(resolvedRule: seedConfig.resolvedRule)
             ProposalInspectorResolvedConfigurationView(resolvedConfiguration: seedConfig.resolvedConfiguration)
 

@@ -8,6 +8,10 @@
 - Milestone 2.1: Implemented (Windows & Glass stability/usability pass)
 - Milestone 2.2: Implemented (remaining schema-backed section editors)
 - Milestone 3: Implemented (PencilKit signature + sketch capture)
+- Milestone 3.4.1: Implemented (Signature/diagram persistence repair)
+- Milestone 3.4.2: Implemented (immediate sketch metadata durability)
+- Milestone 3.4.3: Implemented (sketch metadata commit path repair)
+- Milestone 3.4.4: Implemented (deterministic sketch restore durability)
 - Milestone 4: Implemented (flattened PDF preview + export)
 - Milestone 5: Not started
 - Milestone 5.1.1: Implemented (linked JobTread model foundation)
@@ -49,6 +53,69 @@
 - Milestone 7.6.2: Implemented (Release/TestFlight configuration safety first pass)
 
 ## Decisions
+- Milestone 3.4.1 signature/diagram persistence repair:
+  - Continuity test focus was intentionally narrow: only the Signature & Export drawing-backed state was audited.
+  - Root cause:
+    - PencilKit drawing files were already being written immediately into `Application Support/ScopeAssets/<scope-id>/...`
+    - the persisted metadata that points at those files (`customerApproval` / `sketches`) still depended on debounced autosave
+    - during simulator rebuild/relaunch, that debounce window could be cut off before `ModelContext.save()` ran, so salesperson signature and site diagram metadata could be lost even though their asset files existed
+  - What changed:
+    - updated [SectionEditors.swift](/Users/maxx/Documents/major-league-home-services-scope-app/construction-scope-app/Views/SectionEditors.swift) so `SignatureAndSketchEditorView` flushes pending autosave when the view disappears or the scene leaves the active state
+    - kept the existing file-write path, `scope.sketches` model shape, customer-approval storage, document behavior, and JobTread integration unchanged
+  - Why this is the smallest safe fix:
+    - it closes the rebuild/relaunch loss window for the drawing-backed Signature & Export data without turning every PencilKit change into an immediate database save
+    - it avoids broader persistence representation changes during the beta hardening window
+  - Nearby persistence sanity check:
+    - customer signature uses the same drawing-file plus model-metadata pattern, so it benefits from the same lifecycle flush
+    - production metadata and customer-options-confirmed text in the same section still use normal debounced autosave; no separate persistence fault was identified there in this pass
+  - Remaining nearby risk:
+    - customer signature drawing restoration still relies on the deterministic `ScopeAssets/<scope-id>/customer-signature.*` file location rather than a dedicated persisted drawing-data path field
+    - that is acceptable for same-device continuity but remains path-layout-sensitive in reinstall/new-container scenarios
+- Milestone 3.4.2 immediate sketch metadata durability:
+  - Follow-up continuity testing showed the lifecycle-flush repair was not strong enough for simulator rebuild / Xcode stop-run termination.
+  - Revised root cause:
+    - salesperson signature and site diagram asset files were already being written immediately
+    - but `scope.sketches` metadata still only reached durable storage through debounced autosave unless a later flush hook happened in time
+    - abrupt termination could therefore leave valid `.drawing` / `.png` files on disk with stale or missing `scope.sketches` rows after relaunch
+  - What changed:
+    - updated [SectionEditors.swift](/Users/maxx/Documents/major-league-home-services-scope-app/construction-scope-app/Views/SectionEditors.swift) so salesperson-signature and site-diagram metadata writes now call `autosave.flush(scope:)` immediately after `scope.sketches` is updated or cleared
+    - left customer signature, production metadata, customer-options-confirmed text, documents, attachments, and JobTread-related persistence behavior unchanged
+  - Why this is the smallest safe stronger fix:
+    - it makes the two failing high-value drawing-backed fields durable at the moment their metadata changes
+    - it does not broaden immediate-save behavior to the rest of the app
+    - existing lifecycle flush hooks remain as secondary protection, but these sketch fields no longer depend on them for durability
+  - Nearby risk note:
+    - customer signature still uses its existing persistence path and was not converted to immediate-save behavior in this pass to preserve scope discipline
+- Milestone 3.4.3 sketch metadata commit path repair:
+  - Follow-up comparison showed Customer Signature was not a true apples-to-apples baseline for the failing fields.
+  - Revised root cause:
+    - Customer Signature restores from the deterministic `ScopeAssets/<scope-id>/customer-signature.*` file location and also updates `customerApproval`
+    - Salesperson Signature and Site Diagram restore only by looking up persisted `scope.sketches` rows and reading each row's `drawingDataPath`
+    - the failing sketch-backed fields were writing the drawing files immediately, but their metadata upsert quickly stabilized to constant title/path values
+    - that meant repeated PencilKit edits were not producing a stronger persisted `scope.sketches` metadata mutation, leaving those fields more vulnerable than Customer Signature when continuity depended on sketch metadata alone
+  - What changed:
+    - updated [SectionEditors.swift](/Users/maxx/Documents/major-league-home-services-scope-app/construction-scope-app/Views/SectionEditors.swift) so salesperson-signature and site-diagram sketch upserts refresh the persisted `SketchAttachment.createdAt` timestamp on every successful drawing save
+    - kept the existing sketch keys, file-write path, immediate flush behavior, customer-signature behavior, documents/attachments behavior, and JobTread integration unchanged
+  - Why this is the smallest safe fix:
+    - it keeps the current `scope.sketches` storage model and restore path intact
+    - it makes every successful salesperson-signature and site-diagram save produce a concrete metadata change in the persisted sketch row rather than depending on constant file-path strings alone
+    - it preserves Customer Signature exactly as-is instead of broadening the persistence representation
+- Milestone 3.4.4 deterministic sketch restore durability:
+  - Rebuild/update-style continuity testing showed the metadata-strengthening fixes were still not enough by themselves.
+  - Revised root cause:
+    - Customer Signature survived because its restore path is deterministic: `ScopeAssets/<scope-id>/customer-signature.*`
+    - Salesperson Signature and Site Diagram were still restoring through `scope.sketches` lookup first, so they remained dependent on generic sketch metadata surviving perfectly across rebuild/update-style continuity
+    - prior save-timing and metadata-mutation fixes improved durability of `scope.sketches`, but they did not remove that restore-path asymmetry
+  - What changed:
+    - updated [SectionEditors.swift](/Users/maxx/Documents/major-league-home-services-scope-app/construction-scope-app/Views/SectionEditors.swift) so salesperson signature and site diagram now restore from their own deterministic asset paths:
+      - `ScopeAssets/<scope-id>/salesperson-signature.*`
+      - `ScopeAssets/<scope-id>/site-diagram.*`
+    - when those deterministic files exist, the view now reconciles missing or stale `scope.sketches` metadata back to the expected deterministic paths
+    - Customer Signature behavior, attachment/document behavior, and JobTread integration were left unchanged
+  - Why this is the smallest safe stronger fix:
+    - it preserves the existing file-write path already in production
+    - it removes the fragile dependency on generic sketch metadata as the only restore source for the two failing fields
+    - it keeps `scope.sketches` available for existing downstream uses by backfilling metadata from deterministic files instead of broadening the persistence model
 - Milestone 7.6.2 release/TestFlight configuration safety first pass:
   - Hardened Release/TestFlight config resolution around the existing JobTread integration without expanding scope into sync or broader architecture.
   - What changed:

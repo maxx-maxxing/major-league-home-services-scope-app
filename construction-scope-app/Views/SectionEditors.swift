@@ -3165,6 +3165,7 @@ struct ProductionNotesEditorView: View {
 struct SignatureAndSketchEditorView: View {
     let scope: JobScope
     @ObservedObject var autosave: DebouncedAutosave
+    @Environment(\.scenePhase) private var scenePhase
 
     @State private var customerSignatureDrawing = PKDrawing()
     @State private var salespersonSignatureDrawing = PKDrawing()
@@ -3259,6 +3260,9 @@ struct SignatureAndSketchEditorView: View {
         .onAppear {
             loadDrawingsIfNeeded()
         }
+        .onDisappear {
+            flushDrawingPersistenceIfNeeded()
+        }
         .onChange(of: customerSignatureDrawing.dataRepresentation()) { _, _ in
             guard hasLoadedDrawings else { return }
             persistCustomerSignatureDrawing()
@@ -3278,6 +3282,10 @@ struct SignatureAndSketchEditorView: View {
                 title: siteDiagramSketchTitle,
                 baseName: siteDiagramBaseName
             )
+        }
+        .onChange(of: scenePhase) { _, newPhase in
+            guard newPhase != .active else { return }
+            flushDrawingPersistenceIfNeeded()
         }
         .animation(.formReveal, value: scope.customerApproval?.signedDate != nil)
         .animation(.formReveal, value: customerSignatureDrawing.strokes.isEmpty)
@@ -3320,12 +3328,9 @@ struct SignatureAndSketchEditorView: View {
             customerSignatureDrawing = DrawingAssetStore.drawing(for: customerURLs.drawing.path)
         }
 
-        salespersonSignatureDrawing = DrawingAssetStore.drawing(
-            for: scope.sketches?.first(where: { $0.title == salespersonSketchTitle })?.drawingDataPath
-        )
-        siteDiagramDrawing = DrawingAssetStore.drawing(
-            for: scope.sketches?.first(where: { $0.title == siteDiagramSketchTitle })?.drawingDataPath
-        )
+        salespersonSignatureDrawing = loadDeterministicSketchDrawing(baseName: salespersonSignatureBaseName)
+        siteDiagramDrawing = loadDeterministicSketchDrawing(baseName: siteDiagramBaseName)
+        reconcileDeterministicSketchMetadataIfNeeded()
 
         hasLoadedDrawings = true
     }
@@ -3378,7 +3383,43 @@ struct SignatureAndSketchEditorView: View {
         }
     }
 
-    private func upsertSketch(title: String, drawingPath: String, previewPath: String) {
+    private func loadDeterministicSketchDrawing(baseName: String) -> PKDrawing {
+        guard let urls = try? DrawingAssetStore.urls(scopeID: scope.id, baseName: baseName) else {
+            return PKDrawing()
+        }
+
+        return DrawingAssetStore.drawing(for: urls.drawing.path)
+    }
+
+    private func reconcileDeterministicSketchMetadataIfNeeded() {
+        reconcileSketchMetadataIfNeeded(
+            title: salespersonSketchTitle,
+            baseName: salespersonSignatureBaseName
+        )
+        reconcileSketchMetadataIfNeeded(
+            title: siteDiagramSketchTitle,
+            baseName: siteDiagramBaseName
+        )
+    }
+
+    private func reconcileSketchMetadataIfNeeded(title: String, baseName: String) {
+        guard let urls = try? DrawingAssetStore.urls(scopeID: scope.id, baseName: baseName) else {
+            return
+        }
+
+        let drawing = DrawingAssetStore.drawing(for: urls.drawing.path)
+        guard !drawing.strokes.isEmpty else { return }
+
+        let drawingPath = urls.drawing.path
+        let previewPath = urls.preview.path
+        let existingSketch = scope.sketches?.first(where: { $0.title == title })
+
+        if let existingSketch,
+           existingSketch.drawingDataPath == drawingPath,
+           existingSketch.previewPNGPath == previewPath {
+            return
+        }
+
         var sketches = scope.sketches ?? []
 
         if let index = sketches.firstIndex(where: { $0.title == title }) {
@@ -3397,7 +3438,32 @@ struct SignatureAndSketchEditorView: View {
         }
 
         scope.sketches = sketches
-        autosave.scheduleSave(for: scope)
+        persistSketchMetadataImmediately()
+    }
+
+    private func upsertSketch(title: String, drawingPath: String, previewPath: String) {
+        var sketches = scope.sketches ?? []
+        let commitDate = Date.now
+
+        if let index = sketches.firstIndex(where: { $0.title == title }) {
+            var existing = sketches[index]
+            existing.drawingDataPath = drawingPath
+            existing.previewPNGPath = previewPath
+            existing.createdAt = commitDate
+            sketches[index] = existing
+        } else {
+            sketches.append(
+                SketchAttachment(
+                    title: title,
+                    drawingDataPath: drawingPath,
+                    previewPNGPath: previewPath,
+                    createdAt: commitDate
+                )
+            )
+        }
+
+        scope.sketches = sketches
+        persistSketchMetadataImmediately()
     }
 
     private func removeSketch(title: String) {
@@ -3405,7 +3471,16 @@ struct SignatureAndSketchEditorView: View {
 
         sketches.removeAll(where: { $0.title == title })
         scope.sketches = sketches.isEmpty ? nil : sketches
-        autosave.scheduleSave(for: scope)
+        persistSketchMetadataImmediately()
+    }
+
+    private func persistSketchMetadataImmediately() {
+        autosave.flush(scope: scope)
+    }
+
+    private func flushDrawingPersistenceIfNeeded() {
+        guard hasLoadedDrawings else { return }
+        autosave.flush(scope: scope)
     }
 
     private func updateCustomerApproval(_ update: (inout CustomerApproval) -> Void) {

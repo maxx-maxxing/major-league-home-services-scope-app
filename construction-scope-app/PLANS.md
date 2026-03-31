@@ -63,6 +63,29 @@ Keep milestones small, testable, and reviewable.
 - Milestone 3.4 – Milestone Validation + Docs
   - Verify relaunch persistence for signature/diagram
   - Update `DOCUMENTATION.md` with milestone status and known follow-ups
+- Milestone 3.4.1 – Signature/Diagram Persistence Repair
+  - Audit the Signature & Export persistence path without broadening into a whole-app persistence pass
+  - Ensure salesperson signature and optional site diagram survive relaunch/rebuild after PencilKit edits
+  - Keep existing attachment/document and JobTread behavior unchanged
+  - Document the root cause, surgical fix, and any nearby Signature & Export persistence risks
+- Milestone 3.4.2 – Immediate Sketch Metadata Durability
+  - Confirm whether sketch asset files already write immediately while `scope.sketches` metadata still depends on debounced autosave
+  - Force immediate `ModelContext.save()` when salesperson-signature or site-diagram metadata is written or cleared
+  - Keep the stronger save behavior scoped to those two drawing-backed fields only
+  - Document why lifecycle-flush hooks were insufficient for simulator rebuild / abrupt termination
+- Milestone 3.4.3 – Sketch Metadata Commit Path Repair
+  - Compare Customer Signature persistence against salesperson-signature and site-diagram `scope.sketches` persistence
+  - Preserve Customer Signature behavior exactly as-is
+  - Ensure salesperson-signature and site-diagram commits produce a real persisted `scope.sketches` metadata mutation on each drawing save/clear
+  - Keep attachment/document and JobTread behavior unchanged
+  - Document the revised root cause and the surgical fix
+- Milestone 3.4.4 – Deterministic Sketch Restore Durability
+  - Compare the full file-write and restore paths for customer signature, salesperson signature, and site diagram
+  - Preserve Customer Signature exactly as-is
+  - Make salesperson signature and site diagram restore from deterministic dedicated asset paths comparable to customer signature
+  - Reconcile `scope.sketches` metadata from those deterministic asset files instead of relying on generic sketch lookup alone
+  - Keep attachment/document and JobTread behavior unchanged
+  - Document why prior save-timing and metadata-only fixes were insufficient across rebuild/update-style continuity
 
 ## Milestone 4 – PDF Preview + Export
 - Build PDF engine that renders a flattened PDF (PDFKit/CoreGraphics)

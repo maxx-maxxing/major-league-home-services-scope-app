@@ -20,3 +20,5 @@ xcuserdata/
 # Local env files
 .env
 .env.*
+
+Config/JobTreadSecrets.xcconfig

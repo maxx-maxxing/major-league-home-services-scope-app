@@ -639,3 +639,45 @@ Keep milestones small, testable, and reviewable.
   - modal/sheet presentation polish where current changes feel abrupt
 - Keep animations subtle, fast, and system-aligned rather than decorative
 - Validate that animations do not interfere with autosave, selection state, or accessibility
+
+## Milestone 7.6 – TestFlight Continuity + Persistence Hardening
+- Treat this as a release-readiness track for real field beta use, not a feature-expansion pass
+- Preserve current local workflows while reducing the chance of same-device update data loss
+- Milestone 7.6.1 – Persistence Audit
+  - Audit the current source of truth for:
+    - scope fields
+    - JobTread-linked metadata
+    - signatures
+    - sketches
+    - photos
+    - document attachments
+    - generated artifacts
+  - Distinguish clearly between:
+    - same-device app update continuity
+    - reinstall/device-replacement continuity
+    - future cross-device/company sync
+  - Record release blockers and acceptable-for-now risks in `DOCUMENTATION.md`
+- Milestone 7.6.2 – Release Configuration Safety
+  - Remove any debug/secrets/config artifacts from shipped app resources
+  - Verify Release/TestFlight configuration resolves required JobTread values without relying on Debug-only wiring
+  - Confirm the app can launch safely in a Release/TestFlight build before field use
+  - First implementation pass scope:
+    - move Debug and Release to one shared checked-in xcconfig layer with optional local secret overrides
+    - ensure missing or unresolved JobTread config degrades to a contained feature error instead of launch-time `fatalError`
+    - remove `JobTreadSecrets.xcconfig` from the app Resources build phase
+    - eliminate launch-time `fatalError` on persistence container creation by routing unrecoverable store-open failures into a guarded recovery state instead of a crash
+    - preserve the current working JobTread baseline when valid config is present
+- Milestone 7.6.3 – Persistence Schema Discipline
+  - Freeze risky persistence shape changes until an explicit migration strategy is defined
+  - Introduce a documented SwiftData/schema evolution policy for:
+    - additive fields
+    - renamed/removed fields
+    - optional-to-required changes
+    - encoded payload fields such as documents/attachments
+  - Require migration validation before shipping schema-affecting updates to real users
+- Milestone 7.6.4 – Local Recovery + Validation
+  - Add a concrete manual continuity validation checklist for:
+    - install -> enter data -> upgrade build -> verify retained data
+    - attachment/photo/signature/sketch reopening
+    - delete/relaunch edge cases
+  - Define a near-term local backup/export path for production scopes before broader beta distribution

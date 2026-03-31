@@ -1,6 +1,7 @@
 import Foundation
 
 enum JobTreadClientError: LocalizedError {
+    case configurationUnavailable(JobTreadConfigError)
     case invalidResponse
     case unexpectedStatusCode(Int, body: String)
     case apiErrors([String])
@@ -8,6 +9,8 @@ enum JobTreadClientError: LocalizedError {
 
     var errorDescription: String? {
         switch self {
+        case let .configurationUnavailable(error):
+            return error.errorDescription
         case .invalidResponse:
             return "JobTread returned an invalid response."
         case let .unexpectedStatusCode(statusCode, body):
@@ -67,23 +70,24 @@ struct JobTreadClient {
     private static let requestTimeout: TimeInterval = 8
 
     private let session: URLSession
-    private let config: JobTreadConfig
+    private let configResult: Result<JobTreadConfig, JobTreadConfigError>
     private let decoder: JSONDecoder
     private let encoder: JSONEncoder
 
     init(
-        config: JobTreadConfig = .current,
+        configResult: Result<JobTreadConfig, JobTreadConfigError> = JobTreadConfig.load(),
         session: URLSession = .shared,
         decoder: JSONDecoder = JSONDecoder(),
         encoder: JSONEncoder = JSONEncoder()
     ) {
-        self.config = config
+        self.configResult = configResult
         self.session = session
         self.decoder = decoder
         self.encoder = encoder
     }
 
     func fetchCurrentGrant() async throws -> JobTreadCurrentGrant {
+        let config = try resolvedConfig()
         let requestBody = JobTreadCurrentGrantRequest(grantKey: config.apiKey)
         let envelope: JobTreadCurrentGrantEnvelope = try await send(requestBody)
 
@@ -101,6 +105,7 @@ struct JobTreadClient {
 
 extension JobTreadClient: JobTreadCustomerSearching {
     func searchCustomers(matching query: String, limit: Int = 20) async throws -> [JobTreadCustomerLookupResult] {
+        _ = try resolvedConfig()
         let trimmedQuery = query.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmedQuery.isEmpty else { return [] }
 
@@ -143,6 +148,7 @@ extension JobTreadClient: JobTreadCustomerSearching {
 
 extension JobTreadClient: JobTreadCustomerDetailFetching {
     func fetchCustomerDetails(customerID: String) async throws -> JobTreadCustomerDetail? {
+        let config = try resolvedConfig()
         let trimmedCustomerID = customerID.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmedCustomerID.isEmpty else { return nil }
 
@@ -174,11 +180,21 @@ extension JobTreadClient: JobTreadCustomerDetailFetching {
 }
 
 private extension JobTreadClient {
+    func resolvedConfig() throws -> JobTreadConfig {
+        switch configResult {
+        case let .success(config):
+            return config
+        case let .failure(error):
+            throw JobTreadClientError.configurationUnavailable(error)
+        }
+    }
+
     func performCustomerSearch(
         matching query: String,
         limit: Int,
         nameComparison: JobTreadNameComparison
     ) async throws -> [JobTreadCustomerLookupResult] {
+        let config = try resolvedConfig()
         let requestBody = JobTreadCustomerSearchRequest(
             grantKey: config.apiKey,
             organizationID: config.organizationID,
@@ -206,6 +222,7 @@ private extension JobTreadClient {
     }
 
     func send<RequestBody: Encodable, ResponseBody: Decodable>(_ requestBody: RequestBody) async throws -> ResponseBody {
+        let config = try resolvedConfig()
         var request = URLRequest(url: config.baseURL)
         request.httpMethod = "POST"
         request.timeoutInterval = Self.requestTimeout

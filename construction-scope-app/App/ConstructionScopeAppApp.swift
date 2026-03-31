@@ -9,7 +9,11 @@ struct ConstructionScopeAppApp: App {
 
     var body: some Scene {
         WindowGroup {
-            RootNavigationView()
+            if let startupIssue = persistenceController.startupIssue {
+                PersistenceRecoveryView(startupIssue: startupIssue)
+            } else {
+                RootNavigationView()
+            }
         }
         .modelContainer(persistenceController.container)
 
@@ -19,5 +23,21 @@ struct ConstructionScopeAppApp: App {
         }
         .modelContainer(persistenceController.container)
 #endif
+    }
+}
+
+private struct PersistenceRecoveryView: View {
+    let startupIssue: PersistenceStartupIssue
+
+    var body: some View {
+        NavigationStack {
+            ContentUnavailableView(
+                "Local Data Unavailable",
+                systemImage: "externaldrive.badge.exclamationmark",
+                description: Text(startupIssue.detailedDescription)
+            )
+            .padding()
+            .navigationTitle("Construction Scope")
+        }
     }
 }

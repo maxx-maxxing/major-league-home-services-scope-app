@@ -45,8 +45,40 @@
 - Milestone 7.4: In progress (maximalist Liquid Glass exploration)
 - Milestone 7.5: Implemented (documents / attachments section)
 - Milestone 7.5.1: In progress (documents responsiveness regression recovery)
+- Milestone 7.6.1: Implemented (TestFlight continuity + persistence audit)
+- Milestone 7.6.2: Implemented (Release/TestFlight configuration safety first pass)
 
 ## Decisions
+- Milestone 7.6.2 release/TestFlight configuration safety first pass:
+  - Hardened Release/TestFlight config resolution around the existing JobTread integration without expanding scope into sync or broader architecture.
+  - What changed:
+    - added a checked-in shared xcconfig at [AppConfig.xcconfig](/Users/maxx/Documents/major-league-home-services-scope-app/construction-scope-app/Config/AppConfig.xcconfig) with empty defaults plus an optional include of the ignored local [JobTreadSecrets.xcconfig](/Users/maxx/Documents/major-league-home-services-scope-app/construction-scope-app/Config/JobTreadSecrets.xcconfig)
+    - pointed both Debug and Release project/target configurations at that shared xcconfig in [project.pbxproj](/Users/maxx/Documents/major-league-home-services-scope-app/construction-scope-app/ConstructionScopeApp.xcodeproj/project.pbxproj)
+    - removed `JobTreadSecrets.xcconfig` from the app Resources build phase in [project.pbxproj](/Users/maxx/Documents/major-league-home-services-scope-app/construction-scope-app/ConstructionScopeApp.xcodeproj/project.pbxproj) so secret/config material no longer ships inside the app bundle
+    - corrected the local JobTread API base URL in [JobTreadSecrets.xcconfig](/Users/maxx/Documents/major-league-home-services-scope-app/construction-scope-app/Config/JobTreadSecrets.xcconfig) so the current baseline can still work when local secrets are present
+    - replaced launch-time `fatalError` config loading in [JobTreadConfig.swift](/Users/maxx/Documents/major-league-home-services-scope-app/construction-scope-app/Services/JobTreadConfig.swift) with typed non-fatal validation errors
+    - updated [JobTreadClient.swift](/Users/maxx/Documents/major-league-home-services-scope-app/construction-scope-app/Services/JobTreadClient.swift) so missing or unresolved config now disables JobTread calls with a contained feature error instead of crashing app launch
+    - replaced the persistence container `fatalError` path in [Persistence.swift](/Users/maxx/Documents/major-league-home-services-scope-app/construction-scope-app/Persistence/Persistence.swift) with a guarded recovery state
+    - updated [ConstructionScopeAppApp.swift](/Users/maxx/Documents/major-league-home-services-scope-app/construction-scope-app/App/ConstructionScopeAppApp.swift) so the app can still launch into a blocked recovery screen if the SwiftData store cannot be opened, rather than crashing immediately
+  - Why this is the smallest safe hardening pass:
+    - Release now resolves config through the same path as Debug
+    - missing JobTread config no longer creates a launch-time crash path
+    - secret/config material is no longer copied into shipped resources
+    - persistence-open failure no longer silently wipes the user into an editable empty state
+    - the current JobTread integration surface and blank-local fallback are preserved
+  - What remains risky after this pass:
+    - reinstall/new-device continuity is still not guaranteed
+    - same-device continuity still depends on the existing local store and asset paths remaining readable
+    - there is still no explicit SwiftData migration/versioning framework
+    - `documentsPayload` remains a custom encoded blob and should be treated as migration-sensitive
+  - Beta-window discipline after this pass:
+    - freeze persistence-shape changes unless they are unavoidable and explicitly migration-reviewed
+    - avoid renaming/removing persisted fields, changing enum raw values, changing optional-to-required semantics, or changing attachment/document payload shapes during the active field beta window
+    - treat reinstall/new-device recovery as unsupported for this beta unless a separate recovery/export path is implemented and validated
+  - Validation:
+    - Release-style build reached compilation with:
+      - `xcodebuild -project ConstructionScopeApp.xcodeproj -scheme ConstructionScopeApp -configuration Release -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' -derivedDataPath /tmp/ConstructionScopeAppReleaseDerivedData CODE_SIGNING_ALLOWED=NO build`
+    - remaining build failure is the pre-existing SwiftData macro/plugin sandbox issue in [SchemaModels.swift](/Users/maxx/Documents/major-league-home-services-scope-app/construction-scope-app/Models/SchemaModels.swift) and [RootNavigationView.swift](/Users/maxx/Documents/major-league-home-services-scope-app/construction-scope-app/Views/RootNavigationView.swift), not a new hardening-path compile error
 - Milestone 5.2.39 typed lookup execution for selected deferred families:
   - Added the next pricing-domain pass in [PricingProposalFoundation.swift](/Users/maxx/Documents/major-league-home-services-scope-app/construction-scope-app/Models/PricingProposalFoundation.swift) by inserting a narrow typed-lookup seam ahead of the existing generic lookup-adjusted scaffold.
   - Why this is the smallest safe architecture:
@@ -1465,3 +1497,134 @@
   - simulator build succeeded after adding `PhotosPicker` flow and photo appendix pages
 - Current build warnings are limited to:
   - AppIntents metadata extraction skipped because the app does not link `AppIntents.framework`
+
+## TestFlight Continuity Audit - March 31, 2026
+
+### Persistence Architecture Summary
+- The current persisted source of truth is one SwiftData model: `JobScope` in `Models/SchemaModels.swift`.
+- Most structured scope fields are stored directly as SwiftData-managed value types on `JobScope`:
+  - `projectInfo`
+  - `existingConditions`
+  - `dimensions`
+  - `structuralSystem`
+  - `enclosure`
+  - `electrical`
+  - `drainage`
+  - `attachment`
+  - `finishes`
+  - `permitsHOA`
+  - `production`
+  - `customerApproval`
+  - `photos`
+  - `sketches`
+  - `jobTreadCustomer`
+  - `jobTreadJob`
+  - `jobTreadSync`
+- The Documents / Attachments section is not modeled as a native SwiftData property. It is JSON-encoded into `JobScope.documentsPayload: Data?`, then exposed through the computed `documents` property.
+- Photos, sketches, signatures, and imported documents are not stored inline as binary blobs in SwiftData. They are copied into the app sandbox under `Application Support/ScopeAssets/<scope-id>/...`, and the persisted model stores absolute file paths pointing to those files.
+- Autosave is debounced through `Persistence/DebouncedAutosave` and most editors call `autosave.scheduleSave(for:)` after mutating the model.
+
+### What Appears Safe Now
+- Same-device app-update continuity is likely good for the current local-only storage pattern as long as:
+  - the app remains installed on the same device
+  - the bundle identifier stays the same
+  - SwiftData can still open the existing store after the update
+- The current asset strategy is better than transient picker references for same-device updates:
+  - photo-library imports are copied into app-owned files
+  - Files-imported documents are copied into app-owned files
+  - camera captures are copied into app-owned files
+  - Pencil drawings/signatures are written into app-owned files
+- JobTread-linked metadata used for local scope continuity is also persisted locally on `JobScope`; it does not rely on the network after creation.
+- Pricing/proposal resources are bundle resources and do not appear to overwrite persisted scope records directly.
+- `Resources/TestData/ReturnedPricingSheetRows_TEST.json` is not referenced by the Xcode project or runtime resource loading path, so it does not currently appear to affect production/TestFlight behavior.
+
+### What Is Risky Or Unproven
+- There is no explicit SwiftData migration plan, `VersionedSchema`, or custom migration handling. The current store setup uses a single `Schema([JobScope.self])` container with no documented migration discipline.
+- Because real field beta use will continue while the app evolves, current continuity is only trustworthy for additive or migration-compatible model changes. It is not safe to assume that future field/model renames, removals, required-field changes, enum breakage, or representation changes will preserve data automatically.
+- `documentsPayload` is a custom JSON blob inside the SwiftData model. That makes document persistence more opaque than the rest of the schema and increases migration risk if `DocumentsSection`, `DocumentAttachmentFile`, or `AdditionalDocumentAttachment` evolve incompatibly.
+- The app stores absolute file-system paths to assets. Same-device updates normally preserve the container, but reinstall, restore into a different container, or any future path-layout change can break those references.
+- Save/encode/decode failures are mostly handled with `assertionFailure` only. In a production/TestFlight build, that means a user may not get a visible warning if autosave fails, document payload decoding fails, or attachment persistence fails.
+- Scope deletion removes the SwiftData row but does not remove the owning `ScopeAssets/<scope-id>/` directory as a whole. That is primarily an orphaned-storage issue, not an update-continuity issue, but it shows there is no reconciliation pass around persisted asset files.
+- Same-device update continuity for real upgrades has not been validated with a documented install-build-A -> enter live data -> update-to-build-B -> verify-data-retained test cycle.
+
+### Release-Blocking Concerns
+- Release/TestFlight configuration is currently unsafe:
+  - `Services/JobTreadConfig.swift` uses `fatalError` when required Info.plist values are missing or unresolved.
+  - the Release target configuration in the Xcode project does not inherit `Config/JobTreadSecrets.xcconfig`, while Debug does.
+  - `RootNavigationView` eagerly constructs `JobTreadClient()` at view creation, so missing Release config can become a launch-time crash path rather than a contained feature failure.
+- Secret/config material is currently included in app resources:
+  - `ConstructionScopeApp.xcodeproj/project.pbxproj` adds `Config/JobTreadSecrets.xcconfig` to the Resources build phase.
+  - that file currently contains a real-looking API key/org configuration and should not ship inside the app bundle.
+- Migration safety is not strong enough to honestly promise "zero progress lost across future TestFlight updates" while the schema is still moving:
+  - no explicit migration/versioning strategy exists
+  - no upgrade validation matrix exists
+  - documents are hidden behind an encoded payload blob
+
+### Acceptable-For-Now Risks For Immediate Same-Device Beta
+- Local-only persistence is acceptable for one real field tester on one device if release configuration is fixed first and the persistence schema is treated as effectively frozen for the beta window.
+- The current local asset-copying approach is acceptable for same-device use this week.
+- Orphaned asset cleanup on delete is not a release blocker for this week.
+- Lack of multi-device/company sync is acceptable for this week only because it is being treated as a separate future architecture problem, not as a promised current capability.
+
+### Same-Device Update Continuity Assessment
+- Current assessment: conditionally acceptable, but not yet something to describe as fully safe under ongoing schema churn.
+- What is likely safe now:
+  - updating the installed app on the same device without uninstalling it
+  - reopening previously saved scopes after update
+  - reopening copied local documents/photos/sketches/signatures after update
+- What makes it unsafe to overstate:
+  - no explicit SwiftData migration discipline
+  - no proven upgrade test matrix
+  - encoded `documentsPayload`
+  - silent failure paths in production builds
+- Recommendation:
+  - do not make schema-affecting persistence changes casually once the field tester starts using the app
+  - treat the current persistence shape as frozen until Release config and migration policy are hardened
+
+### Reinstall / New-Device Continuity Assessment
+- Current assessment: not supported as a product guarantee.
+- An app reinstall can remove the app container, which would remove:
+  - the SwiftData store
+  - `Application Support/ScopeAssets/...` files
+- A device replacement or fresh install on a second device has no app-level restore path in the current code.
+- iCloud device-backup behavior should not be treated as the product continuity strategy unless it is explicitly tested and documented; the app code does not currently provide its own recovery/export/sync layer.
+
+### Future Multi-User / Cross-Device Sync Gap
+- Current code does not implement cross-device sync, company-wide shared persistence, or multi-user conflict handling.
+- JobTread integration today is a lookup/hydration path, not a durable scope-sync or artifact-sync backend.
+- Real multi-device/company continuity will require future backend/cloud architecture for:
+  - shared scope records
+  - shared asset storage
+  - identity/auth
+  - offline sync/reconciliation
+  - conflict handling
+  - backup/recovery outside a single app container
+
+### Recommendation Before Field Beta This Week
+- Do not ship a real TestFlight build until Release/TestFlight configuration is corrected and verified on an actual Release/TestFlight-style build.
+- Do not ship a build that bundles `JobTreadSecrets.xcconfig` or any real credential material inside app resources.
+- For this week's same-device beta, freeze persistence-shape changes unless they are absolutely necessary and explicitly migration-reviewed.
+- Run a manual continuity test before handing the app to the field user:
+  - install build A
+  - create a scope with representative data
+  - add JobTread-linked metadata
+  - capture customer signature
+  - capture salesperson signature
+  - capture site diagram
+  - import photos
+  - import files/documents
+  - update to build B on the same device
+  - verify every field and asset still opens
+- Add a near-term export/backup path before expanding beyond a single trusted tester.
+
+### Bottom-Line Readiness Call
+- Ready for one same-device field beta user this week only if:
+  - Release/TestFlight launch/config issues are fixed first
+  - secrets are removed from shipped resources
+  - persistence schema changes are effectively frozen during the beta window
+- Not ready to claim:
+  - reinstall safety
+  - new-device continuity
+  - cross-device sync
+  - company-wide multi-user continuity
+- Not yet safe to promise zero-loss continuity across future iterative builds unless migration handling and upgrade validation are added.

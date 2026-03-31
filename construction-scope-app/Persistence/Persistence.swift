@@ -7,19 +7,52 @@ final class PersistenceController {
     static let shared = PersistenceController()
 
     let container: ModelContainer
+    let startupIssue: PersistenceStartupIssue?
 
     private init(inMemory: Bool = false) {
         let schema = Schema([JobScope.self])
-        let configuration = ModelConfiguration(
+        let persistedConfiguration = ModelConfiguration(
             schema: schema,
             isStoredInMemoryOnly: inMemory
         )
 
         do {
-            container = try ModelContainer(for: schema, configurations: [configuration])
+            container = try ModelContainer(for: schema, configurations: [persistedConfiguration])
+            startupIssue = nil
         } catch {
-            fatalError("Failed to create ModelContainer: \(error)")
+            startupIssue = PersistenceStartupIssue(underlyingError: error)
+            do {
+                let fallbackConfiguration = ModelConfiguration(
+                    schema: schema,
+                    isStoredInMemoryOnly: true
+                )
+                container = try ModelContainer(for: schema, configurations: [fallbackConfiguration])
+            } catch {
+                preconditionFailure("Failed to create fallback in-memory ModelContainer: \(error)")
+            }
         }
+    }
+}
+
+struct PersistenceStartupIssue: LocalizedError {
+    let underlyingError: Error
+
+    var errorDescription: String? {
+        "The local scope store could not be opened."
+    }
+
+    var recoverySuggestion: String? {
+        "Do not continue editing on this build. Preserve the installed app state and investigate store compatibility before shipping the next beta update."
+    }
+
+    var detailedDescription: String {
+        [
+            errorDescription,
+            recoverySuggestion,
+            "Underlying error: \(underlyingError.localizedDescription)"
+        ]
+        .compactMap { $0 }
+        .joined(separator: "\n")
     }
 }
 

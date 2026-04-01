@@ -51,6 +51,7 @@
 - Milestone 7.5.1: In progress (documents responsiveness regression recovery)
 - Milestone 7.6.1: Implemented (TestFlight continuity + persistence audit)
 - Milestone 7.6.2: Implemented (Release/TestFlight configuration safety first pass)
+- Milestone 7.6.2.1: Implemented (internal debug entry point Release gating)
 
 ## Decisions
 - Milestone 3.4.1 signature/diagram persistence repair:
@@ -146,6 +147,18 @@
     - Release-style build reached compilation with:
       - `xcodebuild -project ConstructionScopeApp.xcodeproj -scheme ConstructionScopeApp -configuration Release -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' -derivedDataPath /tmp/ConstructionScopeAppReleaseDerivedData CODE_SIGNING_ALLOWED=NO build`
     - remaining build failure is the pre-existing SwiftData macro/plugin sandbox issue in [SchemaModels.swift](/Users/maxx/Documents/major-league-home-services-scope-app/construction-scope-app/Models/SchemaModels.swift) and [RootNavigationView.swift](/Users/maxx/Documents/major-league-home-services-scope-app/construction-scope-app/Views/RootNavigationView.swift), not a new hardening-path compile error
+- Milestone 7.6.2.1 internal debug entry point Release gating:
+  - Audit result:
+    - the only visible in-app debug opener is the floating `Internal Debug` button in [RootNavigationView.swift](/Users/maxx/Documents/major-league-home-services-scope-app/construction-scope-app/Views/RootNavigationView.swift)
+    - the only debug window scene entry point is the `JobTread Debug` `WindowGroup` in [ConstructionScopeAppApp.swift](/Users/maxx/Documents/major-league-home-services-scope-app/construction-scope-app/App/ConstructionScopeAppApp.swift)
+    - both entry points already use compile-time `#if DEBUG` gating, which means Release/TestFlight builds do not include them when built with the standard Release configuration
+  - What changed:
+    - tightened [ConstructionScopeAppApp.swift](/Users/maxx/Documents/major-league-home-services-scope-app/construction-scope-app/App/ConstructionScopeAppApp.swift) so the debug window identifier constant is also declared only in Debug builds
+    - left [RootNavigationView.swift](/Users/maxx/Documents/major-league-home-services-scope-app/construction-scope-app/Views/RootNavigationView.swift) and [JobTreadDebugView.swift](/Users/maxx/Documents/major-league-home-services-scope-app/construction-scope-app/Views/JobTreadDebugView.swift) behavior unchanged because their current compile-time gates already match the intended local-debug-only access model
+  - Why this is the smallest safe gating approach:
+    - local development keeps the current debug button/window access unchanged
+    - production/TestFlight users do not see or access the internal tooling because the opener and scene are excluded at compile time rather than merely hidden at runtime
+    - no normal production navigation or field workflow was refactored
 - Milestone 5.2.39 typed lookup execution for selected deferred families:
   - Added the next pricing-domain pass in [PricingProposalFoundation.swift](/Users/maxx/Documents/major-league-home-services-scope-app/construction-scope-app/Models/PricingProposalFoundation.swift) by inserting a narrow typed-lookup seam ahead of the existing generic lookup-adjusted scaffold.
   - Why this is the smallest safe architecture:

@@ -1,7 +1,9 @@
 import SwiftUI
 import SwiftData
 
+#if DEBUG
 private let jobTreadDebugWindowID = "jobtread-debug-window"
+#endif
 
 @main
 struct ConstructionScopeAppApp: App {

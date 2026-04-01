@@ -690,6 +690,11 @@ Keep milestones small, testable, and reviewable.
     - remove `JobTreadSecrets.xcconfig` from the app Resources build phase
     - eliminate launch-time `fatalError` on persistence container creation by routing unrecoverable store-open failures into a guarded recovery state instead of a crash
     - preserve the current working JobTread baseline when valid config is present
+- Milestone 7.6.2.1 – Internal Debug Entry Point Gating
+  - Audit the current debug window/button wiring used to open internal tooling
+  - Keep local Debug access exactly as-is for development
+  - Exclude the internal debug opener and window from Release/TestFlight builds with compile-time gating
+  - Preserve normal production navigation and field-user workflow unchanged
 - Milestone 7.6.3 – Persistence Schema Discipline
   - Freeze risky persistence shape changes until an explicit migration strategy is defined
   - Introduce a documented SwiftData/schema evolution policy for:

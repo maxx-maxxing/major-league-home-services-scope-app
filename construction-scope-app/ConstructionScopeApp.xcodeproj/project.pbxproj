@@ -17,6 +17,7 @@
 		AA0000010000000000000008 /* PencilDrawingSupport.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000010000000000000019 /* PencilDrawingSupport.swift */; };
 		AA0000010000000000000009 /* PhotoAttachmentSupport.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000010000000000000020 /* PhotoAttachmentSupport.swift */; };
 		AA00000100000000000000A1 /* PricingProposalFoundation.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA00000100000000000000B1 /* PricingProposalFoundation.swift */; };
+		DBA728E22F7D7BCA005E293B /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = DBA716A02F7C35540030AE8A /* Assets.xcassets */; };
 		FC0000010000000000000001 /* JobTreadCustomerSelection.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC0000010000000000000011 /* JobTreadCustomerSelection.swift */; };
 		JT0000010000000000000001 /* JobTreadConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = JT0000010000000000000011 /* JobTreadConfig.swift */; };
 		JT0000010000000000000002 /* JobTreadClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = JT0000010000000000000012 /* JobTreadClient.swift */; };
@@ -233,6 +234,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				PR0000010000000000000001 /* BusinessOwnedPricingRows.json in Resources */,
+				DBA728E22F7D7BCA005E293B /* Assets.xcassets in Resources */,
 				PR0000010000000000000002 /* ReturnedPricingSheetRows.json in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -317,6 +319,7 @@
 			baseConfigurationReference = DB62F1E12C01000000000001 /* AppConfig.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 2;
 				DEVELOPMENT_TEAM = V3WW48T3UH;
@@ -324,6 +327,9 @@
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = "ConstructionScopeApp-Info.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = Scopes;
+				INFOPLIST_KEY_NSCameraUsageDescription = "This app uses the camera to capture job site photos and document attachments.";
+				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "This app saves captured photos to your photo library.";
+				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "This app accesses your photo library so you can attach existing job site photos and documents.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -350,6 +356,7 @@
 			baseConfigurationReference = DB62F1E12C01000000000001 /* AppConfig.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 2;
 				DEVELOPMENT_TEAM = V3WW48T3UH;
@@ -357,6 +364,9 @@
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = "ConstructionScopeApp-Info.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = Scopes;
+				INFOPLIST_KEY_NSCameraUsageDescription = "This app uses the camera to capture job site photos and document attachments.";
+				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "This app saves captured photos to your photo library.";
+				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "This app accesses your photo library so you can attach existing job site photos and documents.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;

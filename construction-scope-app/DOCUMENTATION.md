@@ -13,6 +13,7 @@
 - Milestone 3.4.3: Implemented (sketch metadata commit path repair)
 - Milestone 3.4.4: Implemented (deterministic sketch restore durability)
 - Milestone 4: Implemented (flattened PDF preview + export)
+- Milestone 4.7: In progress (PDF export reliability hardening)
 - Milestone 5: Not started
 - Milestone 5.1.1: Implemented (linked JobTread model foundation)
 - Milestone 5.2.1: Implemented (customer lookup entry flow)
@@ -54,6 +55,23 @@
 - Milestone 7.6.2.1: Implemented (internal debug entry point Release gating)
 
 ## Decisions
+- Milestone 4.7 PDF export reliability hardening:
+  - Release-blocking field report:
+    - a real TestFlight-style beta user reported exported scope PDFs with mostly blank pages
+    - one attachment image could still appear, which suggested the PDF file itself was being generated but the intended text content was not visibly rendering
+  - Diagnosed root cause:
+    - the current PDF engine already uses `UIGraphicsPDFRenderer`; it was not capturing the live SwiftUI screen
+    - however, the renderer drew PDF text and lines with dynamic system colors such as `UIColor.label` and `UIColor.separator`
+    - on a physical iPad in Dark Mode, those dynamic colors can resolve for screen appearance, producing light/white text on the PDF's default white page background
+    - raster images still render normally, which explains the tester seeing a random attachment image while the rest of the document looked blank
+  - Narrow repair scope:
+    - keep the existing dedicated CoreGraphics export path
+    - make page rendering print-safe with explicit white page fills and fixed dark text/stroke colors
+    - keep image rendering intentional and bounded for signature/photo appendix pages
+    - add targeted export diagnostics for planned/actual page count, section titles, and appendix inclusion
+  - Guardrails preserved:
+    - no changes to JobTread search/select, linked-customer hydration, read-only linked fields, pricing foundation, debug inspector, or persistence shape
+
 - Milestone 3.4.1 signature/diagram persistence repair:
   - Continuity test focus was intentionally narrow: only the Signature & Export drawing-backed state was audited.
   - Root cause:

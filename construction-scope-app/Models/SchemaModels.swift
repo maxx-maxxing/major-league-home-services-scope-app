@@ -1134,6 +1134,10 @@ final class JobScope {
         scopeTitle?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty
     }
 
+    var editableScopeTitle: String {
+        scopeTitle ?? ""
+    }
+
     var resolvedLinkedCustomerName: String? {
         jobTreadCustomer?.displayName?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty
     }
@@ -1221,6 +1225,11 @@ final class JobScope {
 
     func setLocalScopeTitle(_ newTitle: String) {
         scopeTitle = newTitle.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty
+        updatedAt = .now
+    }
+
+    func setEditableScopeTitle(_ newTitle: String) {
+        scopeTitle = newTitle.isEmpty ? nil : newTitle
         updatedAt = .now
     }
 

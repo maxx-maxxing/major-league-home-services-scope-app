@@ -113,6 +113,13 @@ Keep milestones small, testable, and reviewable.
   - Add richer summaries for existing conditions, dimensions, structural, electrical, drainage, finishes, and permits/production notes
   - Preserve flattened rendering and current export flow
   - Validate that preview/export still builds and opens successfully
+- Milestone 4.7 – PDF Export Reliability Hardening
+  - Audit the full preview/export/share path against the real-device blank-page bug report
+  - Keep the dedicated CoreGraphics renderer and avoid broad architecture changes outside PDF export
+  - Replace dynamic UI colors with deterministic print-safe PDF colors and explicit page background fill
+  - Constrain signature/photo appendix image rendering so attachments do not dominate page composition unexpectedly
+  - Add targeted export diagnostics for planned page count, rendered sections, and appendix inclusion/skips
+  - Re-validate preview/export behavior on simulator and physical iPad release-style builds
 
 ## Milestone 5 – JobTread Integration
 - Milestone 5.1 – Integration Readiness Freeze

@@ -255,9 +255,9 @@ struct ProjectInfoEditorView: View {
 
     private var scopeTitleBinding: Binding<String> {
         Binding(
-            get: { scope.resolvedScopeTitle ?? "" },
+            get: { scope.editableScopeTitle },
             set: { newValue in
-                scope.setLocalScopeTitle(newValue)
+                scope.setEditableScopeTitle(newValue)
                 autosave.scheduleSave(for: scope)
             }
         )

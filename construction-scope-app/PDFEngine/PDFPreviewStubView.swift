@@ -1054,13 +1054,13 @@ private struct PDFPageContent {
 private struct PDFRenderedPage {
     let title: String
     let kind: PDFPageKind
-    let sections: [PDFRenderedSection]
+    var sections: [PDFRenderedSection]
 }
 
 private struct PDFRenderedSection {
     let title: String
-    let rows: [PDFRenderedRow]
-    let image: PDFRenderedImage?
+    var rows: [PDFRenderedRow]
+    var image: PDFRenderedImage?
 }
 
 private struct PDFRenderedRow {

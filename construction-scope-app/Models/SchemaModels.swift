@@ -591,7 +591,7 @@ struct StructuralSystem: Codable, Hashable {
 }
 
 struct Enclosure: Codable, Hashable {
-    var enclosureType: EnclosureType?
+    var enclosureTypes: [EnclosureType]?
     var screenWallType: ScreenWallType?
     var screenTint: ScreenTintOption?
     var screenFrameSize: ScreenFrameSizeOption?
@@ -600,6 +600,154 @@ struct Enclosure: Codable, Hashable {
     var windowSystem: WindowSystem?
     var kneeWall: KneeWall?
     var doors: DoorOptions?
+
+    var enclosureType: EnclosureType? {
+        get { activeEnclosureTypes.first }
+        set { enclosureTypes = Self.normalizedTypes(newValue.map { [$0] }) }
+    }
+
+    var activeEnclosureTypes: [EnclosureType] {
+        Self.normalizedTypes(enclosureTypes) ?? []
+    }
+
+    var enclosureTypeDisplaySummary: String? {
+        let names = activeEnclosureTypes.map(\.displayName)
+        guard !names.isEmpty else { return nil }
+        return names.joined(separator: ", ")
+    }
+
+    var hasScreenEnclosureSelection: Bool {
+        activeEnclosureTypes.contains { type in
+            switch type {
+            case .screenEnclosure, .mixed:
+                return true
+            default:
+                return false
+            }
+        }
+    }
+
+    var isEffectivelyEmpty: Bool {
+        activeEnclosureTypes.isEmpty &&
+        screenWallType == nil &&
+        screenTint == nil &&
+        screenFrameSize == nil &&
+        screenFrameColor == nil &&
+        screenFrameColorCustom?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty != false &&
+        windowSystem == nil &&
+        kneeWall == nil &&
+        doors == nil
+    }
+
+    init(
+        enclosureTypes: [EnclosureType]? = nil,
+        screenWallType: ScreenWallType? = nil,
+        screenTint: ScreenTintOption? = nil,
+        screenFrameSize: ScreenFrameSizeOption? = nil,
+        screenFrameColor: EnclosureScreenFrameColorOption? = nil,
+        screenFrameColorCustom: String? = nil,
+        windowSystem: WindowSystem? = nil,
+        kneeWall: KneeWall? = nil,
+        doors: DoorOptions? = nil
+    ) {
+        self.enclosureTypes = Self.normalizedTypes(enclosureTypes)
+        self.screenWallType = screenWallType
+        self.screenTint = screenTint
+        self.screenFrameSize = screenFrameSize
+        self.screenFrameColor = screenFrameColor
+        self.screenFrameColorCustom = screenFrameColorCustom
+        self.windowSystem = windowSystem
+        self.kneeWall = kneeWall
+        self.doors = doors
+    }
+
+    mutating func pruneInactiveDependentValuesForExport() {
+        enclosureTypes = Self.normalizedTypes(enclosureTypes)
+
+        if !hasScreenEnclosureSelection {
+            screenWallType = nil
+            screenTint = nil
+            screenFrameSize = nil
+            screenFrameColor = nil
+            screenFrameColorCustom = nil
+        } else {
+            if screenWallType != .suntexSolarScreen {
+                screenTint = nil
+            }
+
+            if screenFrameColor != .legacyOther {
+                screenFrameColorCustom = nil
+            }
+        }
+    }
+
+    mutating func setEnclosureType(_ type: EnclosureType, isSelected: Bool) {
+        var selectedTypes = activeEnclosureTypes
+        if isSelected {
+            guard !selectedTypes.contains(type) else { return }
+            selectedTypes.append(type)
+        } else {
+            selectedTypes.removeAll { $0 == type }
+        }
+        enclosureTypes = Self.normalizedTypes(selectedTypes)
+    }
+
+    func normalizedForExport() -> Enclosure? {
+        var normalized = self
+        normalized.pruneInactiveDependentValuesForExport()
+        return normalized.isEffectivelyEmpty ? nil : normalized
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case enclosureTypes
+        case enclosureType
+        case screenWallType
+        case screenTint
+        case screenFrameSize
+        case screenFrameColor
+        case screenFrameColorCustom
+        case windowSystem
+        case kneeWall
+        case doors
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        let decodedTypes = try container.decodeIfPresent([EnclosureType].self, forKey: .enclosureTypes)
+        let legacyType = try container.decodeIfPresent(EnclosureType.self, forKey: .enclosureType)
+        let selectedTypes = decodedTypes ?? legacyType.map { [$0] }
+
+        enclosureTypes = Self.normalizedTypes(selectedTypes)
+        screenWallType = try container.decodeIfPresent(ScreenWallType.self, forKey: .screenWallType)
+        screenTint = try container.decodeIfPresent(ScreenTintOption.self, forKey: .screenTint)
+        screenFrameSize = try container.decodeIfPresent(ScreenFrameSizeOption.self, forKey: .screenFrameSize)
+        screenFrameColor = try container.decodeIfPresent(EnclosureScreenFrameColorOption.self, forKey: .screenFrameColor)
+        screenFrameColorCustom = try container.decodeIfPresent(String.self, forKey: .screenFrameColorCustom)
+        windowSystem = try container.decodeIfPresent(WindowSystem.self, forKey: .windowSystem)
+        kneeWall = try container.decodeIfPresent(KneeWall.self, forKey: .kneeWall)
+        doors = try container.decodeIfPresent(DoorOptions.self, forKey: .doors)
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encodeIfPresent(Self.normalizedTypes(enclosureTypes), forKey: .enclosureTypes)
+        try container.encodeIfPresent(screenWallType, forKey: .screenWallType)
+        try container.encodeIfPresent(screenTint, forKey: .screenTint)
+        try container.encodeIfPresent(screenFrameSize, forKey: .screenFrameSize)
+        try container.encodeIfPresent(screenFrameColor, forKey: .screenFrameColor)
+        try container.encodeIfPresent(screenFrameColorCustom, forKey: .screenFrameColorCustom)
+        try container.encodeIfPresent(windowSystem, forKey: .windowSystem)
+        try container.encodeIfPresent(kneeWall, forKey: .kneeWall)
+        try container.encodeIfPresent(doors, forKey: .doors)
+    }
+
+    private static func normalizedTypes(_ types: [EnclosureType]?) -> [EnclosureType]? {
+        guard let types else { return nil }
+        let activeTypes = EnclosureType.allCases.filter { type in
+            types.contains(type)
+        }
+        return activeTypes.isEmpty ? nil : activeTypes
+    }
 }
 
 struct WindowSystem: Codable, Hashable {

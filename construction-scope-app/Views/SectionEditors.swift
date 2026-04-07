@@ -736,15 +736,37 @@ struct EnclosureEditorView: View {
     var body: some View {
         VStack(spacing: 16) {
             CardGroup(title: "Enclosure Type") {
-                FieldHeader("Type")
-                Picker("Type", selection: enclosureTypeBinding) {
-                    Text("Not Set").tag(nil as EnclosureType?)
+                VStack(alignment: .leading, spacing: 10) {
+                    FieldHeader("Types")
+
+                    Text(enclosureTypeSummary)
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+
                     ForEach(EnclosureType.allCases, id: \.self) { type in
-                        Text(type.displayName).tag(Optional(type))
+                        Button {
+                            toggleEnclosureType(type)
+                        } label: {
+                            HStack(spacing: 12) {
+                                Image(systemName: isEnclosureTypeSelected(type) ? "checkmark.circle.fill" : "circle")
+                                    .imageScale(.large)
+                                    .foregroundStyle(isEnclosureTypeSelected(type) ? Color.accentColor : Color.secondary)
+
+                                Text(type.displayName)
+                                    .foregroundStyle(.primary)
+
+                                Spacer()
+                            }
+                            .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+                            .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel(type.displayName)
+                        .accessibilityValue(isEnclosureTypeSelected(type) ? "Selected" : "Not selected")
+                        .accessibilityAddTraits(isEnclosureTypeSelected(type) ? .isSelected : [])
                     }
                 }
-                .pickerStyle(.menu)
-                .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
             }
 
             if showsScreenOptions {
@@ -995,12 +1017,11 @@ struct EnclosureEditorView: View {
     }
 
     private var showsScreenOptions: Bool {
-        switch scope.enclosure?.enclosureType {
-        case .screenEnclosure, .mixed:
-            return true
-        default:
-            return false
-        }
+        scope.enclosure?.hasScreenEnclosureSelection == true
+    }
+
+    private var enclosureTypeSummary: String {
+        scope.enclosure?.enclosureTypeDisplaySummary ?? "No enclosure types selected"
     }
 
     private var showsCustomScreenFrameColorField: Bool {
@@ -1016,22 +1037,14 @@ struct EnclosureEditorView: View {
         scope.enclosure?.screenWallType == .suntexSolarScreen
     }
 
-    private var enclosureTypeBinding: Binding<EnclosureType?> {
-        Binding(
-            get: { scope.enclosure?.enclosureType },
-            set: { newValue in
-                updateEnclosure { enclosure in
-                    enclosure.enclosureType = newValue
-                    if !isScreenType(newValue) {
-                        enclosure.screenWallType = nil
-                        enclosure.screenTint = nil
-                        enclosure.screenFrameSize = nil
-                        enclosure.screenFrameColor = nil
-                        enclosure.screenFrameColorCustom = nil
-                    }
-                }
-            }
-        )
+    private func isEnclosureTypeSelected(_ type: EnclosureType) -> Bool {
+        scope.enclosure?.activeEnclosureTypes.contains(type) == true
+    }
+
+    private func toggleEnclosureType(_ type: EnclosureType) {
+        updateEnclosure { enclosure in
+            enclosure.setEnclosureType(type, isSelected: !enclosure.activeEnclosureTypes.contains(type))
+        }
     }
 
     private var screenWallTypeBinding: Binding<ScreenWallType?> {
@@ -1431,15 +1444,6 @@ struct EnclosureEditorView: View {
         update(&enclosure)
         scope.enclosure = enclosure.isEffectivelyEmpty ? nil : enclosure
         autosave.scheduleSave(for: scope)
-    }
-
-    private func isScreenType(_ value: EnclosureType?) -> Bool {
-        switch value {
-        case .screenEnclosure, .mixed:
-            return true
-        default:
-            return false
-        }
     }
 
     private func supportsPanelHeight(_ option: KneeWallOption?) -> Bool {
@@ -3611,7 +3615,7 @@ private func formatOptionalDouble(_ value: Double?) -> String {
 
 private func emptyEnclosure() -> Enclosure {
     Enclosure(
-        enclosureType: nil,
+        enclosureTypes: nil,
         screenWallType: nil,
         screenTint: nil,
         screenFrameSize: nil,
@@ -3704,20 +3708,6 @@ private func emptyDrainage() -> Drainage {
         drainTieIn: nil,
         slopeNotes: nil
     )
-}
-
-private extension Enclosure {
-    var isEffectivelyEmpty: Bool {
-        enclosureType == nil &&
-        screenWallType == nil &&
-        screenTint == nil &&
-        screenFrameSize == nil &&
-        screenFrameColor == nil &&
-        (screenFrameColorCustom ?? "").nilIfBlank == nil &&
-        windowSystem == nil &&
-        kneeWall == nil &&
-        doors == nil
-    }
 }
 
 private extension ExistingConditions {

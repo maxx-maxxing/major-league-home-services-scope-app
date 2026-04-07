@@ -349,6 +349,20 @@
     },
     "Enclosure": {
       "fields": {
+        "enclosureTypes": {
+          "type": "array",
+          "items": {
+            "type": "enum",
+            "values": [
+              "screen_enclosure",
+              "vinyl_window_enclosure",
+              "glass_sunroom",
+              "mixed",
+              "other"
+            ]
+          },
+          "required": false
+        },
         "enclosureType": {
           "type": "enum",
           "values": [
@@ -358,6 +372,7 @@
             "mixed",
             "other"
           ],
+          "deprecated": true,
           "required": false
         },
         "screenWallType": {

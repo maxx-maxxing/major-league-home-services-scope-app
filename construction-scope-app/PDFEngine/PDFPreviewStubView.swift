@@ -143,6 +143,7 @@ enum ScopePDFExporter {
     }
 
     static func generate(scope: JobScope) throws -> PDFExportResult {
+        pruneInactiveEnclosureValuesForExport(scope)
         let render = try render(scope: scope)
         let outputURL = FileManager.default.temporaryDirectory
             .appendingPathComponent(render.filename)
@@ -568,7 +569,7 @@ enum ScopePDFExporter {
 
     private static func pageThree(_ scope: JobScope) -> PDFPageContent {
         let structural = scope.structuralSystem
-        let enclosure = scope.enclosure
+        let enclosure = scope.enclosure?.normalizedForExport()
 
         return PDFPageContent(
             title: "Page 3: Structural + Roof System + Enclosure",
@@ -583,7 +584,7 @@ enum ScopePDFExporter {
                     .init(label: "Notes", value: structural?.notes?.nilIfBlank ?? "None")
                 ]),
                 PDFSection(title: "Enclosure", rows: [
-                    .init(label: "Type", value: enclosure?.enclosureType?.displayName ?? "Not set"),
+                    .init(label: "Type", value: enclosure?.enclosureTypeDisplaySummary ?? "Not set"),
                     .init(label: "Screen Type", value: enclosure?.screenWallType?.displayName ?? "Not set"),
                     .init(label: "Tint", value: enclosure?.screenTint?.displayName ?? "Not set"),
                     .init(label: "Frame Size", value: enclosure?.screenFrameSize?.displayName ?? "Not set"),
@@ -605,7 +606,7 @@ enum ScopePDFExporter {
     }
 
     private static func pageFour(_ scope: JobScope) -> PDFPageContent {
-        let window = scope.enclosure?.windowSystem
+        let window = scope.enclosure?.normalizedForExport()?.windowSystem
         let electrical = scope.electrical
         let drainage = scope.drainage
 
@@ -725,6 +726,10 @@ enum ScopePDFExporter {
             pageFour(scope),
             try pageFive(scope)
         ] + (try appendixPages(scope))
+    }
+
+    private static func pruneInactiveEnclosureValuesForExport(_ scope: JobScope) {
+        scope.enclosure = scope.enclosure?.normalizedForExport()
     }
 
     private static func appendixPages(_ scope: JobScope) throws -> [PDFPageContent] {

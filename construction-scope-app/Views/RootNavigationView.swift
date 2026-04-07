@@ -1775,6 +1775,7 @@ struct SectionEditorView: View {
     private func exportPDF() {
         do {
             let result = try ScopePDFExporter.generate(scope: scope)
+            autosave.scheduleSave(for: scope)
             shareURL = result.fileURL
             showingShareSheet = true
         } catch {

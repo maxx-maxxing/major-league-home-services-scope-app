@@ -1726,3 +1726,19 @@
   - cross-device sync
   - company-wide multi-user continuity
 - Not yet safe to promise zero-loss continuity across future iterative builds unless migration handling and upgrade validation are added.
+
+## Enclosure Type Multi-Select Update – 2026-04-07
+
+### What Changed
+- Enclosure Type now uses multi-select state via `Enclosure.enclosureTypes`.
+- Legacy single-value `enclosureType` payloads decode into the new `enclosureTypes` array.
+- The Enclosure editor now renders each available enclosure type as a toggleable native row with visible selected/unselected state.
+- Screen Options visibility is driven by the selected enclosure type set, not a single picker value.
+- Screen-dependent values are preserved while editing if a screen-supporting type is temporarily unselected.
+- PDF/proposal output uses normalized Enclosure data so inactive hidden screen-dependent values are excluded.
+- PDF generation prunes inactive hidden screen-dependent values back onto the scope and schedules autosave from the export call site.
+
+### Migration Notes
+- Existing saved scopes with `enclosureType` should open through the custom Enclosure decoder and appear as a one-item `enclosureTypes` selection.
+- New saves encode `enclosureTypes`; `enclosureType` remains a deprecated schema key for legacy decode fallback only.
+- This is a persistence-shape change and should be included in same-device upgrade validation before handing a build to the field beta user.

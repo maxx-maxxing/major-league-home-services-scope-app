@@ -33,6 +33,13 @@ Keep milestones small, testable, and reviewable.
   - Production Notes
 - Apply UI_SYSTEM.md rules: cards, materials, semantic type, progressive disclosure
 
+### Milestone 2.1 – Enclosure Type Multi-Select
+- Convert Enclosure Type from single optional selection to an ordered multi-select collection while preserving legacy single-value decoding.
+- Keep dependent Screen Options visible whenever a selected type supports screen enclosure work, including `mixed`.
+- Preserve hidden screen-dependent values while editing when screen-supporting types are temporarily unselected.
+- Normalize/prune inactive hidden Enclosure-dependent values for PDF export so hidden selections do not appear in output or linger after export generation.
+- Keep the change scoped to Enclosure model, Enclosure editor UI, schema, PDF/proposal export data paths, and status docs.
+
 ## Milestone 2.2 – Remaining Section Editors
 - Implement the remaining schema-backed editors for:
   - Existing Conditions

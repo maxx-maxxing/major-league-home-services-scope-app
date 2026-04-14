@@ -554,7 +554,7 @@ enum ScopePDFExporter {
                     .init(label: "Obstacles", value: existing?.obstaclesNotes?.nilIfBlank ?? "None"),
                     .init(label: "Utilities", value: existing?.utilitiesNotes?.nilIfBlank ?? "None"),
                     .init(label: "HOA Notes", value: existing?.hoaNotes?.nilIfBlank ?? "None"),
-                    .init(label: "Photo Checklist", value: photoChecklistSummary(existing?.photoChecklist))
+                    .init(label: "Photo Checklist", value: photoChecklistSummary(scopeID: scope.id))
                 ]),
                 PDFSection(title: "Attachment Conditions", rows: [
                     .init(label: "House Material", value: resolvedHouseWallMaterial(attachment)),
@@ -743,7 +743,7 @@ enum ScopePDFExporter {
     }
 
     private static func appendixPages(_ scope: JobScope) throws -> [PDFPageContent] {
-        var pages: [PDFPageContent] = []
+        var pages = try checklistPhotoAppendixPages(scope)
 
         if let photos = scope.photos, !photos.isEmpty {
             for (index, photo) in photos.enumerated() {
@@ -776,6 +776,108 @@ enum ScopePDFExporter {
         }
 
         return pages
+    }
+
+    private static func checklistPhotoAppendixPages(_ scope: JobScope) throws -> [PDFPageContent] {
+        let categorizedPhotos = ChecklistPhotoAssetStore.categorizedPhotos(scopeID: scope.id)
+        guard !categorizedPhotos.isEmpty else {
+            return []
+        }
+
+        let sections = try categorizedPhotos.flatMap { category, photos in
+            try checklistPhotoSections(
+                category: category,
+                photos: photos,
+                scopeID: scope.id.uuidString
+            )
+        }
+
+        guard !sections.isEmpty else { return [] }
+
+        return sections.chunked(into: 2).enumerated().map { index, pageSections in
+            PDFPageContent(
+                title: index == 0
+                    ? "Appendix: Existing Conditions Photos"
+                    : "Appendix: Existing Conditions Photos \(index + 1)",
+                sections: pageSections,
+                kind: .photoAppendix
+            )
+        }
+    }
+
+    private static func checklistPhotoSections(
+        category: PhotoChecklistCategory,
+        photos: [DocumentAttachmentFile],
+        scopeID: String
+    ) throws -> [PDFSection] {
+        let chunks = photos.chunked(into: 4)
+
+        return try chunks.enumerated().map { chunkIndex, chunk in
+            let images = try chunk.enumerated().map { imageIndex, photo in
+                try loadImage(
+                    at: photo.filePath,
+                    scopeID: scopeID,
+                    reasonContext: "existing conditions \(category.displayName) photo \(chunkIndex * 4 + imageIndex + 1)"
+                )
+            }
+
+            let visibleRange = (chunkIndex * 4 + 1)...(chunkIndex * 4 + chunk.count)
+            let title = chunks.count == 1
+                ? category.displayName
+                : "\(category.displayName) (\(visibleRange.lowerBound)-\(visibleRange.upperBound) of \(photos.count))"
+
+            return PDFSection(
+                title: title,
+                rows: [
+                    .init(label: "Total Photos", value: "\(photos.count)"),
+                    .init(label: "Shown", value: "\(chunk.count) on this page")
+                ],
+                image: buildChecklistCompositeImage(images),
+                imageRole: .appendix
+            )
+        }
+    }
+
+    private static func buildChecklistCompositeImage(_ images: [UIImage]) -> UIImage {
+        let columnCount = min(2, max(1, images.count))
+        let rowCount = Int(ceil(Double(images.count) / Double(columnCount)))
+        let canvasSize = CGSize(width: 900, height: rowCount == 1 ? 320 : 520)
+        let renderer = UIGraphicsImageRenderer(size: canvasSize)
+        let backgroundColor = UIColor(white: 0.97, alpha: 1)
+        let borderColor = UIColor(white: 0.86, alpha: 1)
+        let gap: CGFloat = 18
+        let padding: CGFloat = 24
+        let contentWidth = canvasSize.width - (padding * 2)
+        let contentHeight = canvasSize.height - (padding * 2)
+        let cellWidth = (contentWidth - CGFloat(columnCount - 1) * gap) / CGFloat(columnCount)
+        let cellHeight = (contentHeight - CGFloat(max(0, rowCount - 1)) * gap) / CGFloat(max(rowCount, 1))
+
+        return renderer.image { context in
+            let cg = context.cgContext
+            backgroundColor.setFill()
+            cg.fill(CGRect(origin: .zero, size: canvasSize))
+
+            for (index, image) in images.enumerated() {
+                let row = index / columnCount
+                let column = index % columnCount
+                let rect = CGRect(
+                    x: padding + CGFloat(column) * (cellWidth + gap),
+                    y: padding + CGFloat(row) * (cellHeight + gap),
+                    width: cellWidth,
+                    height: cellHeight
+                )
+
+                let roundedRect = UIBezierPath(roundedRect: rect, cornerRadius: 18)
+                cg.saveGState()
+                roundedRect.addClip()
+                drawAspectFill(image, in: rect)
+                cg.restoreGState()
+
+                borderColor.setStroke()
+                roundedRect.lineWidth = 1
+                roundedRect.stroke()
+            }
+        }
     }
 
     private static func loadImage(at path: String, scopeID: String, reasonContext: String) throws -> UIImage {
@@ -1021,15 +1123,25 @@ enum ScopePDFExporter {
         return parts.isEmpty ? "No additional details" : parts.joined(separator: ", ")
     }
 
-    private static func photoChecklistSummary(_ checklist: PhotoChecklist?) -> String {
-        guard let checklist else { return "Not set" }
-        var selected: [String] = []
-        if checklist.frontOfHouse == true { selected.append("Front") }
-        if checklist.rearElevation == true { selected.append("Rear") }
-        if checklist.roofLine == true { selected.append("Roof") }
-        if checklist.electricalPanel == true { selected.append("Panel") }
-        if checklist.workArea == true { selected.append("Work Area") }
-        return selected.isEmpty ? "No items selected" : selected.joined(separator: ", ")
+    private static func photoChecklistSummary(scopeID: UUID) -> String {
+        ChecklistPhotoAssetStore.summary(scopeID: scopeID) ?? "No checklist photos attached"
+    }
+
+    private static func drawAspectFill(_ image: UIImage, in rect: CGRect) {
+        guard image.size.width > 0, image.size.height > 0 else { return }
+
+        let widthScale = rect.width / image.size.width
+        let heightScale = rect.height / image.size.height
+        let scale = max(widthScale, heightScale)
+        let scaledSize = CGSize(width: image.size.width * scale, height: image.size.height * scale)
+        let drawRect = CGRect(
+            x: rect.midX - (scaledSize.width / 2),
+            y: rect.midY - (scaledSize.height / 2),
+            width: scaledSize.width,
+            height: scaledSize.height
+        )
+
+        image.draw(in: drawRect)
     }
 }
 
@@ -1199,6 +1311,23 @@ private struct PDFSection {
 private extension String {
     var nilIfBlank: String? {
         trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : self
+    }
+}
+
+private extension Array {
+    func chunked(into size: Int) -> [[Element]] {
+        guard size > 0, !isEmpty else { return isEmpty ? [] : [self] }
+
+        var result: [[Element]] = []
+        var index = startIndex
+
+        while index < endIndex {
+            let end = self.index(index, offsetBy: size, limitedBy: endIndex) ?? endIndex
+            result.append(Array(self[index..<end]))
+            index = end
+        }
+
+        return result
     }
 }
 

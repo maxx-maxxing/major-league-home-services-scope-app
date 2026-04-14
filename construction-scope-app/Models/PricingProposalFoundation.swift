@@ -878,13 +878,7 @@ enum ProposalFoundationBuilder {
         let documents = scope.documents
         let exportExistingConditions = scope.existingConditions?.normalizedForExport()
         let exportEnclosure = scope.enclosure?.normalizedForExport()
-        let checkedPhotos = [
-            exportExistingConditions?.photoChecklist?.frontOfHouse == true ? "Front of House" : nil,
-            exportExistingConditions?.photoChecklist?.rearElevation == true ? "Rear Elevation" : nil,
-            exportExistingConditions?.photoChecklist?.roofLine == true ? "Roof Line" : nil,
-            exportExistingConditions?.photoChecklist?.electricalPanel == true ? "Electrical Panel" : nil,
-            exportExistingConditions?.photoChecklist?.workArea == true ? "Work Area" : nil
-        ].compactMap { $0 }
+        let checklistPhotoSummary = ChecklistPhotoAssetStore.summary(scopeID: scope.id)
 
         let additionalDocuments = documents?.additionalAttachments ?? []
         let additionalDocumentNames = additionalDocuments.compactMap { attachment in
@@ -924,7 +918,7 @@ enum ProposalFoundationBuilder {
                     textValue(.obstaclesNotes, "Obstacles Notes", exportExistingConditions?.obstaclesNotes),
                     textValue(.utilitiesNotes, "Utilities Notes", exportExistingConditions?.utilitiesNotes),
                     textValue(.hoaNotes, "HOA Notes", exportExistingConditions?.hoaNotes),
-                    textValue(.photoChecklist, "Photo Checklist", checkedPhotos.isEmpty ? nil : checkedPhotos.joined(separator: ", "))
+                    textValue(.photoChecklist, "Photo Checklist", checklistPhotoSummary),
                 ].compactMap { $0 }
             ),
             ScopeCaptureSectionSnapshot(

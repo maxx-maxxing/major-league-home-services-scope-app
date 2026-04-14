@@ -65,6 +65,29 @@ enum ExistingStructure: String, Codable, CaseIterable, SchemaEnumDisplayable {
     case other
 }
 
+enum PhotoChecklistCategory: String, Codable, CaseIterable, SchemaEnumDisplayable {
+    case frontOfHouse = "front_of_house"
+    case rearElevation = "rear_elevation"
+    case roofLine = "roof_line"
+    case electricalPanel = "electrical_panel"
+    case workArea = "work_area"
+
+    var displayName: String {
+        switch self {
+        case .frontOfHouse:
+            return "Front of House"
+        case .rearElevation:
+            return "Rear Elevation"
+        case .roofLine:
+            return "Roof Line"
+        case .electricalPanel:
+            return "Electrical Panel"
+        case .workArea:
+            return "Work Area"
+        }
+    }
+}
+
 enum ExteriorFinishArea: String, Codable, CaseIterable, SchemaEnumDisplayable {
     case postsColumns = "posts_columns"
     case exteriorHouseWall = "exterior_house_wall"
@@ -791,7 +814,7 @@ struct ExistingConditions: Codable, Hashable {
         self.obstaclesNotes = obstaclesNotes?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty
         self.utilitiesNotes = utilitiesNotes?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty
         self.hoaNotes = hoaNotes?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty
-        self.photoChecklist = photoChecklist
+        self.photoChecklist = photoChecklist?.isEffectivelyEmpty == true ? nil : photoChecklist
     }
 
     mutating func setExistingStructure(_ structure: ExistingStructure, isSelected: Bool) {
@@ -815,6 +838,7 @@ struct ExistingConditions: Codable, Hashable {
         obstaclesNotes = obstaclesNotes?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty
         utilitiesNotes = utilitiesNotes?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty
         hoaNotes = hoaNotes?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty
+        photoChecklist = nil
     }
 
     func normalizedForExport() -> ExistingConditions? {
@@ -839,7 +863,8 @@ struct ExistingConditions: Codable, Hashable {
         obstaclesNotes = try container.decodeIfPresent(String.self, forKey: .obstaclesNotes)
         utilitiesNotes = try container.decodeIfPresent(String.self, forKey: .utilitiesNotes)
         hoaNotes = try container.decodeIfPresent(String.self, forKey: .hoaNotes)
-        photoChecklist = try container.decodeIfPresent(PhotoChecklist.self, forKey: .photoChecklist)
+        let decodedChecklist = try container.decodeIfPresent(PhotoChecklist.self, forKey: .photoChecklist)
+        photoChecklist = decodedChecklist?.isEffectivelyEmpty == true ? nil : decodedChecklist
 
         if let decodedFinish = try container.decodeIfPresent(ExistingConditionsExteriorFinish.self, forKey: .exteriorFinish) {
             exteriorFinish = decodedFinish.isEffectivelyEmpty ? nil : decodedFinish
@@ -864,7 +889,7 @@ struct ExistingConditions: Codable, Hashable {
         try container.encodeIfPresent(obstaclesNotes?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty, forKey: .obstaclesNotes)
         try container.encodeIfPresent(utilitiesNotes?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty, forKey: .utilitiesNotes)
         try container.encodeIfPresent(hoaNotes?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty, forKey: .hoaNotes)
-        try container.encodeIfPresent(photoChecklist, forKey: .photoChecklist)
+        try container.encodeIfPresent(photoChecklist?.isEffectivelyEmpty == true ? nil : photoChecklist, forKey: .photoChecklist)
     }
 
     private static func normalizedExistingStructures(_ values: [ExistingStructure]?) -> [ExistingStructure]? {
@@ -913,6 +938,14 @@ struct PhotoChecklist: Codable, Hashable {
     var roofLine: Bool?
     var electricalPanel: Bool?
     var workArea: Bool?
+
+    var isEffectivelyEmpty: Bool {
+        frontOfHouse == nil &&
+        rearElevation == nil &&
+        roofLine == nil &&
+        electricalPanel == nil &&
+        workArea == nil
+    }
 }
 
 struct Dimensions: Codable, Hashable {

@@ -8,6 +8,7 @@
 - Milestone 2.1: Implemented (Windows & Glass stability/usability pass)
 - Milestone 2.2: Implemented (remaining schema-backed section editors)
 - Milestone 2.3: Implemented (Existing Conditions multi-select workflow alignment)
+- Milestone 2.3.1: Implemented (Existing Conditions photo checklist structured photo workflow)
 - Milestone 3: Implemented (PencilKit signature + sketch capture)
 - Milestone 3.4.1: Implemented (Signature/diagram persistence repair)
 - Milestone 3.4.2: Implemented (immediate sketch metadata durability)
@@ -54,8 +55,82 @@
 - Milestone 7.6.1: Implemented (TestFlight continuity + persistence audit)
 - Milestone 7.6.2: Implemented (Release/TestFlight configuration safety first pass)
 - Milestone 7.6.2.1: Implemented (internal debug entry point Release gating)
+- Milestone 7.6.3: In progress (persistence schema discipline, with checklist store-compatibility repair applied)
 
 ## Decisions
+- Milestone 7.6.3 Existing Conditions store compatibility repair:
+  - Release-blocking symptom:
+    - launch opened directly to `Local Data Unavailable`
+    - underlying startup error was `SwiftData.SwiftDataError error 1` while opening the installed local store
+  - Root cause:
+    - `JobScope.existingConditions` is persisted by SwiftData as a stored Codable value
+    - the recent checklist implementation changed nested `PhotoChecklist` fields from five optional `Bool` values to five optional `[DocumentAttachmentFile]` arrays and added a new nested `PhotoChecklistPhoto` stored schema type
+    - that is a real persisted store-shape change, so SwiftData rejected pre-existing stores before any custom legacy decode logic could run
+  - Contributing persisted-shape changes in the broken build:
+    - [schema.json](/Users/maxx/Documents/major-league-home-services-scope-app/construction-scope-app/schema.json) changed every `PhotoChecklist` category from `bool` to `array`
+    - [schema.json](/Users/maxx/Documents/major-league-home-services-scope-app/construction-scope-app/schema.json) added a new `PhotoChecklistPhoto` stored type with file metadata fields
+    - [SchemaModels.swift](/Users/maxx/Documents/major-league-home-services-scope-app/construction-scope-app/Models/SchemaModels.swift) changed `PhotoChecklist` from bools to `[DocumentAttachmentFile]`
+    - [SchemaModels.swift](/Users/maxx/Documents/major-league-home-services-scope-app/construction-scope-app/Models/SchemaModels.swift) encoded that new array-backed shape into `ExistingConditions.photoChecklist`
+  - Repair strategy chosen:
+    - restore the persisted `PhotoChecklist` schema/model to the previous bool-backed shape
+    - keep the new structured checklist-photo workflow, but make its source of truth the scoped asset files under `Application Support/ScopeAssets/<scope-id>/ExistingConditionsChecklist/...`
+    - avoid any new SwiftData migration requirement in this hotfix
+  - What changed:
+    - restored the persisted `PhotoChecklist` shape in [SchemaModels.swift](/Users/maxx/Documents/major-league-home-services-scope-app/construction-scope-app/Models/SchemaModels.swift) and [schema.json](/Users/maxx/Documents/major-league-home-services-scope-app/construction-scope-app/schema.json) to optional bool fields only
+    - updated [PhotoAttachmentSupport.swift](/Users/maxx/Documents/major-league-home-services-scope-app/construction-scope-app/Views/PhotoAttachmentSupport.swift) to enumerate checklist photos from the scoped asset directories, summarize them, and preserve enough filename metadata to reconstruct previews/source labels
+    - updated [SectionEditors.swift](/Users/maxx/Documents/major-league-home-services-scope-app/construction-scope-app/Views/SectionEditors.swift) so checklist add/remove/preview flows operate on files plus `updatedAt`, not on the SwiftData checklist payload
+    - updated [PricingProposalFoundation.swift](/Users/maxx/Documents/major-league-home-services-scope-app/construction-scope-app/Models/PricingProposalFoundation.swift) and [PDFPreviewStubView.swift](/Users/maxx/Documents/major-league-home-services-scope-app/construction-scope-app/PDFEngine/PDFPreviewStubView.swift) so summaries and appendix pages come from the checklist asset store instead of the persisted model field
+  - Continuity expectation:
+    - existing installed stores from the last good beta should open again on this repaired build without reinstall
+    - checklist photos captured on the repaired build persist on disk and remain available to the same installed app and PDF export flow
+    - this is not a blanket guarantee for any store already rewritten by the broken array-backed schema, although the reported launch failure strongly suggests affected beta devices never reached that state
+
+- Milestone 2.3.1 Existing Conditions photo checklist structured photo workflow:
+  - Task scope:
+    - replace the Existing Conditions `Photo Checklist` tri-state yes/no/not-set booleans with per-category stored image collections
+    - keep checklist photos separate from the Documents / Attachments section while reusing the app's current local import patterns
+    - add inline per-category thumbnail presentation, expand/collapse behavior, preview/removal actions, and grouped PDF output
+  - Guardrails for this pass:
+    - keep the change scoped to Existing Conditions storage/UI, checklist-photo asset helpers, export composition, and status docs
+    - do not refactor the general Documents / Attachments section or unrelated JobTread / pricing / debug flows
+  - Implemented model/storage change:
+    - updated [schema.json](/Users/maxx/Documents/major-league-home-services-scope-app/construction-scope-app/schema.json) so each `PhotoChecklist` category now stores an array of `PhotoChecklistPhoto` entries instead of a boolean
+    - updated [SchemaModels.swift](/Users/maxx/Documents/major-league-home-services-scope-app/construction-scope-app/Models/SchemaModels.swift) so `PhotoChecklist` now stores ordered per-category `[DocumentAttachmentFile]` collections with helper accessors and summaries
+    - preserved backward-compatible decoding for previously saved tri-state checklist payloads by accepting legacy boolean values during decode and treating them as no stored photos
+  - Asset/import behavior:
+    - added a checklist-specific local asset store in [PhotoAttachmentSupport.swift](/Users/maxx/Documents/major-league-home-services-scope-app/construction-scope-app/Views/PhotoAttachmentSupport.swift)
+    - checklist photos now save under `Application Support/ScopeAssets/<scope-id>/ExistingConditionsChecklist/<category>/...`
+    - reused the current import patterns for:
+      - Files
+      - Photo Library
+      - Camera
+    - Files import is intentionally restricted to image files for the checklist workflow
+  - UI implementation:
+    - replaced the old `OptionalBoolPicker` checklist rows in [SectionEditors.swift](/Users/maxx/Documents/major-league-home-services-scope-app/construction-scope-app/Views/SectionEditors.swift) with structured per-category photo rows
+    - each category now supports:
+      - Add / Add More menu actions for Files, Photo Library, and Camera
+      - horizontal thumbnail strips
+      - inline expand/collapse
+      - tap-to-preview behavior
+      - long-press context actions for Preview and Remove
+      - individual remove controls in expanded view
+    - autosave remains on the existing debounced scope save path after each checklist mutation
+  - Export/PDF behavior:
+    - updated [PricingProposalFoundation.swift](/Users/maxx/Documents/major-league-home-services-scope-app/construction-scope-app/Models/PricingProposalFoundation.swift) so proposal/input snapshots summarize checklist photos by labeled category counts
+    - updated [PDFPreviewStubView.swift](/Users/maxx/Documents/major-league-home-services-scope-app/construction-scope-app/PDFEngine/PDFPreviewStubView.swift) so page-two Existing Conditions rows show checklist photo counts and the PDF appendix now adds grouped Existing Conditions photo pages
+    - checklist appendix pages render per-category labeled contact sheets rather than one full page per image
+  - Migration implication:
+    - previously saved scopes with old tri-state checklist booleans do not require a hard migration to open
+    - legacy boolean values decode safely, but because the new workflow is photo-backed and no real images exist in that old payload, those prior yes/no/not-set statuses are not surfaced in the new UI and will be normalized away on a subsequent save/export
+  - Validation:
+    - attempted:
+      - `xcodebuild -project ConstructionScopeApp.xcodeproj -scheme ConstructionScopeApp -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' -derivedDataPath /tmp/ConstructionScopeAppDerivedData CODE_SIGNING_ALLOWED=NO build`
+      - `xcodebuild -project ConstructionScopeApp.xcodeproj -scheme ConstructionScopeApp -destination 'generic/platform=iOS' -derivedDataPath /tmp/ConstructionScopeAppDeviceDerivedData CODE_SIGNING_ALLOWED=NO build`
+    - result:
+      - both builds advanced through normal project planning and Swift compilation activity
+      - this sandbox then failed at asset-catalog compilation because `actool` / `ibtoold` could not access any usable simulator runtime services from the environment
+      - no checklist-specific Swift compile diagnostics were surfaced before the environment-specific asset-tool failure
+
 - Milestone 2.3 Existing Conditions multi-select workflow alignment:
   - Task scope:
     - replace the current single-value `Exterior Finish` flow with the required nested multi-select workflow for:

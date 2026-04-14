@@ -4,7 +4,7 @@ Current working focus:
 Production-hardening for TestFlight field beta distribution, while continuing small, surgical workflow improvements that directly support real field use.
 
 Current active feature task:
-Update the Existing Conditions section so Exterior Finish and Existing Structure match the business workflow more accurately.
+Update the Existing Conditions section so the Photo Checklist becomes a structured photo-capture workflow instead of the current tri-state Not Set / Yes / No control pattern.
 
 Required Existing Conditions behavior:
 
@@ -40,6 +40,26 @@ Existing Structure:
 - The user must be able to select any combination of Existing Structure options
 - No new dependent fields are required for Existing Structure at this time
 
+Photo Checklist:
+- The current Photo Checklist tri-state controls (Not Set / Yes / No) should be replaced with a structured per-category photo workflow
+- Each checklist category should allow multiple photos
+- Each checklist category should support adding images from:
+  - Camera
+  - Photo Library
+  - Files
+- If no photos are attached for a category, that category can simply remain blank; there is no need for a separate explicit status control
+- Each checklist category should display a clean, field-friendly thumbnail strip / thumbnail stack when photos exist
+- The thumbnail presentation should make multiple attached photos visible and tappable at a glance, with horizontal scrolling if needed
+- Tapping the row / preview area should support inline expand/collapse behavior for a richer photo view
+- Long-pressing a photo thumbnail should offer appropriate management actions such as:
+  - Remove
+  - Preview / Quick Look
+- The row should also support direct photo-management actions such as:
+  - Add more photos
+  - Remove individual photos
+- This structured Photo Checklist workflow should remain separate from the general Documents / Attachments section
+- The resulting checklist photos should be included in PDF export in a clean, understandable labeled format at reasonable visible size; they do not need a full page per image
+
 Hidden/dependent state behavior:
 - If a parent option is unselected, its dependent child controls must disappear from the UI
 - Hidden dependent values should be temporarily preserved while the user is still editing
@@ -48,7 +68,7 @@ Hidden/dependent state behavior:
 - This hidden-state behavior should remain consistent with the recent Enclosure multi-select pattern where practical
 
 Important constraint:
-Do not destabilize the current working JobTread customer search/select, linked-customer hydration, verified read-only ownership behavior, Documents / Attachments section, pricing engine, returned pricing normalization/validation path, debug inspector, PDF export pipeline, recent Scope Title text-entry fix, or recent Enclosure multi-select work unless the task explicitly requires it.
+Do not destabilize the current working JobTread customer search/select, linked-customer hydration, verified read-only ownership behavior, Documents / Attachments section, pricing engine, returned pricing normalization/validation path, debug inspector, PDF export pipeline, recent Scope Title text-entry fix, recent Enclosure multi-select work, or recent Existing Conditions nested selection work unless the task explicitly requires it.
 
 Current app phase:
 The app is advanced enough for real field beta use, but production hardening is still in progress. Current work should prioritize reliability in Release/TestFlight-style conditions while making small, targeted UX improvements required for real estimating workflows.
@@ -85,6 +105,8 @@ What is already true:
 - PDF export/render/share pipeline has been hardened toward deterministic fixed-layout rendering with print-safe colors, page modeling, pagination, diagnostics, and attachment appendix handling
 - Enclosure Type now supports multi-select behavior with dependent option visibility driven by selected type state
 - Hidden Enclosure-dependent values may be preserved during editing and pruned from export/output when inactive
+- Existing Conditions now supports nested multi-select behavior for Exterior Finish and multi-select behavior for Existing Structure
+- Existing Conditions export/proposal output has already been updated to normalize/prune inactive hidden branch data for output
 
 Known limitations / current truths:
 - The app is still primarily local-storage based
@@ -121,6 +143,7 @@ Current architectural direction:
   from one shared structured pricing/proposal layer
 - Pricing logic should live in a structured domain/config layer, not in SwiftUI views or the final PDF renderer
 - Export/PDF generation should use a dedicated deterministic rendering path rather than relying on capturing live interactive UI when necessary
+- Checklist photos should be treated as structured scope data, not generic attachments
 - For the immediate field beta, same-device update continuity, release-safety hardening, and reliable core workflow UX are the primary targets
 - For the long-term SaaS product, authenticated cloud-backed sync will likely be required for multi-device and multi-user business continuity
 
@@ -134,12 +157,15 @@ UI/input architecture guidance:
 - Hidden preserved values must not leak into final output
 - Export-time data should be normalized/pruned so only currently active selections and their visible dependent values are included
 - Required text fields that are revealed by selecting an Other option should be clearly labeled to indicate which Other selection they belong to
+- Photo-heavy UI should feel first-party Apple-like, visually calm, and easy to scan in the field
+- Prefer inline expansion/collapse and clean thumbnail presentation over heavy modal complexity when possible
 
 Immediate implementation direction:
 - Preserve current production stability
 - Make targeted real-workflow improvements only when they are clearly needed by field testing
-- Update Existing Conditions so Exterior Finish supports nested multi-select behavior and Existing Structure supports multi-select behavior
-- Ensure dependent Existing Conditions options appear/disappear based on current selected parent state
+- Update Existing Conditions Photo Checklist from tri-state controls to structured photo capture and management
+- Ensure checklist photos are easy to add, preview, expand/collapse, and remove
+- Include checklist photos in PDF export in a clean labeled way
 - Keep the implementation incremental and production-safe
 - Defer broader cloud-sync architecture to a future phase
 
@@ -155,13 +181,13 @@ Most relevant near-term hardening / workflow domains:
 - persistence-shape freeze / migration discipline
 - continuity test procedure for build-to-build upgrades
 - near-term backup/export/recovery planning
-- stable section workflows for real estimators, including multi-select-driven dependent option groups
+- stable section workflows for real estimators, including multi-select-driven dependent option groups and structured checklist photo capture
 
 Current priorities:
 1. Preserve build stability and core field-beta workflow reliability
 2. Support real estimator workflows with targeted UX fixes in Existing Conditions and related section flows
-3. Preserve recent Enclosure multi-select behavior and architectural consistency
-4. Preserve PDF export/render/share reliability for real field beta use
+3. Preserve recent Enclosure and Existing Conditions selection architecture consistency
+4. Preserve PDF export/render/share reliability for real field beta use while expanding checklist-photo output cleanly
 5. Preserve Release/TestFlight launch/configuration safety
 6. Remove bundled secret/config resource risks
 7. Identify and reduce release-blocking continuity risks

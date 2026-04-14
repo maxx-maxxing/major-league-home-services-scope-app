@@ -355,6 +355,16 @@ struct ExistingConditionsEditorView: View {
     let scope: JobScope
     @ObservedObject var autosave: DebouncedAutosave
 
+    @State private var activePhotoChecklistCategory: PhotoChecklistCategory?
+    @State private var showingChecklistFileImporter = false
+    @State private var selectedChecklistPhotoItem: PhotosPickerItem?
+    @State private var showingChecklistPhotoPicker = false
+    @State private var showingChecklistCameraPicker = false
+    @State private var checklistImportError: String?
+    @State private var expandedChecklistCategories: Set<PhotoChecklistCategory> = []
+    @State private var previewingChecklistPhoto: PhotoChecklistPreviewItem?
+    @State private var checklistRefreshToken = UUID()
+
     var body: some View {
         VStack(spacing: 16) {
             CardGroup(title: "Site Snapshot") {
@@ -473,21 +483,73 @@ struct ExistingConditionsEditorView: View {
             }
 
             CardGroup(title: "Photo Checklist") {
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Mark the reference photos that should be captured on site.")
+                VStack(alignment: .leading, spacing: 12) {
+                    Text("Capture labeled Existing Conditions evidence directly inside each checklist category.")
                         .font(.footnote)
                         .foregroundStyle(.secondary)
 
-                    OptionalBoolPicker(title: "Front of House", selection: photoChecklistBinding(\.frontOfHouse))
-                    OptionalBoolPicker(title: "Rear Elevation", selection: photoChecklistBinding(\.rearElevation))
-                    OptionalBoolPicker(title: "Roof Line", selection: photoChecklistBinding(\.roofLine))
-                    OptionalBoolPicker(title: "Electrical Panel", selection: photoChecklistBinding(\.electricalPanel))
-                    OptionalBoolPicker(title: "Work Area", selection: photoChecklistBinding(\.workArea))
+                    Text(photoChecklistSummary)
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+
+                    ForEach(PhotoChecklistCategory.allCases, id: \.self) { category in
+                        PhotoChecklistCategoryRow(
+                            category: category,
+                            photos: checklistPhotos(for: category),
+                            isExpanded: expandedChecklistCategories.contains(category),
+                            presentImporter: { source in
+                                presentPhotoChecklistImporter(source, for: category)
+                            },
+                            toggleExpanded: {
+                                toggleChecklistCategoryExpansion(category)
+                            },
+                            previewPhoto: { photo in
+                                previewingChecklistPhoto = PhotoChecklistPreviewItem(
+                                    category: category,
+                                    attachment: photo
+                                )
+                            },
+                            removePhoto: { photo in
+                                removeChecklistPhoto(photo, from: category)
+                            }
+                        )
+
+                        if category != PhotoChecklistCategory.allCases.last {
+                            Divider()
+                        }
+                    }
                 }
+            }
+
+            if shouldRenderChecklistImportPresenter {
+                DocumentImportPresenter(
+                    showingFileImporter: $showingChecklistFileImporter,
+                    selectedPhotoItem: $selectedChecklistPhotoItem,
+                    showingPhotoPicker: $showingChecklistPhotoPicker,
+                    showingCameraPicker: $showingChecklistCameraPicker,
+                    importError: $checklistImportError,
+                    allowedContentTypes: [.image],
+                    errorTitle: "Checklist Photo Import Failed",
+                    errorFallbackMessage: "Unable to import the selected checklist photo.",
+                    handleFileImportResult: handleChecklistFileImportResult,
+                    importSelectedPhotoItem: importSelectedChecklistPhotoItem,
+                    importCameraImage: importChecklistCameraImage,
+                    resetImportPresentation: resetChecklistImportPresentation
+                )
             }
         }
         .animation(.formReveal, value: exteriorFinishSelectionToken)
         .animation(.formReveal, value: existingStructureSelectionToken)
+        .animation(.formReveal, value: photoChecklistAnimationToken)
+        .sheet(item: $previewingChecklistPhoto) { item in
+            ChecklistPhotoPreviewSheet(
+                item: item,
+                onRemove: {
+                    removeChecklistPhoto(item.attachment, from: item.category)
+                    previewingChecklistPhoto = nil
+                }
+            )
+        }
     }
 
     private var houseStoriesBinding: Binding<HouseStories?> {
@@ -522,19 +584,6 @@ struct ExistingConditionsEditorView: View {
             get: { scope.existingConditions?.hoaNotes ?? "" },
             set: { newValue in
                 updateExistingConditions { $0.hoaNotes = newValue.nilIfBlank }
-            }
-        )
-    }
-
-    private func photoChecklistBinding(_ keyPath: WritableKeyPath<PhotoChecklist, Bool?>) -> Binding<Bool?> {
-        Binding(
-            get: { scope.existingConditions?.photoChecklist.map { $0[keyPath: keyPath] } ?? nil },
-            set: { newValue in
-                updateExistingConditions { conditions in
-                    var checklist = conditions.photoChecklist ?? emptyPhotoChecklist()
-                    checklist[keyPath: keyPath] = newValue
-                    conditions.photoChecklist = checklist.isEffectivelyEmpty ? nil : checklist
-                }
             }
         )
     }
@@ -611,6 +660,19 @@ struct ExistingConditionsEditorView: View {
         scope.existingConditions?.activeExistingStructures.map(\.rawValue).joined(separator: "|") ?? ""
     }
 
+    private var photoChecklistAnimationToken: String {
+        PhotoChecklistCategory.allCases.map { category in
+            let photos = checklistPhotos(for: category)
+            let ids = photos.map { $0.id.uuidString }.joined(separator: ",")
+            let expanded = expandedChecklistCategories.contains(category) ? "1" : "0"
+            return "\(category.rawValue):\(ids):\(expanded)"
+        }.joined(separator: "|") + "#\(checklistRefreshToken.uuidString)"
+    }
+
+    private var photoChecklistSummary: String {
+        ChecklistPhotoAssetStore.summary(scopeID: scope.id) ?? "No checklist photos attached yet."
+    }
+
     private func isExteriorFinishAreaSelected(_ area: ExteriorFinishArea) -> Bool {
         scope.existingConditions?.exteriorFinish?.activeSelectedAreas.contains(area) == true
     }
@@ -661,11 +723,401 @@ struct ExistingConditionsEditorView: View {
         updateExistingConditions { $0.setExistingStructure(value, isSelected: !($0.activeExistingStructures.contains(value))) }
     }
 
+    private var shouldRenderChecklistImportPresenter: Bool {
+        activePhotoChecklistCategory != nil ||
+        showingChecklistFileImporter ||
+        showingChecklistPhotoPicker ||
+        showingChecklistCameraPicker ||
+        checklistImportError != nil
+    }
+
+    private func checklistPhotos(for category: PhotoChecklistCategory) -> [DocumentAttachmentFile] {
+        ChecklistPhotoAssetStore.photos(scopeID: scope.id, category: category)
+    }
+
+    private func toggleChecklistCategoryExpansion(_ category: PhotoChecklistCategory) {
+        if expandedChecklistCategories.contains(category) {
+            expandedChecklistCategories.remove(category)
+        } else {
+            expandedChecklistCategories.insert(category)
+        }
+    }
+
+    private func presentPhotoChecklistImporter(_ source: DocumentImportSource, for category: PhotoChecklistCategory) {
+        activePhotoChecklistCategory = category
+        selectedChecklistPhotoItem = nil
+
+        switch source {
+        case .files:
+            showingChecklistFileImporter = true
+        case .photoLibrary:
+            showingChecklistPhotoPicker = true
+        case .camera:
+            showingChecklistCameraPicker = true
+        }
+    }
+
+    private func resetChecklistImportPresentation(_ clearActiveCategory: Bool) {
+        showingChecklistFileImporter = false
+        showingChecklistPhotoPicker = false
+        showingChecklistCameraPicker = false
+        selectedChecklistPhotoItem = nil
+
+        if clearActiveCategory {
+            activePhotoChecklistCategory = nil
+        }
+    }
+
+    private func handleChecklistFileImportResult(_ result: Result<[URL], Error>) {
+        switch result {
+        case .success(let urls):
+            guard let url = urls.first else {
+                resetChecklistImportPresentation(true)
+                return
+            }
+
+            let category = activePhotoChecklistCategory
+            let scopeID = scope.id
+
+            Task {
+                do {
+                    _ = try await Task.detached(priority: .userInitiated) {
+                        try ChecklistPhotoAssetStore.importFile(from: url, scopeID: scopeID, category: category)
+                    }.value
+
+                    await MainActor.run {
+                        persistImportedChecklistPhoto(for: category)
+                        resetChecklistImportPresentation(true)
+                    }
+                } catch {
+                    await MainActor.run {
+                        checklistImportError = error.localizedDescription
+                        resetChecklistImportPresentation(true)
+                    }
+                }
+            }
+        case .failure(let error):
+            checklistImportError = error.localizedDescription
+            resetChecklistImportPresentation(true)
+        }
+    }
+
+    private func importSelectedChecklistPhotoItem(_ item: PhotosPickerItem) {
+        Task {
+            do {
+                let category = activePhotoChecklistCategory
+                _ = try await ChecklistPhotoAssetStore.importPhotoLibraryItem(
+                    item,
+                    scopeID: scope.id,
+                    category: category
+                )
+
+                await MainActor.run {
+                    persistImportedChecklistPhoto(for: category)
+                    resetChecklistImportPresentation(true)
+                }
+            } catch {
+                await MainActor.run {
+                    checklistImportError = error.localizedDescription
+                    resetChecklistImportPresentation(true)
+                }
+            }
+        }
+    }
+
+    #if canImport(UIKit)
+    private func importChecklistCameraImage(_ image: UIImage) {
+        do {
+            _ = try ChecklistPhotoAssetStore.saveCameraImage(
+                image,
+                scopeID: scope.id,
+                category: activePhotoChecklistCategory
+            )
+            persistImportedChecklistPhoto(for: activePhotoChecklistCategory)
+            resetChecklistImportPresentation(true)
+        } catch {
+            checklistImportError = error.localizedDescription
+            resetChecklistImportPresentation(true)
+        }
+    }
+    #endif
+
+    private func persistImportedChecklistPhoto(for category: PhotoChecklistCategory?) {
+        guard let category else { return }
+
+        expandedChecklistCategories.insert(category)
+        activePhotoChecklistCategory = nil
+        recordChecklistFilesystemMutation()
+    }
+
+    private func removeChecklistPhoto(_ attachment: DocumentAttachmentFile, from category: PhotoChecklistCategory) {
+        _ = category
+        ChecklistPhotoAssetStore.removePhoto(at: attachment.filePath)
+        recordChecklistFilesystemMutation()
+    }
+
+    private func recordChecklistFilesystemMutation() {
+        checklistRefreshToken = UUID()
+        scope.updatedAt = .now
+        autosave.flush(scope: scope)
+    }
+
     private func updateExistingConditions(_ update: (inout ExistingConditions) -> Void) {
         var conditions = scope.existingConditions ?? emptyExistingConditions()
         update(&conditions)
         scope.existingConditions = conditions.isEffectivelyEmpty ? nil : conditions
         autosave.scheduleSave(for: scope)
+    }
+}
+
+private struct PhotoChecklistPreviewItem: Identifiable {
+    let category: PhotoChecklistCategory
+    let attachment: DocumentAttachmentFile
+
+    var id: UUID { attachment.id }
+}
+
+private struct PhotoChecklistCategoryRow: View {
+    let category: PhotoChecklistCategory
+    let photos: [DocumentAttachmentFile]
+    let isExpanded: Bool
+    let presentImporter: (DocumentImportSource) -> Void
+    let toggleExpanded: () -> Void
+    let previewPhoto: (DocumentAttachmentFile) -> Void
+    let removePhoto: (DocumentAttachmentFile) -> Void
+
+    private var summaryText: String {
+        if photos.isEmpty {
+            return "No checklist photos attached."
+        }
+
+        return photos.count == 1 ? "1 photo attached" : "\(photos.count) photos attached"
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(alignment: .top, spacing: 12) {
+                Button(action: toggleExpanded) {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(category.displayName)
+                            .font(.body.weight(.semibold))
+                            .foregroundStyle(.primary)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+
+                        Text(summaryText)
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+
+                Menu {
+                    Button("Files") {
+                        presentImporter(.files)
+                    }
+
+                    Button("Photo Library") {
+                        presentImporter(.photoLibrary)
+                    }
+
+                    #if canImport(UIKit)
+                    if DocumentCameraPicker.isCameraAvailable {
+                        Button("Camera") {
+                            presentImporter(.camera)
+                        }
+                    }
+                    #endif
+                } label: {
+                    Label(photos.isEmpty ? "Add" : "Add More", systemImage: photos.isEmpty ? "plus.circle.fill" : "plus")
+                }
+                .buttonStyle(.bordered)
+                .buttonBorderShape(.capsule)
+                .frame(minHeight: 44)
+            }
+
+            if photos.isEmpty {
+                Button(action: toggleExpanded) {
+                    VStack(alignment: .leading, spacing: 8) {
+                        HStack(spacing: 10) {
+                            Image(systemName: "camera.on.rectangle")
+                                .font(.title3)
+                                .foregroundStyle(.secondary)
+
+                            Text("Capture, choose, or attach images for \(category.displayName.lowercased()).")
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
+                                .multilineTextAlignment(.leading)
+                        }
+                    }
+                    .padding(14)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background {
+                        RoundedRectangle(cornerRadius: 18, style: .continuous)
+                            .fill(.thinMaterial)
+                    }
+                }
+                .buttonStyle(.plain)
+            } else {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 10) {
+                        ForEach(photos) { photo in
+                            PhotoChecklistThumbnailView(
+                                attachment: photo,
+                                size: isExpanded ? CGSize(width: 140, height: 106) : CGSize(width: 88, height: 72),
+                                showsRemoveOverlay: isExpanded,
+                                previewPhoto: {
+                                    previewPhoto(photo)
+                                },
+                                removePhoto: {
+                                    removePhoto(photo)
+                                }
+                            )
+                        }
+                    }
+                    .padding(.vertical, 2)
+                }
+                .contentShape(Rectangle())
+                .onTapGesture {
+                    toggleExpanded()
+                }
+            }
+
+            if isExpanded {
+                Text("Tap a photo to preview it. Long-press for more actions.")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                    .formRevealTransition()
+            }
+        }
+        .padding(.vertical, 4)
+    }
+}
+
+private struct PhotoChecklistThumbnailView: View {
+    let attachment: DocumentAttachmentFile
+    let size: CGSize
+    let showsRemoveOverlay: Bool
+    let previewPhoto: () -> Void
+    let removePhoto: () -> Void
+
+    var body: some View {
+        ZStack(alignment: .topTrailing) {
+            ChecklistThumbnailImage(path: attachment.filePath)
+                .frame(width: size.width, height: size.height)
+                .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+                .overlay {
+                    RoundedRectangle(cornerRadius: 16, style: .continuous)
+                        .strokeBorder(Color.white.opacity(0.18), lineWidth: 1)
+                }
+                .contentShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+                .onTapGesture {
+                    previewPhoto()
+                }
+
+            if showsRemoveOverlay {
+                Button(role: .destructive, action: removePhoto) {
+                    Image(systemName: "xmark.circle.fill")
+                        .font(.title3)
+                        .symbolRenderingMode(.palette)
+                        .foregroundStyle(.white, .black.opacity(0.65))
+                        .padding(6)
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .contextMenu {
+            Button("Preview") {
+                previewPhoto()
+            }
+
+            Button("Remove", role: .destructive) {
+                removePhoto()
+            }
+        }
+    }
+}
+
+private struct ChecklistThumbnailImage: View {
+    let path: String
+
+    var body: some View {
+        Group {
+            #if canImport(UIKit)
+            if let image = UIImage(contentsOfFile: path) {
+                Image(uiImage: image)
+                    .resizable()
+                    .scaledToFill()
+            } else {
+                placeholder
+            }
+            #else
+            placeholder
+            #endif
+        }
+        .background {
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .fill(.thinMaterial)
+        }
+    }
+
+    private var placeholder: some View {
+        ZStack {
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .fill(.thinMaterial)
+
+            Image(systemName: "photo")
+                .font(.title3)
+                .foregroundStyle(.secondary)
+        }
+    }
+}
+
+private struct ChecklistPhotoPreviewSheet: View {
+    let item: PhotoChecklistPreviewItem
+    let onRemove: () -> Void
+
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        NavigationStack {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 16) {
+                    PhotoPreviewImage(path: item.attachment.filePath)
+                        .frame(maxWidth: .infinity)
+
+                    CardGroup(title: item.category.displayName) {
+                        VStack(alignment: .leading, spacing: 10) {
+                            Text(item.attachment.originalFilename)
+                                .font(.body.weight(.medium))
+                                .textSelection(.enabled)
+
+                            Text("\(item.attachment.source.displayName) • \(item.attachment.createdAt.formatted(date: .abbreviated, time: .shortened))")
+                                .font(.footnote)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                }
+                .padding(16)
+            }
+            .background(LiquidGlassBackdrop())
+            .navigationTitle("Checklist Photo")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button("Done") {
+                        dismiss()
+                    }
+                }
+
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("Remove", role: .destructive) {
+                        onRemove()
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -2475,6 +2927,9 @@ struct DocumentsEditorView: View {
                     showingPhotoPicker: $showingPhotoPicker,
                     showingCameraPicker: $showingCameraPicker,
                     importError: $importError,
+                    allowedContentTypes: [.item],
+                    errorTitle: "Attachment Import Failed",
+                    errorFallbackMessage: "Unable to import the selected attachment.",
                     handleFileImportResult: handleFileImportResult,
                     importSelectedPhotoItem: importSelectedPhotoItem,
                     importCameraImage: importCameraImage,
@@ -2890,6 +3345,9 @@ private struct DocumentImportPresenter: View {
     @Binding var showingCameraPicker: Bool
     @Binding var importError: String?
 
+    let allowedContentTypes: [UTType]
+    let errorTitle: String
+    let errorFallbackMessage: String
     let handleFileImportResult: (Result<[URL], Error>) -> Void
     let importSelectedPhotoItem: (PhotosPickerItem) -> Void
 #if canImport(UIKit)
@@ -2902,7 +3360,7 @@ private struct DocumentImportPresenter: View {
             .frame(width: 0, height: 0)
             .fileImporter(
                 isPresented: $showingFileImporter,
-                allowedContentTypes: [.item],
+                allowedContentTypes: allowedContentTypes,
                 allowsMultipleSelection: false,
                 onCompletion: handleFileImportResult
             )
@@ -2932,12 +3390,12 @@ private struct DocumentImportPresenter: View {
                 EmptyView()
                 #endif
             }
-            .alert("Attachment Import Failed", isPresented: importErrorPresented) {
+            .alert(errorTitle, isPresented: importErrorPresented) {
                 Button("OK", role: .cancel) {
                     importError = nil
                 }
             } message: {
-                Text(importError ?? "Unable to import the selected attachment.")
+                Text(importError ?? errorFallbackMessage)
             }
     }
 
@@ -3845,16 +4303,6 @@ private func emptyExistingConditions() -> ExistingConditions {
     )
 }
 
-private func emptyPhotoChecklist() -> PhotoChecklist {
-    PhotoChecklist(
-        frontOfHouse: nil,
-        rearElevation: nil,
-        roofLine: nil,
-        electricalPanel: nil,
-        workArea: nil
-    )
-}
-
 private func emptyDimensions() -> Dimensions {
     Dimensions(
         width: nil,
@@ -3914,16 +4362,6 @@ private func emptyDrainage() -> Drainage {
         drainTieIn: nil,
         slopeNotes: nil
     )
-}
-
-private extension PhotoChecklist {
-    var isEffectivelyEmpty: Bool {
-        frontOfHouse == nil &&
-        rearElevation == nil &&
-        roofLine == nil &&
-        electricalPanel == nil &&
-        workArea == nil
-    }
 }
 
 private extension Dimensions {

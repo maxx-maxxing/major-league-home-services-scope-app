@@ -64,6 +64,22 @@ Keep milestones small, testable, and reviewable.
 - Normalize/prune inactive hidden Existing Conditions values for proposal/PDF/export output so only active parent branches and visible dependent values are emitted.
 - Keep the change scoped to `schema.json`, Existing Conditions model/view code, export/proposal composition, and status docs without refactoring unrelated section flows.
 
+### Milestone 2.3.1 – Existing Conditions Photo Checklist Structured Photo Workflow
+- Replace the Existing Conditions `Photo Checklist` tri-state yes/no/not-set booleans with structured per-category photo collections.
+- Preserve backward-compatible decoding for previously saved tri-state checklist payloads without broadening persistence changes beyond this workflow.
+- Reuse the existing local image/file ingestion patterns for:
+  - Camera
+  - Photo Library
+  - Files
+- Keep checklist photos stored under Existing Conditions rather than the general Documents / Attachments section.
+- Update the Existing Conditions editor to support:
+  - inline add/capture/attach actions per category
+  - multi-photo thumbnail strips
+  - inline expand/collapse for richer per-category preview
+  - individual photo preview and removal actions
+- Update proposal/PDF/export composition so checklist photos render in a labeled grouped format without giving every image its own dedicated page.
+- Keep the change scoped to `schema.json`, Existing Conditions model/view code, checklist-photo asset helpers, export/PDF composition, and status docs without refactoring unrelated sections.
+
 ## Milestone 3 – Pencil Support
 - Ensure TextEditor note fields support Scribble
 - PencilKit signature capture page
@@ -728,6 +744,9 @@ Keep milestones small, testable, and reviewable.
     - optional-to-required changes
     - encoded payload fields such as documents/attachments
   - Require migration validation before shipping schema-affecting updates to real users
+  - Immediate repair constraint:
+    - restore store-compatible persisted shapes when a beta build introduces a non-migrated SwiftData incompatibility
+    - prefer moving new beta-only photo/attachment metadata to file-backed or blob-backed paths over changing nested SwiftData Codable field types in place
 - Milestone 7.6.4 – Local Recovery + Validation
   - Add a concrete manual continuity validation checklist for:
     - install -> enter data -> upgrade build -> verify retained data

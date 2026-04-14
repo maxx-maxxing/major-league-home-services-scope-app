@@ -358,7 +358,7 @@ struct ExistingConditionsEditorView: View {
     var body: some View {
         VStack(spacing: 16) {
             CardGroup(title: "Site Snapshot") {
-                VStack(spacing: 12) {
+                VStack(alignment: .leading, spacing: 12) {
                     FieldHeader("House Stories")
                     Picker("House Stories", selection: houseStoriesBinding) {
                         Text("Not Set").tag(nil as HouseStories?)
@@ -370,24 +370,97 @@ struct ExistingConditionsEditorView: View {
                     .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
 
                     FieldHeader("Exterior Finish")
-                    Picker("Exterior Finish", selection: exteriorFinishBinding) {
-                        Text("Not Set").tag(nil as ExteriorFinish?)
-                        ForEach(ExteriorFinish.allCases, id: \.self) { value in
-                            Text(value.displayName).tag(Optional(value))
+                    Text(exteriorFinishSummary)
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+
+                    ForEach(ExteriorFinishArea.allCases, id: \.self) { area in
+                        MultiSelectOptionRow(
+                            title: area.displayName,
+                            isSelected: isExteriorFinishAreaSelected(area)
+                        ) {
+                            toggleExteriorFinishArea(area)
                         }
                     }
-                    .pickerStyle(.menu)
-                    .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+
+                    if isExteriorFinishAreaSelected(.postsColumns) {
+                        VStack(alignment: .leading, spacing: 12) {
+                            FieldHeader("Posts/Columns Material")
+                            Text(postsColumnsMaterialsSummary)
+                                .font(.footnote)
+                                .foregroundStyle(.secondary)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+
+                            ForEach(PostsColumnsMaterial.allCases, id: \.self) { material in
+                                MultiSelectOptionRow(
+                                    title: material.displayName,
+                                    isSelected: isPostsColumnsMaterialSelected(material)
+                                ) {
+                                    togglePostsColumnsMaterial(material)
+                                }
+                            }
+
+                            OptionalBoolPicker(title: "Post Trim", selection: postTrimBinding)
+
+                            VStack(alignment: .leading, spacing: 6) {
+                                Text("Trim Thickness")
+                                    .font(.body)
+                                TextField("Enter trim thickness", text: trimThicknessBinding)
+                                    .liquidGlassInput()
+                            }
+                        }
+                        .padding(.leading, 16)
+                        .formRevealTransition()
+                    }
+
+                    if isExteriorFinishAreaSelected(.exteriorHouseWall) {
+                        VStack(alignment: .leading, spacing: 12) {
+                            FieldHeader("Exterior House Wall Material")
+                            Text(exteriorHouseWallMaterialsSummary)
+                                .font(.footnote)
+                                .foregroundStyle(.secondary)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+
+                            ForEach(ExteriorHouseWallMaterial.allCases, id: \.self) { material in
+                                MultiSelectOptionRow(
+                                    title: material.displayName,
+                                    isSelected: isExteriorHouseWallMaterialSelected(material)
+                                ) {
+                                    toggleExteriorHouseWallMaterial(material)
+                                }
+                            }
+
+                            if isExteriorHouseWallOtherSelected {
+                                VStack(alignment: .leading, spacing: 6) {
+                                    RequiredLabel(text: "Exterior House Wall -> Other")
+                                    TextField("Describe Exterior House Wall -> Other", text: exteriorHouseWallOtherBinding)
+                                        .liquidGlassInput()
+                                    Text("Required when Exterior House Wall -> Other is selected.")
+                                        .font(.footnote)
+                                        .foregroundStyle(.secondary)
+                                }
+                                .formRevealTransition()
+                            }
+                        }
+                        .padding(.leading, 16)
+                        .formRevealTransition()
+                    }
 
                     FieldHeader("Existing Structure")
-                    Picker("Existing Structure", selection: existingStructureBinding) {
-                        Text("Not Set").tag(nil as ExistingStructure?)
-                        ForEach(ExistingStructure.allCases, id: \.self) { value in
-                            Text(value.displayName).tag(Optional(value))
+                    Text(existingStructureSummary)
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+
+                    ForEach(ExistingStructure.allCases, id: \.self) { value in
+                        MultiSelectOptionRow(
+                            title: value.displayName,
+                            isSelected: isExistingStructureSelected(value)
+                        ) {
+                            toggleExistingStructure(value)
                         }
                     }
-                    .pickerStyle(.menu)
-                    .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
                 }
             }
 
@@ -413,6 +486,8 @@ struct ExistingConditionsEditorView: View {
                 }
             }
         }
+        .animation(.formReveal, value: exteriorFinishSelectionToken)
+        .animation(.formReveal, value: existingStructureSelectionToken)
     }
 
     private var houseStoriesBinding: Binding<HouseStories?> {
@@ -420,24 +495,6 @@ struct ExistingConditionsEditorView: View {
             get: { scope.existingConditions?.houseStories },
             set: { newValue in
                 updateExistingConditions { $0.houseStories = newValue }
-            }
-        )
-    }
-
-    private var exteriorFinishBinding: Binding<ExteriorFinish?> {
-        Binding(
-            get: { scope.existingConditions?.exteriorFinish },
-            set: { newValue in
-                updateExistingConditions { $0.exteriorFinish = newValue }
-            }
-        )
-    }
-
-    private var existingStructureBinding: Binding<ExistingStructure?> {
-        Binding(
-            get: { scope.existingConditions?.existingStructure },
-            set: { newValue in
-                updateExistingConditions { $0.existingStructure = newValue }
             }
         )
     }
@@ -480,6 +537,128 @@ struct ExistingConditionsEditorView: View {
                 }
             }
         )
+    }
+
+    private var postTrimBinding: Binding<Bool?> {
+        Binding(
+            get: { scope.existingConditions?.exteriorFinish?.postTrim },
+            set: { newValue in
+                updateExistingConditions { conditions in
+                    var finish = conditions.exteriorFinish ?? ExistingConditionsExteriorFinish()
+                    finish.postTrim = newValue
+                    conditions.exteriorFinish = finish.isEffectivelyEmpty ? nil : finish
+                }
+            }
+        )
+    }
+
+    private var trimThicknessBinding: Binding<String> {
+        Binding(
+            get: { scope.existingConditions?.exteriorFinish?.trimThickness ?? "" },
+            set: { newValue in
+                updateExistingConditions { conditions in
+                    var finish = conditions.exteriorFinish ?? ExistingConditionsExteriorFinish()
+                    finish.trimThickness = newValue.nilIfBlank
+                    conditions.exteriorFinish = finish.isEffectivelyEmpty ? nil : finish
+                }
+            }
+        )
+    }
+
+    private var exteriorHouseWallOtherBinding: Binding<String> {
+        Binding(
+            get: { scope.existingConditions?.exteriorFinish?.exteriorHouseWallOther ?? "" },
+            set: { newValue in
+                updateExistingConditions { conditions in
+                    var finish = conditions.exteriorFinish ?? ExistingConditionsExteriorFinish()
+                    finish.exteriorHouseWallOther = newValue.nilIfBlank
+                    conditions.exteriorFinish = finish.isEffectivelyEmpty ? nil : finish
+                }
+            }
+        )
+    }
+
+    private var exteriorFinishSummary: String {
+        scope.existingConditions?.exteriorFinish?.displaySummary ?? "Select one or both finish areas."
+    }
+
+    private var postsColumnsMaterialsSummary: String {
+        scope.existingConditions?.exteriorFinish?.postsColumnsMaterialDisplaySummary ?? "Select one or more materials."
+    }
+
+    private var exteriorHouseWallMaterialsSummary: String {
+        scope.existingConditions?.exteriorFinish?.exteriorHouseWallMaterialDisplaySummary ?? "Select one or more materials."
+    }
+
+    private var existingStructureSummary: String {
+        scope.existingConditions?.existingStructureDisplaySummary ?? "Select any existing structure conditions that apply."
+    }
+
+    private var isExteriorHouseWallOtherSelected: Bool {
+        scope.existingConditions?.exteriorFinish?.hasExteriorHouseWallOtherSelection == true
+    }
+
+    private var exteriorFinishSelectionToken: String {
+        let finish = scope.existingConditions?.exteriorFinish
+        let selectedAreas = finish?.activeSelectedAreas.map(\.rawValue).joined(separator: "|") ?? ""
+        let posts = finish?.postsColumnsMaterials?.map(\.rawValue).joined(separator: "|") ?? ""
+        let wall = finish?.exteriorHouseWallMaterials?.map(\.rawValue).joined(separator: "|") ?? ""
+        let postTrim = finish?.postTrim.map { String($0) } ?? ""
+        return "\(selectedAreas)#\(posts)#\(wall)#\(postTrim)"
+    }
+
+    private var existingStructureSelectionToken: String {
+        scope.existingConditions?.activeExistingStructures.map(\.rawValue).joined(separator: "|") ?? ""
+    }
+
+    private func isExteriorFinishAreaSelected(_ area: ExteriorFinishArea) -> Bool {
+        scope.existingConditions?.exteriorFinish?.activeSelectedAreas.contains(area) == true
+    }
+
+    private func isPostsColumnsMaterialSelected(_ material: PostsColumnsMaterial) -> Bool {
+        scope.existingConditions?.exteriorFinish?.postsColumnsMaterials?.contains(material) == true
+    }
+
+    private func isExteriorHouseWallMaterialSelected(_ material: ExteriorHouseWallMaterial) -> Bool {
+        scope.existingConditions?.exteriorFinish?.exteriorHouseWallMaterials?.contains(material) == true
+    }
+
+    private func isExistingStructureSelected(_ value: ExistingStructure) -> Bool {
+        scope.existingConditions?.activeExistingStructures.contains(value) == true
+    }
+
+    private func toggleExteriorFinishArea(_ area: ExteriorFinishArea) {
+        updateExistingConditions { conditions in
+            var finish = conditions.exteriorFinish ?? ExistingConditionsExteriorFinish()
+            finish.setArea(area, isSelected: !finish.activeSelectedAreas.contains(area))
+            conditions.exteriorFinish = finish.isEffectivelyEmpty ? nil : finish
+        }
+    }
+
+    private func togglePostsColumnsMaterial(_ material: PostsColumnsMaterial) {
+        updateExistingConditions { conditions in
+            var finish = conditions.exteriorFinish ?? ExistingConditionsExteriorFinish()
+            finish.setPostsColumnsMaterial(
+                material,
+                isSelected: !(finish.postsColumnsMaterials?.contains(material) == true)
+            )
+            conditions.exteriorFinish = finish.isEffectivelyEmpty ? nil : finish
+        }
+    }
+
+    private func toggleExteriorHouseWallMaterial(_ material: ExteriorHouseWallMaterial) {
+        updateExistingConditions { conditions in
+            var finish = conditions.exteriorFinish ?? ExistingConditionsExteriorFinish()
+            finish.setExteriorHouseWallMaterial(
+                material,
+                isSelected: !(finish.exteriorHouseWallMaterials?.contains(material) == true)
+            )
+            conditions.exteriorFinish = finish.isEffectivelyEmpty ? nil : finish
+        }
+    }
+
+    private func toggleExistingStructure(_ value: ExistingStructure) {
+        updateExistingConditions { $0.setExistingStructure(value, isSelected: !($0.activeExistingStructures.contains(value))) }
     }
 
     private func updateExistingConditions(_ update: (inout ExistingConditions) -> Void) {
@@ -3580,6 +3759,33 @@ private struct OptionalBoolPicker: View {
     }
 }
 
+private struct MultiSelectOptionRow: View {
+    let title: String
+    let isSelected: Bool
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 12) {
+                Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
+                    .imageScale(.large)
+                    .foregroundStyle(isSelected ? Color.accentColor : Color.secondary)
+
+                Text(title)
+                    .foregroundStyle(.primary)
+
+                Spacer()
+            }
+            .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(title)
+        .accessibilityValue(isSelected ? "Selected" : "Not selected")
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
+    }
+}
+
 private extension String {
     var nilIfBlank: String? {
         trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : self
@@ -3708,18 +3914,6 @@ private func emptyDrainage() -> Drainage {
         drainTieIn: nil,
         slopeNotes: nil
     )
-}
-
-private extension ExistingConditions {
-    var isEffectivelyEmpty: Bool {
-        houseStories == nil &&
-        exteriorFinish == nil &&
-        existingStructure == nil &&
-        (obstaclesNotes ?? "").nilIfBlank == nil &&
-        (utilitiesNotes ?? "").nilIfBlank == nil &&
-        (hoaNotes ?? "").nilIfBlank == nil &&
-        photoChecklist == nil
-    }
 }
 
 private extension PhotoChecklist {

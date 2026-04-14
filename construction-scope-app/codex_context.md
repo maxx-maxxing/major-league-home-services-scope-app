@@ -4,23 +4,51 @@ Current working focus:
 Production-hardening for TestFlight field beta distribution, while continuing small, surgical workflow improvements that directly support real field use.
 
 Current active feature task:
-Update the Enclosure section so Enclosure Type supports multi-select behavior instead of single-select behavior.
+Update the Existing Conditions section so Exterior Finish and Existing Structure match the business workflow more accurately.
 
-Required Enclosure behavior:
-- The initial Enclosure Type control must allow selecting multiple enclosure types, not just one
-- The user must be able to select as many enclosure types as needed, including all available types
-- If an enclosure type is selected, its related dependent controls / dropdowns / options must appear in the UI
-- If an enclosure type is unselected, its related dependent controls / dropdowns / options must disappear
-- Selected types must remain toggleable on/off cleanly
-- This should behave like a stable multi-select workflow, not a one-time additive picker
-- Preserve clear, field-friendly UX and avoid confusing state transitions
-- If an enclosure type is unselected, its related dependent controls / dropdowns / options must disappear from the UI
-- When a type is unselected, its dependent values should be temporarily preserved while the user is still editing the scope
-- Hidden values for unselected enclosure types must not be treated as active data for output generation
-- On PDF export, any hidden/unselected enclosure-type values must be pruned so they are not included in the exported document and do not remain as lingering hidden state afterward
+Required Existing Conditions behavior:
+
+Exterior Finish:
+- The current single Exterior Finish selector is no longer sufficient
+- Replace the current Exterior Finish behavior with a first-level multi-select that allows selecting any combination of:
+  - Posts/Columns
+  - Exterior House Wall
+- These first-level Exterior Finish options must each be independently selectable and unselectable
+- If Posts/Columns is selected, a dependent multi-select material control must appear for Posts/Columns with:
+  - Wood
+  - Brick
+  - Stone
+  - Hardie
+- If Exterior House Wall is selected, a dependent multi-select material control must appear for Exterior House Wall with:
+  - Wood
+  - Vinyl
+  - Brick
+  - Stone
+  - Hardie
+  - LP Siding
+  - Other
+- If Exterior House Wall -> Other is selected, a required text field must appear that clearly refers to that specific Other selection
+- If Posts/Columns is selected, two additional dependent controls must also appear:
+  - Post Trim = yes/no
+  - Trim Thickness = free text field
+- Nested selections should support multiple simultaneous selections where applicable
+- The UI should make parent/child relationships obvious and field-friendly
+
+Existing Structure:
+- Keep the current Existing Structure option list
+- Change Existing Structure from single-select to multi-select
+- The user must be able to select any combination of Existing Structure options
+- No new dependent fields are required for Existing Structure at this time
+
+Hidden/dependent state behavior:
+- If a parent option is unselected, its dependent child controls must disappear from the UI
+- Hidden dependent values should be temporarily preserved while the user is still editing
+- Hidden preserved values must not be treated as active data for output generation
+- On PDF export / proposal output, hidden inactive values must be pruned so they are not included in exported output and do not remain as lingering hidden state afterward
+- This hidden-state behavior should remain consistent with the recent Enclosure multi-select pattern where practical
 
 Important constraint:
-Do not destabilize the current working JobTread customer search/select, linked-customer hydration, verified read-only ownership behavior, Documents / Attachments section, pricing engine, returned pricing normalization/validation path, debug inspector, PDF export pipeline, or recent Scope Title text-entry fix unless the task explicitly requires it.
+Do not destabilize the current working JobTread customer search/select, linked-customer hydration, verified read-only ownership behavior, Documents / Attachments section, pricing engine, returned pricing normalization/validation path, debug inspector, PDF export pipeline, recent Scope Title text-entry fix, or recent Enclosure multi-select work unless the task explicitly requires it.
 
 Current app phase:
 The app is advanced enough for real field beta use, but production hardening is still in progress. Current work should prioritize reliability in Release/TestFlight-style conditions while making small, targeted UX improvements required for real estimating workflows.
@@ -55,6 +83,8 @@ What is already true:
 - Proposal composition, pricing rule registry, config foundation, returned pricing normalization, subtotal execution, aggregate scaffolding, and selected typed lookup families exist in the pricing domain layer
 - Scope Title text entry now has a raw editable path separate from normalized display behavior so users can type normal spaces while editing
 - PDF export/render/share pipeline has been hardened toward deterministic fixed-layout rendering with print-safe colors, page modeling, pagination, diagnostics, and attachment appendix handling
+- Enclosure Type now supports multi-select behavior with dependent option visibility driven by selected type state
+- Hidden Enclosure-dependent values may be preserved during editing and pruned from export/output when inactive
 
 Known limitations / current truths:
 - The app is still primarily local-storage based
@@ -103,12 +133,13 @@ UI/input architecture guidance:
 - For multi-select workflows with dependent controls, unselected branches may be temporarily preserved during editing for user convenience
 - Hidden preserved values must not leak into final output
 - Export-time data should be normalized/pruned so only currently active selections and their visible dependent values are included
+- Required text fields that are revealed by selecting an Other option should be clearly labeled to indicate which Other selection they belong to
 
 Immediate implementation direction:
 - Preserve current production stability
 - Make targeted real-workflow improvements only when they are clearly needed by field testing
-- For Enclosure Type, move from single-select to stable multi-select behavior
-- Ensure dependent Enclosure options appear/disappear based on selected types
+- Update Existing Conditions so Exterior Finish supports nested multi-select behavior and Existing Structure supports multi-select behavior
+- Ensure dependent Existing Conditions options appear/disappear based on current selected parent state
 - Keep the implementation incremental and production-safe
 - Defer broader cloud-sync architecture to a future phase
 
@@ -128,15 +159,16 @@ Most relevant near-term hardening / workflow domains:
 
 Current priorities:
 1. Preserve build stability and core field-beta workflow reliability
-2. Support real estimator workflows with targeted UX fixes like multi-select Enclosure Type
-3. Preserve PDF export/render/share reliability for real field beta use
-4. Preserve Release/TestFlight launch/configuration safety
-5. Remove bundled secret/config resource risks
-6. Identify and reduce release-blocking continuity risks
-7. Define what persistence/model changes must be frozen or migration-reviewed during beta
-8. Prepare for one trusted same-device field beta user
-9. Clearly avoid overpromising reinstall/new-device/multi-user continuity
-10. Keep this phase production-hardening focused, not feature-expansion focused
+2. Support real estimator workflows with targeted UX fixes in Existing Conditions and related section flows
+3. Preserve recent Enclosure multi-select behavior and architectural consistency
+4. Preserve PDF export/render/share reliability for real field beta use
+5. Preserve Release/TestFlight launch/configuration safety
+6. Remove bundled secret/config resource risks
+7. Identify and reduce release-blocking continuity risks
+8. Define what persistence/model changes must be frozen or migration-reviewed during beta
+9. Prepare for one trusted same-device field beta user
+10. Clearly avoid overpromising reinstall/new-device/multi-user continuity
+11. Keep this phase production-hardening focused, not feature-expansion focused
 
 Editing rules:
 - Follow READ → PLAN → EDIT

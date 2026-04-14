@@ -143,6 +143,7 @@ enum ScopePDFExporter {
     }
 
     static func generate(scope: JobScope) throws -> PDFExportResult {
+        pruneInactiveExistingConditionsValuesForExport(scope)
         pruneInactiveEnclosureValuesForExport(scope)
         let render = try render(scope: scope)
         let outputURL = FileManager.default.temporaryDirectory
@@ -535,7 +536,7 @@ enum ScopePDFExporter {
     }
 
     private static func pageTwo(_ scope: JobScope) -> PDFPageContent {
-        let existing = scope.existingConditions
+        let existing = scope.existingConditions?.normalizedForExport()
         let attachment = scope.attachment
 
         return PDFPageContent(
@@ -543,8 +544,13 @@ enum ScopePDFExporter {
             sections: [
                 PDFSection(title: "Existing Conditions", rows: [
                     .init(label: "House Stories", value: existing?.houseStories?.displayName ?? "Not set"),
-                    .init(label: "Exterior Finish", value: existing?.exteriorFinish?.displayName ?? "Not set"),
-                    .init(label: "Existing Structure", value: existing?.existingStructure?.displayName ?? "Not set"),
+                    .init(label: "Exterior Finish", value: existing?.exteriorFinish?.displaySummary ?? "Not set"),
+                    .init(label: "Posts/Columns Material", value: existing?.exteriorFinish?.postsColumnsMaterialDisplaySummary ?? "Not set"),
+                    .init(label: "Post Trim", value: boolString(existing?.exteriorFinish?.postTrim)),
+                    .init(label: "Trim Thickness", value: existing?.exteriorFinish?.trimThickness?.nilIfBlank ?? "Not set"),
+                    .init(label: "Exterior House Wall Material", value: existing?.exteriorFinish?.exteriorHouseWallMaterialDisplaySummary ?? "Not set"),
+                    .init(label: "Exterior House Wall -> Other", value: existing?.exteriorFinish?.exteriorHouseWallOther?.nilIfBlank ?? "Not set"),
+                    .init(label: "Existing Structure", value: existing?.existingStructureDisplaySummary ?? "Not set"),
                     .init(label: "Obstacles", value: existing?.obstaclesNotes?.nilIfBlank ?? "None"),
                     .init(label: "Utilities", value: existing?.utilitiesNotes?.nilIfBlank ?? "None"),
                     .init(label: "HOA Notes", value: existing?.hoaNotes?.nilIfBlank ?? "None"),
@@ -730,6 +736,10 @@ enum ScopePDFExporter {
 
     private static func pruneInactiveEnclosureValuesForExport(_ scope: JobScope) {
         scope.enclosure = scope.enclosure?.normalizedForExport()
+    }
+
+    private static func pruneInactiveExistingConditionsValuesForExport(_ scope: JobScope) {
+        scope.existingConditions = scope.existingConditions?.normalizedForExport()
     }
 
     private static func appendixPages(_ scope: JobScope) throws -> [PDFPageContent] {

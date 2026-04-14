@@ -876,13 +876,14 @@ enum ProposalFoundationBuilder {
         template: ProposalTemplateDefinition = .editableFoundationV1
     ) -> ProposalCompositionInput {
         let documents = scope.documents
+        let exportExistingConditions = scope.existingConditions?.normalizedForExport()
         let exportEnclosure = scope.enclosure?.normalizedForExport()
         let checkedPhotos = [
-            scope.existingConditions?.photoChecklist?.frontOfHouse == true ? "Front of House" : nil,
-            scope.existingConditions?.photoChecklist?.rearElevation == true ? "Rear Elevation" : nil,
-            scope.existingConditions?.photoChecklist?.roofLine == true ? "Roof Line" : nil,
-            scope.existingConditions?.photoChecklist?.electricalPanel == true ? "Electrical Panel" : nil,
-            scope.existingConditions?.photoChecklist?.workArea == true ? "Work Area" : nil
+            exportExistingConditions?.photoChecklist?.frontOfHouse == true ? "Front of House" : nil,
+            exportExistingConditions?.photoChecklist?.rearElevation == true ? "Rear Elevation" : nil,
+            exportExistingConditions?.photoChecklist?.roofLine == true ? "Roof Line" : nil,
+            exportExistingConditions?.photoChecklist?.electricalPanel == true ? "Electrical Panel" : nil,
+            exportExistingConditions?.photoChecklist?.workArea == true ? "Work Area" : nil
         ].compactMap { $0 }
 
         let additionalDocuments = documents?.additionalAttachments ?? []
@@ -912,12 +913,17 @@ enum ProposalFoundationBuilder {
             ScopeCaptureSectionSnapshot(
                 section: .existingConditions,
                 values: [
-                    enumValue(.houseStories, "House Stories", scope.existingConditions?.houseStories),
-                    enumValue(.exteriorFinish, "Exterior Finish", scope.existingConditions?.exteriorFinish),
-                    enumValue(.existingStructure, "Existing Structure", scope.existingConditions?.existingStructure),
-                    textValue(.obstaclesNotes, "Obstacles Notes", scope.existingConditions?.obstaclesNotes),
-                    textValue(.utilitiesNotes, "Utilities Notes", scope.existingConditions?.utilitiesNotes),
-                    textValue(.hoaNotes, "HOA Notes", scope.existingConditions?.hoaNotes),
+                    enumValue(.houseStories, "House Stories", exportExistingConditions?.houseStories),
+                    textValue(.exteriorFinish, "Exterior Finish", exportExistingConditions?.exteriorFinish?.displaySummary),
+                    textValue(.postColumnMaterial, "Posts/Columns Material", exportExistingConditions?.exteriorFinish?.postsColumnsMaterialDisplaySummary),
+                    boolValue(.trimPresent, "Post Trim", exportExistingConditions?.exteriorFinish?.postTrim),
+                    textValue(.trimThickness, "Trim Thickness", exportExistingConditions?.exteriorFinish?.trimThickness),
+                    textValue(.houseWallMaterial, "Exterior House Wall Material", exportExistingConditions?.exteriorFinish?.exteriorHouseWallMaterialDisplaySummary),
+                    textValue(.houseWallOther, "Exterior House Wall -> Other", exportExistingConditions?.exteriorFinish?.exteriorHouseWallOther),
+                    textValue(.existingStructure, "Existing Structure", exportExistingConditions?.existingStructureDisplaySummary),
+                    textValue(.obstaclesNotes, "Obstacles Notes", exportExistingConditions?.obstaclesNotes),
+                    textValue(.utilitiesNotes, "Utilities Notes", exportExistingConditions?.utilitiesNotes),
+                    textValue(.hoaNotes, "HOA Notes", exportExistingConditions?.hoaNotes),
                     textValue(.photoChecklist, "Photo Checklist", checkedPhotos.isEmpty ? nil : checkedPhotos.joined(separator: ", "))
                 ].compactMap { $0 }
             ),

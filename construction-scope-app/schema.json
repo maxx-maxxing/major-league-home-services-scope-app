@@ -194,25 +194,12 @@
           "required": false
         },
         "exteriorFinish": {
-          "type": "enum",
-          "values": [
-            "brick",
-            "hardie",
-            "stucco",
-            "stone",
-            "other"
-          ],
+          "type": "ExistingConditionsExteriorFinish",
           "required": false
         },
         "existingStructure": {
-          "type": "enum",
-          "values": [
-            "existing_patio_cover",
-            "none",
-            "deck",
-            "concrete_slab",
-            "other"
-          ],
+          "type": "array",
+          "items": "enum:existing_patio_cover|none|deck|concrete_slab|other",
           "required": false
         },
         "obstaclesNotes": {
@@ -229,6 +216,37 @@
         },
         "photoChecklist": {
           "type": "PhotoChecklist",
+          "required": false
+        }
+      }
+    },
+    "ExistingConditionsExteriorFinish": {
+      "fields": {
+        "selectedAreas": {
+          "type": "array",
+          "items": "enum:posts_columns|exterior_house_wall",
+          "required": false
+        },
+        "postsColumnsMaterials": {
+          "type": "array",
+          "items": "enum:wood|brick|stone|hardie",
+          "required": false
+        },
+        "postTrim": {
+          "type": "bool",
+          "required": false
+        },
+        "trimThickness": {
+          "type": "string",
+          "required": false
+        },
+        "exteriorHouseWallMaterials": {
+          "type": "array",
+          "items": "enum:wood|vinyl|brick|stone|hardie|lp_siding|other",
+          "required": false
+        },
+        "exteriorHouseWallOther": {
+          "type": "string",
           "required": false
         }
       }

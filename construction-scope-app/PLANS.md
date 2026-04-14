@@ -53,6 +53,17 @@ Keep milestones small, testable, and reviewable.
 - Keep controls native and Scribble-friendly where notes are required
 - Validate autosave + relaunch behavior for each newly added section
 
+### Milestone 2.3 – Existing Conditions Multi-Select Workflow Alignment
+- Convert Existing Structure from single-select to ordered multi-select while preserving legacy single-value decoding.
+- Replace the current single Exterior Finish selector with a structured nested selection model:
+  - first-level multi-select for `Posts/Columns` and `Exterior House Wall`
+  - dependent multi-select material groups per selected parent
+  - dependent `Post Trim` yes/no and `Trim Thickness` free-text fields for `Posts/Columns`
+  - dependent required `Exterior House Wall -> Other` detail text when `Other` is selected
+- Preserve hidden dependent Existing Conditions values during editing when a parent branch is temporarily unselected.
+- Normalize/prune inactive hidden Existing Conditions values for proposal/PDF/export output so only active parent branches and visible dependent values are emitted.
+- Keep the change scoped to `schema.json`, Existing Conditions model/view code, export/proposal composition, and status docs without refactoring unrelated section flows.
+
 ## Milestone 3 – Pencil Support
 - Ensure TextEditor note fields support Scribble
 - PencilKit signature capture page

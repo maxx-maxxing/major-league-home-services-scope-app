@@ -1,4 +1,4 @@
-﻿import Foundation
+import Foundation
 import Observation
 import SwiftData
 
@@ -63,6 +63,48 @@ enum ExistingStructure: String, Codable, CaseIterable, SchemaEnumDisplayable {
     case deck
     case concreteSlab = "concrete_slab"
     case other
+}
+
+enum ExteriorFinishArea: String, Codable, CaseIterable, SchemaEnumDisplayable {
+    case postsColumns = "posts_columns"
+    case exteriorHouseWall = "exterior_house_wall"
+
+    var displayName: String {
+        switch self {
+        case .postsColumns:
+            return "Posts/Columns"
+        case .exteriorHouseWall:
+            return "Exterior House Wall"
+        }
+    }
+}
+
+enum PostsColumnsMaterial: String, Codable, CaseIterable, SchemaEnumDisplayable {
+    case wood
+    case brick
+    case stone
+    case hardie
+}
+
+enum ExteriorHouseWallMaterial: String, Codable, CaseIterable, SchemaEnumDisplayable {
+    case wood
+    case vinyl
+    case brick
+    case stone
+    case hardie
+    case lpSiding = "lp_siding"
+    case other
+
+    var displayName: String {
+        switch self {
+        case .lpSiding:
+            return "LP Siding"
+        default:
+            return rawValue
+                .replacingOccurrences(of: "_", with: " ")
+                .capitalized
+        }
+    }
 }
 
 enum RoofStyle: String, Codable, CaseIterable, SchemaEnumDisplayable {
@@ -552,14 +594,317 @@ struct ProjectInfo: Codable, Hashable {
     }
 }
 
+struct ExistingConditionsExteriorFinish: Codable, Hashable {
+    var selectedAreas: [ExteriorFinishArea]?
+    var postsColumnsMaterials: [PostsColumnsMaterial]?
+    var postTrim: Bool?
+    var trimThickness: String?
+    var exteriorHouseWallMaterials: [ExteriorHouseWallMaterial]?
+    var exteriorHouseWallOther: String?
+
+    var activeSelectedAreas: [ExteriorFinishArea] {
+        Self.normalizedAreas(selectedAreas) ?? []
+    }
+
+    var postsColumnsMaterialDisplaySummary: String? {
+        Self.displaySummary(Self.normalizedPostsColumnsMaterials(postsColumnsMaterials))
+    }
+
+    var exteriorHouseWallMaterialDisplaySummary: String? {
+        Self.displaySummary(Self.normalizedExteriorHouseWallMaterials(exteriorHouseWallMaterials))
+    }
+
+    var displaySummary: String? {
+        let names = activeSelectedAreas.map(\.displayName)
+        guard !names.isEmpty else { return nil }
+        return names.joined(separator: ", ")
+    }
+
+    var isEffectivelyEmpty: Bool {
+        activeSelectedAreas.isEmpty &&
+        postsColumnsMaterials == nil &&
+        postTrim == nil &&
+        trimThickness?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty != false &&
+        exteriorHouseWallMaterials == nil &&
+        exteriorHouseWallOther?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty != false
+    }
+
+    var hasPostsColumnsSelection: Bool {
+        activeSelectedAreas.contains(.postsColumns)
+    }
+
+    var hasExteriorHouseWallSelection: Bool {
+        activeSelectedAreas.contains(.exteriorHouseWall)
+    }
+
+    var hasExteriorHouseWallOtherSelection: Bool {
+        hasExteriorHouseWallSelection &&
+        (Self.normalizedExteriorHouseWallMaterials(exteriorHouseWallMaterials) ?? []).contains(.other)
+    }
+
+    init(
+        selectedAreas: [ExteriorFinishArea]? = nil,
+        postsColumnsMaterials: [PostsColumnsMaterial]? = nil,
+        postTrim: Bool? = nil,
+        trimThickness: String? = nil,
+        exteriorHouseWallMaterials: [ExteriorHouseWallMaterial]? = nil,
+        exteriorHouseWallOther: String? = nil
+    ) {
+        self.selectedAreas = Self.normalizedAreas(selectedAreas)
+        self.postsColumnsMaterials = Self.normalizedPostsColumnsMaterials(postsColumnsMaterials)
+        self.postTrim = postTrim
+        self.trimThickness = trimThickness?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty
+        self.exteriorHouseWallMaterials = Self.normalizedExteriorHouseWallMaterials(exteriorHouseWallMaterials)
+        self.exteriorHouseWallOther = exteriorHouseWallOther?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty
+    }
+
+    mutating func setArea(_ area: ExteriorFinishArea, isSelected: Bool) {
+        var selected = activeSelectedAreas
+        if isSelected {
+            guard !selected.contains(area) else { return }
+            selected.append(area)
+        } else {
+            selected.removeAll { $0 == area }
+        }
+        selectedAreas = Self.normalizedAreas(selected)
+    }
+
+    mutating func setPostsColumnsMaterial(_ material: PostsColumnsMaterial, isSelected: Bool) {
+        var selected = Self.normalizedPostsColumnsMaterials(postsColumnsMaterials) ?? []
+        if isSelected {
+            guard !selected.contains(material) else { return }
+            selected.append(material)
+        } else {
+            selected.removeAll { $0 == material }
+        }
+        postsColumnsMaterials = Self.normalizedPostsColumnsMaterials(selected)
+    }
+
+    mutating func setExteriorHouseWallMaterial(_ material: ExteriorHouseWallMaterial, isSelected: Bool) {
+        var selected = Self.normalizedExteriorHouseWallMaterials(exteriorHouseWallMaterials) ?? []
+        if isSelected {
+            guard !selected.contains(material) else { return }
+            selected.append(material)
+        } else {
+            selected.removeAll { $0 == material }
+        }
+        exteriorHouseWallMaterials = Self.normalizedExteriorHouseWallMaterials(selected)
+    }
+
+    mutating func pruneInactiveDependentValuesForExport() {
+        selectedAreas = Self.normalizedAreas(selectedAreas)
+
+        if !hasPostsColumnsSelection {
+            postsColumnsMaterials = nil
+            postTrim = nil
+            trimThickness = nil
+        } else {
+            postsColumnsMaterials = Self.normalizedPostsColumnsMaterials(postsColumnsMaterials)
+            trimThickness = trimThickness?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty
+        }
+
+        if !hasExteriorHouseWallSelection {
+            exteriorHouseWallMaterials = nil
+            exteriorHouseWallOther = nil
+        } else {
+            exteriorHouseWallMaterials = Self.normalizedExteriorHouseWallMaterials(exteriorHouseWallMaterials)
+            if !hasExteriorHouseWallOtherSelection {
+                exteriorHouseWallOther = nil
+            } else {
+                exteriorHouseWallOther = exteriorHouseWallOther?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty
+            }
+        }
+    }
+
+    func normalizedForExport() -> ExistingConditionsExteriorFinish? {
+        var normalized = self
+        normalized.pruneInactiveDependentValuesForExport()
+        return normalized.isEffectivelyEmpty ? nil : normalized
+    }
+
+    private static func normalizedAreas(_ areas: [ExteriorFinishArea]?) -> [ExteriorFinishArea]? {
+        guard let areas else { return nil }
+        let active = ExteriorFinishArea.allCases.filter { areas.contains($0) }
+        return active.isEmpty ? nil : active
+    }
+
+    private static func normalizedPostsColumnsMaterials(_ materials: [PostsColumnsMaterial]?) -> [PostsColumnsMaterial]? {
+        guard let materials else { return nil }
+        let active = PostsColumnsMaterial.allCases.filter { materials.contains($0) }
+        return active.isEmpty ? nil : active
+    }
+
+    private static func normalizedExteriorHouseWallMaterials(_ materials: [ExteriorHouseWallMaterial]?) -> [ExteriorHouseWallMaterial]? {
+        guard let materials else { return nil }
+        let active = ExteriorHouseWallMaterial.allCases.filter { materials.contains($0) }
+        return active.isEmpty ? nil : active
+    }
+
+    private static func displaySummary<Option: SchemaEnumDisplayable>(_ values: [Option]?) -> String? {
+        let names = (values ?? []).map(\.displayName)
+        guard !names.isEmpty else { return nil }
+        return names.joined(separator: ", ")
+    }
+}
+
 struct ExistingConditions: Codable, Hashable {
     var houseStories: HouseStories?
-    var exteriorFinish: ExteriorFinish?
-    var existingStructure: ExistingStructure?
+    var exteriorFinish: ExistingConditionsExteriorFinish?
+    var existingStructure: [ExistingStructure]?
     var obstaclesNotes: String?
     var utilitiesNotes: String?
     var hoaNotes: String?
     var photoChecklist: PhotoChecklist?
+
+    var activeExistingStructures: [ExistingStructure] {
+        Self.normalizedExistingStructures(existingStructure) ?? []
+    }
+
+    var existingStructureDisplaySummary: String? {
+        let names = activeExistingStructures.map(\.displayName)
+        guard !names.isEmpty else { return nil }
+        return names.joined(separator: ", ")
+    }
+
+    var isEffectivelyEmpty: Bool {
+        houseStories == nil &&
+        exteriorFinish == nil &&
+        activeExistingStructures.isEmpty &&
+        obstaclesNotes?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty != false &&
+        utilitiesNotes?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty != false &&
+        hoaNotes?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty != false &&
+        photoChecklist == nil
+    }
+
+    init(
+        houseStories: HouseStories? = nil,
+        exteriorFinish: ExistingConditionsExteriorFinish? = nil,
+        existingStructure: [ExistingStructure]? = nil,
+        obstaclesNotes: String? = nil,
+        utilitiesNotes: String? = nil,
+        hoaNotes: String? = nil,
+        photoChecklist: PhotoChecklist? = nil
+    ) {
+        self.houseStories = houseStories
+        self.exteriorFinish = exteriorFinish?.isEffectivelyEmpty == true ? nil : exteriorFinish
+        self.existingStructure = Self.normalizedExistingStructures(existingStructure)
+        self.obstaclesNotes = obstaclesNotes?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty
+        self.utilitiesNotes = utilitiesNotes?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty
+        self.hoaNotes = hoaNotes?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty
+        self.photoChecklist = photoChecklist
+    }
+
+    mutating func setExistingStructure(_ structure: ExistingStructure, isSelected: Bool) {
+        var selected = activeExistingStructures
+        if isSelected {
+            guard !selected.contains(structure) else { return }
+            selected.append(structure)
+        } else {
+            selected.removeAll { $0 == structure }
+        }
+        existingStructure = Self.normalizedExistingStructures(selected)
+    }
+
+    mutating func pruneInactiveDependentValuesForExport() {
+        if var finish = exteriorFinish {
+            finish.pruneInactiveDependentValuesForExport()
+            exteriorFinish = finish.isEffectivelyEmpty ? nil : finish
+        }
+
+        existingStructure = Self.normalizedExistingStructures(existingStructure)
+        obstaclesNotes = obstaclesNotes?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty
+        utilitiesNotes = utilitiesNotes?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty
+        hoaNotes = hoaNotes?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty
+    }
+
+    func normalizedForExport() -> ExistingConditions? {
+        var normalized = self
+        normalized.pruneInactiveDependentValuesForExport()
+        return normalized.isEffectivelyEmpty ? nil : normalized
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case houseStories
+        case exteriorFinish
+        case existingStructure
+        case obstaclesNotes
+        case utilitiesNotes
+        case hoaNotes
+        case photoChecklist
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        houseStories = try container.decodeIfPresent(HouseStories.self, forKey: .houseStories)
+        obstaclesNotes = try container.decodeIfPresent(String.self, forKey: .obstaclesNotes)
+        utilitiesNotes = try container.decodeIfPresent(String.self, forKey: .utilitiesNotes)
+        hoaNotes = try container.decodeIfPresent(String.self, forKey: .hoaNotes)
+        photoChecklist = try container.decodeIfPresent(PhotoChecklist.self, forKey: .photoChecklist)
+
+        if let decodedFinish = try container.decodeIfPresent(ExistingConditionsExteriorFinish.self, forKey: .exteriorFinish) {
+            exteriorFinish = decodedFinish.isEffectivelyEmpty ? nil : decodedFinish
+        } else {
+            let legacyFinish = try container.decodeIfPresent(ExteriorFinish.self, forKey: .exteriorFinish)
+            exteriorFinish = Self.legacyExteriorFinishValue(from: legacyFinish)
+        }
+
+        if let decodedExistingStructure = try container.decodeIfPresent([ExistingStructure].self, forKey: .existingStructure) {
+            existingStructure = Self.normalizedExistingStructures(decodedExistingStructure)
+        } else {
+            let legacyExistingStructure = try container.decodeIfPresent(ExistingStructure.self, forKey: .existingStructure)
+            existingStructure = Self.normalizedExistingStructures(legacyExistingStructure.map { [$0] })
+        }
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encodeIfPresent(houseStories, forKey: .houseStories)
+        try container.encodeIfPresent(exteriorFinish, forKey: .exteriorFinish)
+        try container.encodeIfPresent(Self.normalizedExistingStructures(existingStructure), forKey: .existingStructure)
+        try container.encodeIfPresent(obstaclesNotes?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty, forKey: .obstaclesNotes)
+        try container.encodeIfPresent(utilitiesNotes?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty, forKey: .utilitiesNotes)
+        try container.encodeIfPresent(hoaNotes?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty, forKey: .hoaNotes)
+        try container.encodeIfPresent(photoChecklist, forKey: .photoChecklist)
+    }
+
+    private static func normalizedExistingStructures(_ values: [ExistingStructure]?) -> [ExistingStructure]? {
+        guard let values else { return nil }
+        let active = ExistingStructure.allCases.filter { values.contains($0) }
+        return active.isEmpty ? nil : active
+    }
+
+    private static func legacyExteriorFinishValue(from value: ExteriorFinish?) -> ExistingConditionsExteriorFinish? {
+        guard let value else { return nil }
+
+        switch value {
+        case .brick:
+            return ExistingConditionsExteriorFinish(
+                selectedAreas: [.exteriorHouseWall],
+                exteriorHouseWallMaterials: [.brick]
+            )
+        case .hardie:
+            return ExistingConditionsExteriorFinish(
+                selectedAreas: [.exteriorHouseWall],
+                exteriorHouseWallMaterials: [.hardie]
+            )
+        case .stone:
+            return ExistingConditionsExteriorFinish(
+                selectedAreas: [.exteriorHouseWall],
+                exteriorHouseWallMaterials: [.stone]
+            )
+        case .other:
+            return ExistingConditionsExteriorFinish(
+                selectedAreas: [.exteriorHouseWall],
+                exteriorHouseWallMaterials: [.other]
+            )
+        case .stucco:
+            return ExistingConditionsExteriorFinish(
+                selectedAreas: [.exteriorHouseWall],
+                exteriorHouseWallMaterials: [.other],
+                exteriorHouseWallOther: "Stucco"
+            )
+        }
+    }
 }
 
 struct PhotoChecklist: Codable, Hashable {

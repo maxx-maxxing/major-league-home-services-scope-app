@@ -7,6 +7,7 @@
 - Milestone 2: Implemented (requested section editors)
 - Milestone 2.1: Implemented (Windows & Glass stability/usability pass)
 - Milestone 2.2: Implemented (remaining schema-backed section editors)
+- Milestone 2.3: Implemented (Existing Conditions multi-select workflow alignment)
 - Milestone 3: Implemented (PencilKit signature + sketch capture)
 - Milestone 3.4.1: Implemented (Signature/diagram persistence repair)
 - Milestone 3.4.2: Implemented (immediate sketch metadata durability)
@@ -55,6 +56,53 @@
 - Milestone 7.6.2.1: Implemented (internal debug entry point Release gating)
 
 ## Decisions
+- Milestone 2.3 Existing Conditions multi-select workflow alignment:
+  - Task scope:
+    - replace the current single-value `Exterior Finish` flow with the required nested multi-select workflow for:
+      - `Posts/Columns`
+      - `Exterior House Wall`
+    - convert `Existing Structure` from single-select to multi-select while keeping the same option list
+    - preserve hidden child values while editing, but prune inactive branches from proposal/PDF/export output
+  - Guardrails for this pass:
+    - keep business logic out of Views
+    - preserve the recent Enclosure multi-select pattern where practical
+    - do not broaden into unrelated JobTread, documents, pricing, debug, or PDF renderer changes
+  - Expected implementation shape:
+    - minimal `schema.json` and `ExistingConditions` model expansion
+    - legacy decode fallback for previously saved single-value `exteriorFinish` and `existingStructure`
+    - Existing Conditions editor update only
+    - proposal/export composition updated to read normalized Existing Conditions output rather than raw hidden editing state
+  - Implemented model/storage change:
+    - updated [schema.json](/Users/maxx/Documents/major-league-home-services-scope-app/construction-scope-app/schema.json) so `ExistingConditions.exteriorFinish` is now a structured object and `ExistingConditions.existingStructure` is now an array
+    - expanded [SchemaModels.swift](/Users/maxx/Documents/major-league-home-services-scope-app/construction-scope-app/Models/SchemaModels.swift) with:
+      - ordered first-level Exterior Finish area selection
+      - ordered nested material selections per active parent branch
+      - `postTrim` yes/no state
+      - `trimThickness` text
+      - `Exterior House Wall -> Other` text
+      - ordered Existing Structure multi-select state
+    - preserved backward compatibility by decoding legacy single-value saved data into the new structure:
+      - legacy single `existingStructure` decodes into a one-item array
+      - legacy single `exteriorFinish` decodes into the new `Exterior House Wall` branch
+      - legacy `stucco` is mapped to `Exterior House Wall -> Other = Stucco` because there is no direct new child option for stucco
+  - Editing vs export behavior:
+    - inactive child values are preserved in persisted editing state when a parent Exterior Finish branch is temporarily unselected
+    - proposal composition and PDF rendering now normalize/prune Existing Conditions through export-specific helpers so inactive hidden child values do not appear in output
+    - share/export generation also writes the pruned Existing Conditions state back onto the live scope, matching the current Enclosure export-prune behavior already used in the app
+  - UI implementation:
+    - replaced the single `Picker` controls in [SectionEditors.swift](/Users/maxx/Documents/major-league-home-services-scope-app/construction-scope-app/Views/SectionEditors.swift) with native multi-select row controls aligned to the existing Enclosure selection pattern
+    - dependent controls render independently for both selected Exterior Finish parent branches at the same time
+    - `Exterior House Wall -> Other` now reveals a required labeled text field with explicit parent/child wording
+  - Output path updates:
+    - updated [PricingProposalFoundation.swift](/Users/maxx/Documents/major-league-home-services-scope-app/construction-scope-app/Models/PricingProposalFoundation.swift) so the proposal/input snapshot reads normalized Existing Conditions values only
+    - updated [PDFPreviewStubView.swift](/Users/maxx/Documents/major-league-home-services-scope-app/construction-scope-app/PDFEngine/PDFPreviewStubView.swift) so page-two Existing Conditions rows reflect the new structured state and exclude inactive hidden branches
+  - Validation:
+    - attempted:
+      - `xcodebuild -project ConstructionScopeApp.xcodeproj -scheme ConstructionScopeApp -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' -derivedDataPath /tmp/ConstructionScopeAppDerivedData CODE_SIGNING_ALLOWED=NO build`
+    - result:
+      - the build progressed into normal app compilation but failed in this sandbox during simulator asset-catalog compilation because no iPhone simulator runtimes are available to `actool`
+      - no new Swift compile errors from the Existing Conditions change set were surfaced before the environment-specific runtime failure
+
 - Milestone 4.7 PDF export reliability hardening:
   - Release-blocking field report:
     - a real TestFlight-style beta user reported exported scope PDFs with mostly blank pages

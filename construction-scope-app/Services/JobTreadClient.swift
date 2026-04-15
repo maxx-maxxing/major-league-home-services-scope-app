@@ -1004,12 +1004,6 @@ private struct ResolvedAddressParts {
     static let empty = ResolvedAddressParts(streetAddress: nil, unitNumber: nil)
 }
 
-private extension String {
-    var nilIfEmpty: String? {
-        isEmpty ? nil : self
-    }
-}
-
 private struct JobTreadAPIError: Decodable {
     let message: String
 }

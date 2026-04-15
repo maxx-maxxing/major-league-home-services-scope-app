@@ -1117,9 +1117,4 @@ private func configuredSlotDetail(
     return "\(placeholderKey) = \(formatted)"
 }
 
-private extension String {
-    var nilIfBlank: String? {
-        trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : trimmingCharacters(in: .whitespacesAndNewlines)
-    }
-}
 #endif

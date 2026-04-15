@@ -144,6 +144,7 @@ enum ScopePDFExporter {
 
     static func generate(scope: JobScope) throws -> PDFExportResult {
         pruneInactiveExistingConditionsValuesForExport(scope)
+        pruneInactiveStructuralValuesForExport(scope)
         pruneInactiveEnclosureValuesForExport(scope)
         let render = try render(scope: scope)
         let outputURL = FileManager.default.temporaryDirectory
@@ -574,21 +575,13 @@ enum ScopePDFExporter {
     }
 
     private static func pageThree(_ scope: JobScope) -> PDFPageContent {
-        let structural = scope.structuralSystem
+        let structural = scope.structuralSystem?.normalizedForExport()
         let enclosure = scope.enclosure?.normalizedForExport()
 
         return PDFPageContent(
             title: "Page 3: Structural + Roof System + Enclosure",
             sections: [
-                PDFSection(title: "Structural System", rows: [
-                    .init(label: "Frame Material", value: structural?.frameMaterial?.displayName ?? "Not set"),
-                    .init(label: "Post Size", value: structural?.postSize?.nilIfBlank ?? "Not set"),
-                    .init(label: "Beam Type", value: structural?.beamType?.nilIfBlank ?? "Not set"),
-                    .init(label: "Roof System", value: structural?.roofSystem?.displayName ?? "Not set"),
-                    .init(label: "Roof Color", value: structural?.roofColor?.nilIfBlank ?? "Not set"),
-                    .init(label: "Frame Color", value: structural?.frameColor?.nilIfBlank ?? "Not set"),
-                    .init(label: "Notes", value: structural?.notes?.nilIfBlank ?? "None")
-                ]),
+                PDFSection(title: "Structural System", rows: structuralRows(structural)),
                 PDFSection(title: "Enclosure", rows: [
                     .init(label: "Type", value: enclosure?.enclosureTypeDisplaySummary ?? "Not set"),
                     .init(label: "Screen Type", value: enclosure?.screenWallType?.displayName ?? "Not set"),
@@ -738,8 +731,81 @@ enum ScopePDFExporter {
         scope.enclosure = scope.enclosure?.normalizedForExport()
     }
 
+    private static func pruneInactiveStructuralValuesForExport(_ scope: JobScope) {
+        scope.structuralSystem = scope.structuralSystem?.normalizedForExport()
+    }
+
     private static func pruneInactiveExistingConditionsValuesForExport(_ scope: JobScope) {
         scope.existingConditions = scope.existingConditions?.normalizedForExport()
+    }
+
+    private static func structuralRows(_ structural: StructuralSystem?) -> [PDFRow] {
+        guard let structural else {
+            return [
+                .init(label: "Structural System", value: "Not set"),
+                .init(label: "Notes", value: "None")
+            ]
+        }
+
+        var rows: [PDFRow] = [
+            .init(label: "Structural System", value: structural.resolvedSelectionDisplayName ?? "Not set")
+        ]
+
+        if let pergolaType = structural.pergolaType?.displayName {
+            rows.append(.init(label: "Pergola Type", value: pergolaType))
+        }
+
+        switch structural.systemType {
+        case .some(.insulatedAluminumPatioCover):
+            rows.append(.init(label: "Width", value: structural.insulatedAluminumPatioCover?.width?.nilIfBlank ?? "Not set"))
+            rows.append(.init(label: "Projection", value: structural.insulatedAluminumPatioCover?.projection?.nilIfBlank ?? "Not set"))
+            rows.append(.init(label: "Number of Posts", value: structural.insulatedAluminumPatioCover?.numberOfPosts?.nilIfBlank ?? "Not set"))
+            rows.append(.init(label: "Roof Type", value: structural.insulatedAluminumPatioCover?.roofType?.displayName ?? "Not set"))
+        case .some(.pergola):
+            switch structural.pergolaType {
+            case .some(.motorizedLouveredPergola):
+                rows.append(contentsOf: pergolaDimensionRows(structural.motorizedLouveredPergola))
+            case .some(.manuallyRetractableLouveredPergola):
+                rows.append(contentsOf: pergolaDimensionRows(structural.manuallyRetractableLouveredPergola))
+            case .some(.cedarPergola):
+                rows.append(.init(label: "Post Size", value: structural.cedarPergola?.resolvedPostSize ?? "Not set"))
+                rows.append(.init(label: "Beam Size", value: structural.cedarPergola?.resolvedBeamSize ?? "Not set"))
+                rows.append(.init(label: "Rafter Size", value: structural.cedarPergola?.resolvedRafterSize ?? "Not set"))
+                rows.append(.init(label: "Lattice", value: structural.cedarPergola?.lattice?.displayName ?? "Not set"))
+                rows.append(.init(label: "Hardware", value: structural.cedarPergola?.hardware?.displayName ?? "Not set"))
+                rows.append(.init(label: "Finish", value: structural.cedarPergola?.finish?.displayName ?? "Not set"))
+                rows.append(.init(label: "Product Code", value: structural.cedarPergola?.productCode?.nilIfBlank ?? "Not set"))
+            case .some(.alumawoodPergola):
+                rows.append(.init(label: "Mount Type", value: structural.alumawoodPergola?.mountType?.displayName ?? "Not set"))
+                rows.append(.init(label: "Layout", value: structural.alumawoodPergola?.layoutSummary ?? "Not set"))
+                rows.append(.init(label: "Attachment Type", value: structural.alumawoodPergola?.attachmentType?.displayName ?? "Not set"))
+                rows.append(.init(label: "Color", value: structural.alumawoodPergola?.color?.displayName ?? "Not set"))
+                rows.append(.init(label: "Privacy Wall", value: boolString(structural.alumawoodPergola?.privacyWall)))
+            case .none:
+                break
+            }
+        case .some(.other), .some(StructuralSystemType.none), nil:
+            break
+        }
+
+        if structural.systemType == nil, let legacySummary = structural.legacyFlatSummary {
+            rows.append(.init(label: "Legacy Structural Summary", value: legacySummary))
+        }
+
+        if let pergolaNotes = structural.resolvedPergolaNotes {
+            rows.append(.init(label: "Pergola Notes", value: pergolaNotes))
+        }
+
+        rows.append(.init(label: "Notes", value: structural.notes?.nilIfBlank ?? "None"))
+        return rows
+    }
+
+    private static func pergolaDimensionRows(_ details: PergolaDimensionDetails?) -> [PDFRow] {
+        [
+            .init(label: "Width", value: details?.width?.nilIfBlank ?? "Not set"),
+            .init(label: "Length", value: details?.length?.nilIfBlank ?? "Not set"),
+            .init(label: "Height", value: details?.height?.nilIfBlank ?? "Not set")
+        ]
     }
 
     private static func appendixPages(_ scope: JobScope) throws -> [PDFPageContent] {
@@ -1306,12 +1372,6 @@ private struct PDFSection {
     let rows: [PDFRow]
     var image: UIImage? = nil
     var imageRole: PDFImageRole = .standard
-}
-
-private extension String {
-    var nilIfBlank: String? {
-        trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : self
-    }
 }
 
 private extension Array {

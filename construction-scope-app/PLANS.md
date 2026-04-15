@@ -80,6 +80,17 @@ Keep milestones small, testable, and reviewable.
 - Update proposal/PDF/export composition so checklist photos render in a labeled grouped format without giving every image its own dedicated page.
 - Keep the change scoped to `schema.json`, Existing Conditions model/view code, checklist-photo asset helpers, export/PDF composition, and status docs without refactoring unrelated sections.
 
+### Milestone 2.3.2 – Structural System Branching Workflow Alignment
+- Replace the current flat Structural System editor with a client-approved progressive-disclosure workflow driven by a top-level structural-system selection.
+- Add structured branch state for:
+  - Insulated Aluminum Patio Cover
+  - Pergola with subtype branches
+  - None
+  - Other with required detail text
+- Preserve backward-compatible decoding for previously saved flat structural payloads where practical.
+- Normalize/prune inactive hidden structural branch values for proposal/PDF/export output so only the active branch is emitted.
+- Keep the change scoped to `schema.json`, Structural System model/view code, proposal/PDF export composition, and status docs without refactoring unrelated sections.
+
 ## Milestone 3 – Pencil Support
 - Ensure TextEditor note fields support Scribble
 - PencilKit signature capture page

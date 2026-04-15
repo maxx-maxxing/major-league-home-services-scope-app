@@ -1243,102 +1243,525 @@ struct StructuralSystemEditorView: View {
 
     var body: some View {
         VStack(spacing: 16) {
-            CardGroup(title: "Structure") {
+            CardGroup(title: "Structural System") {
                 VStack(spacing: 12) {
-                    FieldHeader("Frame Material")
-                    Picker("Frame Material", selection: frameMaterialBinding) {
-                        Text("Not Set").tag(nil as FrameMaterial?)
-                        ForEach(FrameMaterial.allCases, id: \.self) { value in
+                    FieldHeader("Structural System")
+                    Picker("Structural System", selection: systemTypeBinding) {
+                        Text("Not Set").tag(nil as StructuralSystemType?)
+                        ForEach(StructuralSystemType.allCases, id: \.self) { value in
                             Text(value.displayName).tag(Optional(value))
                         }
                     }
                     .pickerStyle(.menu)
                     .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
 
-                    TextField("Post size", text: postSizeBinding)
-                        .liquidGlassInput()
-
-                    TextField("Beam type", text: beamTypeBinding)
-                        .liquidGlassInput()
+                    if showsSystemOtherField {
+                        TextField("Other Structural System", text: systemTypeOtherBinding)
+                            .liquidGlassInput()
+                            .formRevealTransition()
+                    }
                 }
             }
 
-            CardGroup(title: "Roof + Finish") {
-                VStack(spacing: 12) {
-                    FieldHeader("Roof System")
-                    Picker("Roof System", selection: roofSystemBinding) {
-                        Text("Not Set").tag(nil as RoofSystem?)
-                        ForEach(RoofSystem.allCases, id: \.self) { value in
-                            Text(value.displayName).tag(Optional(value))
-                        }
+            if showsLegacyFlatSummary {
+                CardGroup(title: "Legacy Structural Data") {
+                    Text("This scope contains older flat structural fields from a previous build. Select a Structural System above to replace them with the new branching workflow.")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+
+                    if let legacySummary = scope.structuralSystem?.legacyFlatSummary {
+                        Text(legacySummary)
+                            .font(.body)
+                            .frame(maxWidth: .infinity, alignment: .leading)
                     }
-                    .pickerStyle(.menu)
-                    .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
-
-                    TextField("Roof color", text: roofColorBinding)
-                        .liquidGlassInput()
-
-                    TextField("Frame color", text: frameColorBinding)
-                        .liquidGlassInput()
                 }
+            }
+
+            if showsInsulatedAluminumPatioCoverFields {
+                CardGroup(title: "Insulated Aluminum Patio Cover") {
+                    VStack(spacing: 12) {
+                        MeasurementTextField(title: "Width", text: patioCoverWidthBinding)
+
+                        Text("Typically handled in 4-foot increments.")
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+
+                        MeasurementTextField(title: "Projection", text: patioCoverProjectionBinding)
+
+                        Text("Typically handled in 2-foot increments.")
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+
+                        TextField("Number of Posts", text: patioCoverNumberOfPostsBinding)
+                            .liquidGlassInput()
+
+                        Text("Client guidance: 20 feet or less usually uses 2 posts; 20+ feet typically uses 3 or more.")
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+
+                        FieldHeader("Roof Type")
+                        Picker("Roof Type", selection: patioCoverRoofTypeBinding) {
+                            Text("Not Set").tag(nil as PatioCoverRoofType?)
+                            ForEach(PatioCoverRoofType.allCases, id: \.self) { value in
+                                Text(value.displayName).tag(Optional(value))
+                            }
+                        }
+                        .pickerStyle(.menu)
+                        .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+                    }
+                }
+                .formRevealTransition()
+            }
+
+            if showsPergolaFields {
+                CardGroup(title: "Pergola") {
+                    VStack(spacing: 12) {
+                        FieldHeader("Pergola Type")
+                        Picker("Pergola Type", selection: pergolaTypeBinding) {
+                            Text("Not Set").tag(nil as PergolaType?)
+                            ForEach(PergolaType.allCases, id: \.self) { value in
+                                Text(value.displayName).tag(Optional(value))
+                            }
+                        }
+                        .pickerStyle(.menu)
+                        .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+                    }
+                }
+                .formRevealTransition()
+            }
+
+            if showsMotorizedPergolaFields {
+                CardGroup(title: "Motorized Louvered Pergola") {
+                    pergolaDimensionFields(
+                        width: motorizedPergolaWidthBinding,
+                        length: motorizedPergolaLengthBinding,
+                        height: motorizedPergolaHeightBinding,
+                        notes: motorizedPergolaNotesBinding
+                    )
+                }
+                .formRevealTransition()
+            }
+
+            if showsManualPergolaFields {
+                CardGroup(title: "Manually Retractable Louvered Pergola") {
+                    pergolaDimensionFields(
+                        width: manualPergolaWidthBinding,
+                        length: manualPergolaLengthBinding,
+                        height: manualPergolaHeightBinding,
+                        notes: manualPergolaNotesBinding
+                    )
+                }
+                .formRevealTransition()
+            }
+
+            if showsCedarPergolaFields {
+                CardGroup(title: "Cedar Pergola") {
+                    VStack(spacing: 12) {
+                        FieldHeader("Post Size")
+                        Picker("Post Size", selection: cedarPostSizeBinding) {
+                            Text("Not Set").tag(nil as CedarPergolaPostSize?)
+                            ForEach(CedarPergolaPostSize.allCases, id: \.self) { value in
+                                Text(value.displayName).tag(Optional(value))
+                            }
+                        }
+                        .pickerStyle(.menu)
+                        .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+
+                        if showsCedarPostSizeOtherField {
+                            TextField("Other Post Size", text: cedarPostSizeOtherBinding)
+                                .liquidGlassInput()
+                                .formRevealTransition()
+                        }
+
+                        FieldHeader("Beam Size")
+                        Picker("Beam Size", selection: cedarBeamSizeBinding) {
+                            Text("Not Set").tag(nil as CedarPergolaBeamSize?)
+                            ForEach(CedarPergolaBeamSize.allCases, id: \.self) { value in
+                                Text(value.displayName).tag(Optional(value))
+                            }
+                        }
+                        .pickerStyle(.menu)
+                        .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+
+                        if showsCedarBeamSizeOtherField {
+                            TextField("Other Beam Size", text: cedarBeamSizeOtherBinding)
+                                .liquidGlassInput()
+                                .formRevealTransition()
+                        }
+
+                        FieldHeader("Rafter Size")
+                        Picker("Rafter Size", selection: cedarRafterSizeBinding) {
+                            Text("Not Set").tag(nil as CedarPergolaRafterSize?)
+                            ForEach(CedarPergolaRafterSize.allCases, id: \.self) { value in
+                                Text(value.displayName).tag(Optional(value))
+                            }
+                        }
+                        .pickerStyle(.menu)
+                        .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+
+                        if showsCedarRafterSizeOtherField {
+                            TextField("Other Rafter Size", text: cedarRafterSizeOtherBinding)
+                                .liquidGlassInput()
+                                .formRevealTransition()
+                        }
+
+                        FieldHeader("Lattice")
+                        Picker("Lattice", selection: cedarLatticeBinding) {
+                            Text("Not Set").tag(nil as CedarPergolaLattice?)
+                            ForEach(CedarPergolaLattice.allCases, id: \.self) { value in
+                                Text(value.displayName).tag(Optional(value))
+                            }
+                        }
+                        .pickerStyle(.menu)
+                        .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+
+                        FieldHeader("Hardware")
+                        Picker("Hardware", selection: cedarHardwareBinding) {
+                            Text("Not Set").tag(nil as CedarPergolaHardware?)
+                            ForEach(CedarPergolaHardware.allCases, id: \.self) { value in
+                                Text(value.displayName).tag(Optional(value))
+                            }
+                        }
+                        .pickerStyle(.menu)
+                        .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+
+                        FieldHeader("Finish")
+                        Picker("Finish", selection: cedarFinishBinding) {
+                            Text("Not Set").tag(nil as CedarPergolaFinish?)
+                            ForEach(CedarPergolaFinish.allCases, id: \.self) { value in
+                                Text(value.displayName).tag(Optional(value))
+                            }
+                        }
+                        .pickerStyle(.menu)
+                        .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+
+                        TextField("Product Code", text: cedarProductCodeBinding)
+                            .liquidGlassInput()
+                    }
+                }
+                .formRevealTransition()
+            }
+
+            if showsAlumawoodPergolaFields {
+                CardGroup(title: "Alumawood Pergola") {
+                    VStack(spacing: 12) {
+                        FieldHeader("Mount Type")
+                        Picker("Mount Type", selection: alumawoodMountTypeBinding) {
+                            Text("Not Set").tag(nil as AlumawoodPergolaMountType?)
+                            ForEach(AlumawoodPergolaMountType.allCases, id: \.self) { value in
+                                Text(value.displayName).tag(Optional(value))
+                            }
+                        }
+                        .pickerStyle(.menu)
+                        .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+
+                        MeasurementTextField(title: "Width", text: alumawoodWidthBinding)
+                        MeasurementTextField(title: "Length", text: alumawoodLengthBinding)
+                        MeasurementTextField(title: "Height", text: alumawoodHeightBinding)
+
+                        FieldHeader("Attachment Type")
+                        Picker("Attachment Type", selection: alumawoodAttachmentTypeBinding) {
+                            Text("Not Set").tag(nil as AlumawoodPergolaAttachmentType?)
+                            ForEach(AlumawoodPergolaAttachmentType.allCases, id: \.self) { value in
+                                Text(value.displayName).tag(Optional(value))
+                            }
+                        }
+                        .pickerStyle(.menu)
+                        .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+
+                        FieldHeader("Color")
+                        Picker("Color", selection: alumawoodColorBinding) {
+                            Text("Not Set").tag(nil as AlumawoodPergolaColor?)
+                            ForEach(AlumawoodPergolaColor.allCases, id: \.self) { value in
+                                Text(value.displayName).tag(Optional(value))
+                            }
+                        }
+                        .pickerStyle(.menu)
+                        .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+
+                        OptionalBoolPicker(title: "Privacy Wall", selection: alumawoodPrivacyWallBinding)
+                    }
+                }
+                .formRevealTransition()
             }
 
             CardGroup(title: "Structural Notes") {
-                NotesField(title: "Structural Notes", text: notesBinding, minHeight: 140, showInlineTitle: false)
+                VStack(spacing: 12) {
+                    NotesField(title: "Structural Notes", text: notesBinding, minHeight: 140, showInlineTitle: false)
+                }
             }
         }
     }
 
-    private var frameMaterialBinding: Binding<FrameMaterial?> {
+    private var showsLegacyFlatSummary: Bool {
+        scope.structuralSystem?.systemType == nil && scope.structuralSystem?.hasLegacyFlatValues == true
+    }
+
+    private var showsSystemOtherField: Bool {
+        scope.structuralSystem?.systemType == .other
+    }
+
+    private var showsInsulatedAluminumPatioCoverFields: Bool {
+        scope.structuralSystem?.systemType == .insulatedAluminumPatioCover
+    }
+
+    private var showsPergolaFields: Bool {
+        scope.structuralSystem?.systemType == .pergola
+    }
+
+    private var showsMotorizedPergolaFields: Bool {
+        scope.structuralSystem?.systemType == .pergola && scope.structuralSystem?.pergolaType == .motorizedLouveredPergola
+    }
+
+    private var showsManualPergolaFields: Bool {
+        scope.structuralSystem?.systemType == .pergola && scope.structuralSystem?.pergolaType == .manuallyRetractableLouveredPergola
+    }
+
+    private var showsCedarPergolaFields: Bool {
+        scope.structuralSystem?.systemType == .pergola && scope.structuralSystem?.pergolaType == .cedarPergola
+    }
+
+    private var showsAlumawoodPergolaFields: Bool {
+        scope.structuralSystem?.systemType == .pergola && scope.structuralSystem?.pergolaType == .alumawoodPergola
+    }
+
+    private var showsCedarPostSizeOtherField: Bool {
+        scope.structuralSystem?.cedarPergola?.postSize == .other
+    }
+
+    private var showsCedarBeamSizeOtherField: Bool {
+        scope.structuralSystem?.cedarPergola?.beamSize == .other
+    }
+
+    private var showsCedarRafterSizeOtherField: Bool {
+        scope.structuralSystem?.cedarPergola?.rafterSize == .other
+    }
+
+    private var systemTypeBinding: Binding<StructuralSystemType?> {
         Binding(
-            get: { scope.structuralSystem?.frameMaterial },
+            get: { scope.structuralSystem?.systemType },
             set: { newValue in
-                updateStructuralSystem { $0.frameMaterial = newValue }
+                updateStructuralSystem { $0.systemType = newValue }
             }
         )
     }
 
-    private var postSizeBinding: Binding<String> {
+    private var systemTypeOtherBinding: Binding<String> {
         Binding(
-            get: { scope.structuralSystem?.postSize ?? "" },
+            get: { scope.structuralSystem?.systemTypeOther ?? "" },
             set: { newValue in
-                updateStructuralSystem { $0.postSize = newValue.nilIfBlank }
+                updateStructuralSystem { $0.systemTypeOther = newValue.nilIfBlank }
             }
         )
     }
 
-    private var beamTypeBinding: Binding<String> {
+    private var patioCoverWidthBinding: Binding<String> {
         Binding(
-            get: { scope.structuralSystem?.beamType ?? "" },
+            get: { scope.structuralSystem?.insulatedAluminumPatioCover?.width ?? "" },
             set: { newValue in
-                updateStructuralSystem { $0.beamType = newValue.nilIfBlank }
+                updatePatioCover { $0.width = newValue.nilIfBlank }
             }
         )
     }
 
-    private var roofSystemBinding: Binding<RoofSystem?> {
+    private var patioCoverProjectionBinding: Binding<String> {
         Binding(
-            get: { scope.structuralSystem?.roofSystem },
+            get: { scope.structuralSystem?.insulatedAluminumPatioCover?.projection ?? "" },
             set: { newValue in
-                updateStructuralSystem { $0.roofSystem = newValue }
+                updatePatioCover { $0.projection = newValue.nilIfBlank }
             }
         )
     }
 
-    private var roofColorBinding: Binding<String> {
+    private var patioCoverNumberOfPostsBinding: Binding<String> {
         Binding(
-            get: { scope.structuralSystem?.roofColor ?? "" },
+            get: { scope.structuralSystem?.insulatedAluminumPatioCover?.numberOfPosts ?? "" },
             set: { newValue in
-                updateStructuralSystem { $0.roofColor = newValue.nilIfBlank }
+                updatePatioCover { $0.numberOfPosts = newValue.nilIfBlank }
             }
         )
     }
 
-    private var frameColorBinding: Binding<String> {
+    private var patioCoverRoofTypeBinding: Binding<PatioCoverRoofType?> {
         Binding(
-            get: { scope.structuralSystem?.frameColor ?? "" },
+            get: { scope.structuralSystem?.insulatedAluminumPatioCover?.roofType },
             set: { newValue in
-                updateStructuralSystem { $0.frameColor = newValue.nilIfBlank }
+                updatePatioCover { $0.roofType = newValue }
+            }
+        )
+    }
+
+    private var pergolaTypeBinding: Binding<PergolaType?> {
+        Binding(
+            get: { scope.structuralSystem?.pergolaType },
+            set: { newValue in
+                updateStructuralSystem { $0.pergolaType = newValue }
+            }
+        )
+    }
+
+    private var motorizedPergolaWidthBinding: Binding<String> { pergolaDimensionBinding(\.motorizedLouveredPergola, \.width) }
+    private var motorizedPergolaLengthBinding: Binding<String> { pergolaDimensionBinding(\.motorizedLouveredPergola, \.length) }
+    private var motorizedPergolaHeightBinding: Binding<String> { pergolaDimensionBinding(\.motorizedLouveredPergola, \.height) }
+    private var motorizedPergolaNotesBinding: Binding<String> { pergolaDimensionBinding(\.motorizedLouveredPergola, \.notes) }
+    private var manualPergolaWidthBinding: Binding<String> { pergolaDimensionBinding(\.manuallyRetractableLouveredPergola, \.width) }
+    private var manualPergolaLengthBinding: Binding<String> { pergolaDimensionBinding(\.manuallyRetractableLouveredPergola, \.length) }
+    private var manualPergolaHeightBinding: Binding<String> { pergolaDimensionBinding(\.manuallyRetractableLouveredPergola, \.height) }
+    private var manualPergolaNotesBinding: Binding<String> { pergolaDimensionBinding(\.manuallyRetractableLouveredPergola, \.notes) }
+
+    private var cedarPostSizeBinding: Binding<CedarPergolaPostSize?> {
+        Binding(
+            get: { scope.structuralSystem?.cedarPergola?.postSize },
+            set: { newValue in
+                updateCedarPergola { $0.postSize = newValue }
+            }
+        )
+    }
+
+    private var cedarPostSizeOtherBinding: Binding<String> {
+        Binding(
+            get: { scope.structuralSystem?.cedarPergola?.postSizeOther ?? "" },
+            set: { newValue in
+                updateCedarPergola { $0.postSizeOther = newValue.nilIfBlank }
+            }
+        )
+    }
+
+    private var cedarBeamSizeBinding: Binding<CedarPergolaBeamSize?> {
+        Binding(
+            get: { scope.structuralSystem?.cedarPergola?.beamSize },
+            set: { newValue in
+                updateCedarPergola { $0.beamSize = newValue }
+            }
+        )
+    }
+
+    private var cedarBeamSizeOtherBinding: Binding<String> {
+        Binding(
+            get: { scope.structuralSystem?.cedarPergola?.beamSizeOther ?? "" },
+            set: { newValue in
+                updateCedarPergola { $0.beamSizeOther = newValue.nilIfBlank }
+            }
+        )
+    }
+
+    private var cedarRafterSizeBinding: Binding<CedarPergolaRafterSize?> {
+        Binding(
+            get: { scope.structuralSystem?.cedarPergola?.rafterSize },
+            set: { newValue in
+                updateCedarPergola { $0.rafterSize = newValue }
+            }
+        )
+    }
+
+    private var cedarRafterSizeOtherBinding: Binding<String> {
+        Binding(
+            get: { scope.structuralSystem?.cedarPergola?.rafterSizeOther ?? "" },
+            set: { newValue in
+                updateCedarPergola { $0.rafterSizeOther = newValue.nilIfBlank }
+            }
+        )
+    }
+
+    private var cedarLatticeBinding: Binding<CedarPergolaLattice?> {
+        Binding(
+            get: { scope.structuralSystem?.cedarPergola?.lattice },
+            set: { newValue in
+                updateCedarPergola { $0.lattice = newValue }
+            }
+        )
+    }
+
+    private var cedarHardwareBinding: Binding<CedarPergolaHardware?> {
+        Binding(
+            get: { scope.structuralSystem?.cedarPergola?.hardware },
+            set: { newValue in
+                updateCedarPergola { $0.hardware = newValue }
+            }
+        )
+    }
+
+    private var cedarFinishBinding: Binding<CedarPergolaFinish?> {
+        Binding(
+            get: { scope.structuralSystem?.cedarPergola?.finish },
+            set: { newValue in
+                updateCedarPergola { $0.finish = newValue }
+            }
+        )
+    }
+
+    private var cedarProductCodeBinding: Binding<String> {
+        Binding(
+            get: { scope.structuralSystem?.cedarPergola?.productCode ?? "" },
+            set: { newValue in
+                updateCedarPergola { $0.productCode = newValue.nilIfBlank }
+            }
+        )
+    }
+
+    private var alumawoodMountTypeBinding: Binding<AlumawoodPergolaMountType?> {
+        Binding(
+            get: { scope.structuralSystem?.alumawoodPergola?.mountType },
+            set: { newValue in
+                updateAlumawoodPergola { $0.mountType = newValue }
+            }
+        )
+    }
+
+    private var alumawoodWidthBinding: Binding<String> {
+        Binding(
+            get: { scope.structuralSystem?.alumawoodPergola?.width ?? "" },
+            set: { newValue in
+                updateAlumawoodPergola { $0.width = newValue.nilIfBlank }
+            }
+        )
+    }
+
+    private var alumawoodLengthBinding: Binding<String> {
+        Binding(
+            get: { scope.structuralSystem?.alumawoodPergola?.length ?? "" },
+            set: { newValue in
+                updateAlumawoodPergola { $0.length = newValue.nilIfBlank }
+            }
+        )
+    }
+
+    private var alumawoodHeightBinding: Binding<String> {
+        Binding(
+            get: { scope.structuralSystem?.alumawoodPergola?.height ?? "" },
+            set: { newValue in
+                updateAlumawoodPergola { $0.height = newValue.nilIfBlank }
+            }
+        )
+    }
+
+    private var alumawoodAttachmentTypeBinding: Binding<AlumawoodPergolaAttachmentType?> {
+        Binding(
+            get: { scope.structuralSystem?.alumawoodPergola?.attachmentType },
+            set: { newValue in
+                updateAlumawoodPergola { $0.attachmentType = newValue }
+            }
+        )
+    }
+
+    private var alumawoodColorBinding: Binding<AlumawoodPergolaColor?> {
+        Binding(
+            get: { scope.structuralSystem?.alumawoodPergola?.color },
+            set: { newValue in
+                updateAlumawoodPergola { $0.color = newValue }
+            }
+        )
+    }
+
+    private var alumawoodPrivacyWallBinding: Binding<Bool?> {
+        Binding(
+            get: { scope.structuralSystem?.alumawoodPergola?.privacyWall },
+            set: { newValue in
+                updateAlumawoodPergola { $0.privacyWall = newValue }
             }
         )
     }
@@ -1357,6 +1780,61 @@ struct StructuralSystemEditorView: View {
         update(&structuralSystem)
         scope.structuralSystem = structuralSystem.isEffectivelyEmpty ? nil : structuralSystem
         autosave.scheduleSave(for: scope)
+    }
+
+    private func updatePatioCover(_ update: (inout InsulatedAluminumPatioCoverDetails) -> Void) {
+        updateStructuralSystem { structuralSystem in
+            var details = structuralSystem.insulatedAluminumPatioCover ?? emptyInsulatedAluminumPatioCoverDetails()
+            update(&details)
+            structuralSystem.insulatedAluminumPatioCover = details.isEffectivelyEmpty ? nil : details
+        }
+    }
+
+    private func updateCedarPergola(_ update: (inout CedarPergolaDetails) -> Void) {
+        updateStructuralSystem { structuralSystem in
+            var details = structuralSystem.cedarPergola ?? emptyCedarPergolaDetails()
+            update(&details)
+            structuralSystem.cedarPergola = details.isEffectivelyEmpty ? nil : details
+        }
+    }
+
+    private func updateAlumawoodPergola(_ update: (inout AlumawoodPergolaDetails) -> Void) {
+        updateStructuralSystem { structuralSystem in
+            var details = structuralSystem.alumawoodPergola ?? emptyAlumawoodPergolaDetails()
+            update(&details)
+            structuralSystem.alumawoodPergola = details.isEffectivelyEmpty ? nil : details
+        }
+    }
+
+    private func pergolaDimensionBinding(
+        _ keyPath: WritableKeyPath<StructuralSystem, PergolaDimensionDetails?>,
+        _ field: WritableKeyPath<PergolaDimensionDetails, String?>
+    ) -> Binding<String> {
+        Binding(
+            get: { scope.structuralSystem?[keyPath: keyPath]?[keyPath: field] ?? "" },
+            set: { newValue in
+                updateStructuralSystem { structuralSystem in
+                    var details = structuralSystem[keyPath: keyPath] ?? emptyPergolaDimensionDetails()
+                    details[keyPath: field] = newValue.nilIfBlank
+                    structuralSystem[keyPath: keyPath] = details.isEffectivelyEmpty ? nil : details
+                }
+            }
+        )
+    }
+
+    @ViewBuilder
+    private func pergolaDimensionFields(
+        width: Binding<String>,
+        length: Binding<String>,
+        height: Binding<String>,
+        notes: Binding<String>
+    ) -> some View {
+        VStack(spacing: 12) {
+            MeasurementTextField(title: "Width", text: width)
+            MeasurementTextField(title: "Length", text: length)
+            MeasurementTextField(title: "Height", text: height)
+            NotesField(title: "Notes", text: notes, minHeight: 110)
+        }
     }
 }
 
@@ -4244,12 +4722,6 @@ private struct MultiSelectOptionRow: View {
     }
 }
 
-private extension String {
-    var nilIfBlank: String? {
-        trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : self
-    }
-}
-
 private extension Animation {
     static let formReveal = Animation.snappy(duration: 0.24, extraBounce: 0)
 }
@@ -4317,6 +4789,14 @@ private func emptyDimensions() -> Dimensions {
 
 private func emptyStructuralSystem() -> StructuralSystem {
     StructuralSystem(
+        systemType: nil,
+        systemTypeOther: nil,
+        insulatedAluminumPatioCover: nil,
+        pergolaType: nil,
+        motorizedLouveredPergola: nil,
+        manuallyRetractableLouveredPergola: nil,
+        cedarPergola: nil,
+        alumawoodPergola: nil,
         frameMaterial: nil,
         postSize: nil,
         beamType: nil,
@@ -4324,6 +4804,51 @@ private func emptyStructuralSystem() -> StructuralSystem {
         roofColor: nil,
         frameColor: nil,
         notes: nil
+    )
+}
+
+private func emptyInsulatedAluminumPatioCoverDetails() -> InsulatedAluminumPatioCoverDetails {
+    InsulatedAluminumPatioCoverDetails(
+        width: nil,
+        projection: nil,
+        numberOfPosts: nil,
+        roofType: nil
+    )
+}
+
+private func emptyPergolaDimensionDetails() -> PergolaDimensionDetails {
+    PergolaDimensionDetails(
+        width: nil,
+        length: nil,
+        height: nil,
+        notes: nil
+    )
+}
+
+private func emptyCedarPergolaDetails() -> CedarPergolaDetails {
+    CedarPergolaDetails(
+        postSize: nil,
+        postSizeOther: nil,
+        beamSize: nil,
+        beamSizeOther: nil,
+        rafterSize: nil,
+        rafterSizeOther: nil,
+        lattice: nil,
+        hardware: nil,
+        finish: nil,
+        productCode: nil
+    )
+}
+
+private func emptyAlumawoodPergolaDetails() -> AlumawoodPergolaDetails {
+    AlumawoodPergolaDetails(
+        mountType: nil,
+        width: nil,
+        length: nil,
+        height: nil,
+        attachmentType: nil,
+        color: nil,
+        privacyWall: nil
     )
 }
 
@@ -4373,18 +4898,6 @@ private extension Dimensions {
         roofStyle == nil &&
         attachmentType == nil &&
         (elevationNotes ?? "").nilIfBlank == nil
-    }
-}
-
-private extension StructuralSystem {
-    var isEffectivelyEmpty: Bool {
-        frameMaterial == nil &&
-        (postSize ?? "").nilIfBlank == nil &&
-        (beamType ?? "").nilIfBlank == nil &&
-        roofSystem == nil &&
-        (roofColor ?? "").nilIfBlank == nil &&
-        (frameColor ?? "").nilIfBlank == nil &&
-        (notes ?? "").nilIfBlank == nil
     }
 }
 

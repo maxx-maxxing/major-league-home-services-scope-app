@@ -64,12 +64,11 @@ enum ScopeInputKey: String, Codable, CaseIterable, Identifiable {
     case roofStyle
     case attachmentType
     case elevationNotes
-    case frameMaterial
-    case structuralPostSize
-    case beamType
-    case roofSystem
-    case roofColor
-    case frameColor
+    case structuralSystemSelection
+    case pergolaType
+    case structuralSystemDetails
+    case structuralLegacySummary
+    case structuralBranchNotes
     case structuralNotes
     case enclosureType
     case screenWallType
@@ -877,6 +876,7 @@ enum ProposalFoundationBuilder {
     ) -> ProposalCompositionInput {
         let documents = scope.documents
         let exportExistingConditions = scope.existingConditions?.normalizedForExport()
+        let exportStructural = scope.structuralSystem?.normalizedForExport()
         let exportEnclosure = scope.enclosure?.normalizedForExport()
         let checklistPhotoSummary = ChecklistPhotoAssetStore.summary(scopeID: scope.id)
 
@@ -936,13 +936,12 @@ enum ProposalFoundationBuilder {
             ScopeCaptureSectionSnapshot(
                 section: .structuralSystem,
                 values: [
-                    enumValue(.frameMaterial, "Frame Material", scope.structuralSystem?.frameMaterial),
-                    textValue(.structuralPostSize, "Post Size", scope.structuralSystem?.postSize),
-                    textValue(.beamType, "Beam Type", scope.structuralSystem?.beamType),
-                    enumValue(.roofSystem, "Roof System", scope.structuralSystem?.roofSystem),
-                    textValue(.roofColor, "Roof Color", scope.structuralSystem?.roofColor),
-                    textValue(.frameColor, "Frame Color", scope.structuralSystem?.frameColor),
-                    textValue(.structuralNotes, "Structural Notes", scope.structuralSystem?.notes)
+                    textValue(.structuralSystemSelection, "Structural System", exportStructural?.resolvedSelectionDisplayName),
+                    textValue(.pergolaType, "Pergola Type", exportStructural?.pergolaType?.displayName),
+                    textValue(.structuralSystemDetails, "Structural Details", exportStructural?.resolvedDetailSummary),
+                    textValue(.structuralLegacySummary, "Legacy Structural Summary", exportStructural?.systemType == nil ? exportStructural?.legacyFlatSummary : nil),
+                    textValue(.structuralNotes, "Structural Notes", exportStructural?.notes),
+                    textValue(.structuralBranchNotes, "Pergola Notes", exportStructural?.resolvedPergolaNotes)
                 ].compactMap { $0 }
             ),
             ScopeCaptureSectionSnapshot(
@@ -4697,11 +4696,11 @@ extension ProposalTemplateDefinition {
                 id: .structuralSystem,
                 title: "Structural System",
                 sourceSections: [.dimensions, .structuralSystem, .attachmentConditions],
-                customerFacingInputKeys: [.frameMaterial, .structuralPostSize, .beamType, .roofSystem, .roofColor, .frameColor],
-                internalInputKeys: [.postSpacing, .fastenerPlan, .structuralNotes, .attachmentPostSize],
+                customerFacingInputKeys: [.structuralSystemSelection, .pergolaType, .structuralSystemDetails],
+                internalInputKeys: [.structuralLegacySummary, .structuralBranchNotes, .postSpacing, .fastenerPlan, .structuralNotes, .attachmentPostSize],
                 visibility: ProposalVisibilityDefinition(
                     rule: .whenAnyTriggerValueAffirmativeOrMeaningful,
-                    triggerInputKeys: [.frameMaterial, .structuralPostSize, .beamType, .roofSystem, .roofColor, .frameColor]
+                    triggerInputKeys: [.structuralSystemSelection, .pergolaType, .structuralSystemDetails, .structuralLegacySummary, .structuralNotes]
                 ),
                 relatedPricingGroupIDs: ["base-structure"],
                 syncTargets: [
@@ -4845,10 +4844,10 @@ extension ProposalTemplateDefinition {
                         id: "frame-and-roof-package",
                         title: "Frame and Roof Package",
                         summary: "Core structure package driven by dimensions, structural system, and roof selections.",
-                        mappedInputKeys: [.projectType, .widthFeet, .projectionFeet, .roofStyle, .frameMaterial, .roofSystem, .attachmentType],
+                        mappedInputKeys: [.projectType, .widthFeet, .projectionFeet, .roofStyle, .structuralSystemSelection, .structuralSystemDetails, .attachmentType],
                         visibility: ProposalVisibilityDefinition(
                             rule: .whenAnyTriggerValueAffirmativeOrMeaningful,
-                            triggerInputKeys: [.projectType, .widthFeet, .projectionFeet, .roofStyle, .frameMaterial, .roofSystem, .attachmentType]
+                            triggerInputKeys: [.projectType, .widthFeet, .projectionFeet, .roofStyle, .structuralSystemSelection, .structuralSystemDetails, .attachmentType]
                         ),
                         quantitySource: .areaSquareFeet,
                         quantityBasisLabel: "Footprint Area",
@@ -5233,11 +5232,5 @@ private extension ImportedPricingRow {
             valueKind == other.valueKind &&
             numericValue == other.numericValue &&
             stringValue?.nilIfBlank == other.stringValue?.nilIfBlank
-    }
-}
-
-private extension String {
-    var nilIfBlank: String? {
-        trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : trimmingCharacters(in: .whitespacesAndNewlines)
     }
 }

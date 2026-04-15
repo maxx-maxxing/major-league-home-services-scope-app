@@ -322,6 +322,50 @@
     },
     "StructuralSystem": {
       "fields": {
+        "systemType": {
+          "type": "enum",
+          "values": [
+            "insulated_aluminum_patio_cover",
+            "pergola",
+            "none",
+            "other"
+          ],
+          "required": false
+        },
+        "systemTypeOther": {
+          "type": "string",
+          "required": false
+        },
+        "insulatedAluminumPatioCover": {
+          "type": "InsulatedAluminumPatioCoverDetails",
+          "required": false
+        },
+        "pergolaType": {
+          "type": "enum",
+          "values": [
+            "motorized_louvered_pergola",
+            "manually_retractable_louvered_pergola",
+            "cedar_pergola",
+            "alumawood_pergola"
+          ],
+          "required": false
+        },
+        "motorizedLouveredPergola": {
+          "type": "PergolaDimensionDetails",
+          "required": false
+        },
+        "manuallyRetractableLouveredPergola": {
+          "type": "PergolaDimensionDetails",
+          "required": false
+        },
+        "cedarPergola": {
+          "type": "CedarPergolaDetails",
+          "required": false
+        },
+        "alumawoodPergola": {
+          "type": "AlumawoodPergolaDetails",
+          "required": false
+        },
         "frameMaterial": {
           "type": "enum",
           "values": [
@@ -330,13 +374,16 @@
             "steel",
             "other"
           ],
+          "deprecated": true,
           "required": false
         },
         "postSize": {
+          "deprecated": true,
           "type": "string",
           "required": false
         },
         "beamType": {
+          "deprecated": true,
           "type": "string",
           "required": false
         },
@@ -349,18 +396,184 @@
             "shingle",
             "other"
           ],
+          "deprecated": true,
           "required": false
         },
         "roofColor": {
+          "deprecated": true,
           "type": "string",
           "required": false
         },
         "frameColor": {
+          "deprecated": true,
           "type": "string",
           "required": false
         },
         "notes": {
           "type": "string",
+          "required": false
+        }
+      }
+    },
+    "InsulatedAluminumPatioCoverDetails": {
+      "fields": {
+        "width": {
+          "type": "string",
+          "required": false
+        },
+        "projection": {
+          "type": "string",
+          "required": false
+        },
+        "numberOfPosts": {
+          "type": "string",
+          "required": false
+        },
+        "roofType": {
+          "type": "enum",
+          "values": [
+            "shingles",
+            "roll_roofing"
+          ],
+          "required": false
+        }
+      }
+    },
+    "PergolaDimensionDetails": {
+      "fields": {
+        "width": {
+          "type": "string",
+          "required": false
+        },
+        "length": {
+          "type": "string",
+          "required": false
+        },
+        "height": {
+          "type": "string",
+          "required": false
+        },
+        "notes": {
+          "type": "string",
+          "required": false
+        }
+      }
+    },
+    "CedarPergolaDetails": {
+      "fields": {
+        "postSize": {
+          "type": "enum",
+          "values": [
+            "4x4",
+            "6x6",
+            "other"
+          ],
+          "required": false
+        },
+        "postSizeOther": {
+          "type": "string",
+          "required": false
+        },
+        "beamSize": {
+          "type": "enum",
+          "values": [
+            "2x8",
+            "other"
+          ],
+          "required": false
+        },
+        "beamSizeOther": {
+          "type": "string",
+          "required": false
+        },
+        "rafterSize": {
+          "type": "enum",
+          "values": [
+            "2x6",
+            "other"
+          ],
+          "required": false
+        },
+        "rafterSizeOther": {
+          "type": "string",
+          "required": false
+        },
+        "lattice": {
+          "type": "enum",
+          "values": [
+            "2x2",
+            "2x4"
+          ],
+          "required": false
+        },
+        "hardware": {
+          "type": "enum",
+          "values": [
+            "galvanized",
+            "ornamental"
+          ],
+          "required": false
+        },
+        "finish": {
+          "type": "enum",
+          "values": [
+            "stained",
+            "painted"
+          ],
+          "required": false
+        },
+        "productCode": {
+          "type": "string",
+          "required": false
+        }
+      }
+    },
+    "AlumawoodPergolaDetails": {
+      "fields": {
+        "mountType": {
+          "type": "enum",
+          "values": [
+            "freestanding",
+            "attached"
+          ],
+          "required": false
+        },
+        "width": {
+          "type": "string",
+          "required": false
+        },
+        "length": {
+          "type": "string",
+          "required": false
+        },
+        "height": {
+          "type": "string",
+          "required": false
+        },
+        "attachmentType": {
+          "type": "enum",
+          "values": [
+            "isolated_footing",
+            "surface_attachment"
+          ],
+          "required": false
+        },
+        "color": {
+          "type": "enum",
+          "values": [
+            "white",
+            "desert_sand",
+            "mojave",
+            "tan",
+            "latte",
+            "adobe",
+            "spanish_brown",
+            "graphite"
+          ],
+          "required": false
+        },
+        "privacyWall": {
+          "type": "bool",
           "required": false
         }
       }

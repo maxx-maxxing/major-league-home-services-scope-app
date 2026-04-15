@@ -9,6 +9,7 @@
 - Milestone 2.2: Implemented (remaining schema-backed section editors)
 - Milestone 2.3: Implemented (Existing Conditions multi-select workflow alignment)
 - Milestone 2.3.1: Implemented (Existing Conditions photo checklist structured photo workflow)
+- Milestone 2.3.2: Implemented (Structural System branching workflow alignment)
 - Milestone 3: Implemented (PencilKit signature + sketch capture)
 - Milestone 3.4.1: Implemented (Signature/diagram persistence repair)
 - Milestone 3.4.2: Implemented (immediate sketch metadata durability)
@@ -58,6 +59,53 @@
 - Milestone 7.6.3: In progress (persistence schema discipline, with checklist store-compatibility repair applied)
 
 ## Decisions
+- Milestone 2.3.2 Structural System branching workflow alignment:
+  - Task scope:
+    - replace the flat Structural System `Frame Material` / `Roof System` form with the client-approved branching workflow
+    - keep the change limited to structural storage, editor UI, and proposal/PDF/export composition
+    - preserve inactive child branch values during editing but exclude them from export output
+  - Implementation direction:
+    - trace the current structural data flow end to end before editing
+    - preserve decode compatibility for previously saved flat structural payloads where practical
+    - prefer explicit structured branch state and export-time pruning rather than view-only conditionals or flattened hacks
+  - Implemented model/UI/output change:
+    - updated [schema.json](/Users/maxx/Documents/major-league-home-services-scope-app/construction-scope-app/schema.json) so `StructuralSystem` now defines an explicit top-level system selection plus branch-specific nested detail types for patio-cover and pergola workflows, while retaining the old flat fields as deprecated compatibility fields
+    - updated [SchemaModels.swift](/Users/maxx/Documents/major-league-home-services-scope-app/construction-scope-app/Models/SchemaModels.swift) so Structural System uses explicit branching enums/details, preserves legacy flat-value decoding, and normalizes/prunes inactive branch values for export
+    - replaced the old flat structural editor in [SectionEditors.swift](/Users/maxx/Documents/major-league-home-services-scope-app/construction-scope-app/Views/SectionEditors.swift) with a progressive-disclosure decision tree covering:
+      - Insulated Aluminum Patio Cover
+      - Pergola with Motorized / Manually Retractable / Cedar / Alumawood branches
+      - None
+      - Other with labeled write-in text
+    - added a legacy-summary card in the editor so previously saved flat structural values remain visible until a user actively re-selects the new workflow
+    - updated [PricingProposalFoundation.swift](/Users/maxx/Documents/major-league-home-services-scope-app/construction-scope-app/Models/PricingProposalFoundation.swift) so proposal/debug snapshot output reads normalized structural selection/detail summaries instead of the removed flat frame/roof fields
+    - updated [PDFPreviewStubView.swift](/Users/maxx/Documents/major-league-home-services-scope-app/construction-scope-app/PDFEngine/PDFPreviewStubView.swift) so page-three structural rows render only the active branch, and export generation now prunes inactive structural branch state back onto the live scope just like the recent Enclosure / Existing Conditions export path
+  - Persistence / migration note:
+    - this is a real additive persisted-shape change under `JobScope.structuralSystem`, because new stored branch fields and nested types were introduced
+    - legacy flat structural payloads still decode in-code because the old fields remain present and readable
+    - however, same-device SwiftData store compatibility across installed beta builds is not fully proven by decode fallback alone; this change should be treated as needing installed-store upgrade validation before it is considered zero-risk for existing TestFlight data
+  - Validation:
+    - attempted:
+      - `xcodebuild -project ConstructionScopeApp.xcodeproj -scheme ConstructionScopeApp -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' -derivedDataPath /tmp/ConstructionScopeAppDerivedData CODE_SIGNING_ALLOWED=NO build`
+    - result:
+      - app compilation progressed through normal target graph, Swift driver, and linking work with no surfaced Swift compile errors from the structural change set
+      - the build still failed in this environment during simulator asset-catalog compilation because `actool` could not access any simulator runtimes (`No available simulator runtimes for platform iphonesimulator`)
+
+- Milestone 2.3.2 compile repair follow-up:
+  - Root causes repaired:
+    - `nilIfBlank` was only defined in file-scoped extensions, but the new structural model and PDF code referenced it across files
+    - several new Structural System summary properties used large chained array/map/join expressions that were heavier for the type checker than necessary
+    - optional enum switch cases used shorthand patterns like `.insulatedAluminumPatioCover` and `.none`, which made the compiler infer optional enum cases ambiguously
+  - What changed:
+    - moved `nilIfBlank` to a shared module-visible `String` extension in [SchemaModels.swift](/Users/maxx/Documents/major-league-home-services-scope-app/construction-scope-app/Models/SchemaModels.swift) and removed duplicate file-local definitions from affected files
+    - simplified structural summary composition in [SchemaModels.swift](/Users/maxx/Documents/major-league-home-services-scope-app/construction-scope-app/Models/SchemaModels.swift) with small helper functions instead of deeply chained expressions
+    - made Structural System and Pergola optional switch cases explicit in [SchemaModels.swift](/Users/maxx/Documents/major-league-home-services-scope-app/construction-scope-app/Models/SchemaModels.swift) and [PDFPreviewStubView.swift](/Users/maxx/Documents/major-league-home-services-scope-app/construction-scope-app/PDFEngine/PDFPreviewStubView.swift)
+  - Validation:
+    - re-ran clean build:
+      - `xcodebuild -project ConstructionScopeApp.xcodeproj -scheme ConstructionScopeApp -destination 'generic/platform=iOS' -derivedDataPath /tmp/ConstructionScopeAppCompileRepairDerivedData CODE_SIGNING_ALLOWED=NO clean build`
+    - result:
+      - no source compile diagnostics for `SchemaModels.swift` or `PDFPreviewStubView.swift` surfaced before the environment-specific asset-catalog failure
+      - build still stops later on `Assets.xcassets: error: No available simulator runtimes for platform iphonesimulator`
+
 - Milestone 7.6.3 Existing Conditions store compatibility repair:
   - Release-blocking symptom:
     - launch opened directly to `Local Data Unavailable`

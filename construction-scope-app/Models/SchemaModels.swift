@@ -160,6 +160,151 @@ enum RoofSystem: String, Codable, CaseIterable, SchemaEnumDisplayable {
     case other
 }
 
+enum StructuralSystemType: String, Codable, CaseIterable, SchemaEnumDisplayable {
+    case insulatedAluminumPatioCover = "insulated_aluminum_patio_cover"
+    case pergola
+    case none
+    case other
+
+    var displayName: String {
+        switch self {
+        case .insulatedAluminumPatioCover: return "Insulated Aluminum Patio Cover"
+        case .pergola: return "Pergola"
+        case .none: return "None"
+        case .other: return "Other"
+        }
+    }
+}
+
+enum PatioCoverRoofType: String, Codable, CaseIterable, SchemaEnumDisplayable {
+    case shingles
+    case rollRoofing = "roll_roofing"
+
+    var displayName: String {
+        switch self {
+        case .shingles: return "Shingles"
+        case .rollRoofing: return "Roll Roofing"
+        }
+    }
+}
+
+enum PergolaType: String, Codable, CaseIterable, SchemaEnumDisplayable {
+    case motorizedLouveredPergola = "motorized_louvered_pergola"
+    case manuallyRetractableLouveredPergola = "manually_retractable_louvered_pergola"
+    case cedarPergola = "cedar_pergola"
+    case alumawoodPergola = "alumawood_pergola"
+
+    var displayName: String {
+        switch self {
+        case .motorizedLouveredPergola: return "Motorized Louvered Pergola"
+        case .manuallyRetractableLouveredPergola: return "Manually Retractable Louvered Pergola"
+        case .cedarPergola: return "Cedar Pergola"
+        case .alumawoodPergola: return "Alumawood Pergola"
+        }
+    }
+}
+
+enum CedarPergolaPostSize: String, Codable, CaseIterable, SchemaEnumDisplayable {
+    case fourByFour = "4x4"
+    case sixBySix = "6x6"
+    case other
+
+    var displayName: String {
+        switch self {
+        case .fourByFour: return "4x4"
+        case .sixBySix: return "6x6"
+        case .other: return "Other"
+        }
+    }
+}
+
+enum CedarPergolaBeamSize: String, Codable, CaseIterable, SchemaEnumDisplayable {
+    case twoByEight = "2x8"
+    case other
+
+    var displayName: String {
+        switch self {
+        case .twoByEight: return "2x8"
+        case .other: return "Other"
+        }
+    }
+}
+
+enum CedarPergolaRafterSize: String, Codable, CaseIterable, SchemaEnumDisplayable {
+    case twoBySix = "2x6"
+    case other
+
+    var displayName: String {
+        switch self {
+        case .twoBySix: return "2x6"
+        case .other: return "Other"
+        }
+    }
+}
+
+enum CedarPergolaLattice: String, Codable, CaseIterable, SchemaEnumDisplayable {
+    case twoByTwo = "2x2"
+    case twoByFour = "2x4"
+
+    var displayName: String {
+        switch self {
+        case .twoByTwo: return "2x2"
+        case .twoByFour: return "2x4"
+        }
+    }
+}
+
+enum CedarPergolaHardware: String, Codable, CaseIterable, SchemaEnumDisplayable {
+    case galvanized
+    case ornamental
+}
+
+enum CedarPergolaFinish: String, Codable, CaseIterable, SchemaEnumDisplayable {
+    case stained
+    case painted
+}
+
+enum AlumawoodPergolaMountType: String, Codable, CaseIterable, SchemaEnumDisplayable {
+    case freestanding
+    case attached
+}
+
+enum AlumawoodPergolaAttachmentType: String, Codable, CaseIterable, SchemaEnumDisplayable {
+    case isolatedFooting = "isolated_footing"
+    case surfaceAttachment = "surface_attachment"
+
+    var displayName: String {
+        switch self {
+        case .isolatedFooting: return "Isolated Footing"
+        case .surfaceAttachment: return "Surface Attachment"
+        }
+    }
+}
+
+enum AlumawoodPergolaColor: String, Codable, CaseIterable, SchemaEnumDisplayable {
+    case white
+    case desertSand = "desert_sand"
+    case mojave
+    case tan
+    case latte
+    case adobe
+    case spanishBrown = "spanish_brown"
+    case graphite
+
+    var displayName: String {
+        switch self {
+        case .white: return "White"
+        case .desertSand: return "Desert Sand"
+        case .mojave: return "Mojave"
+        case .tan: return "Tan"
+        case .latte: return "Latte"
+        case .adobe: return "Adobe"
+        case .spanishBrown: return "Spanish Brown"
+        case .graphite: return "Graphite"
+        }
+    }
+}
+
 enum EnclosureType: String, Codable, CaseIterable, SchemaEnumDisplayable {
     case screenEnclosure = "screen_enclosure"
     case vinylWindowEnclosure = "vinyl_window_enclosure"
@@ -958,7 +1103,191 @@ struct Dimensions: Codable, Hashable {
     var elevationNotes: String?
 }
 
+struct InsulatedAluminumPatioCoverDetails: Codable, Hashable {
+    var width: String?
+    var projection: String?
+    var numberOfPosts: String?
+    var roofType: PatioCoverRoofType?
+
+    var isEffectivelyEmpty: Bool {
+        width?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty != false &&
+        projection?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty != false &&
+        numberOfPosts?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty != false &&
+        roofType == nil
+    }
+
+    mutating func pruneForExport() {
+        width = width?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty
+        projection = projection?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty
+        numberOfPosts = numberOfPosts?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty
+    }
+
+    var detailSummary: String? {
+        structuralSummaryParts([
+            labeledStructuralValue("Width", width),
+            labeledStructuralValue("Projection", projection),
+            labeledStructuralValue("Number of Posts", numberOfPosts),
+            labeledStructuralValue("Roof Type", roofType?.displayName)
+        ])
+    }
+}
+
+struct PergolaDimensionDetails: Codable, Hashable {
+    var width: String?
+    var length: String?
+    var height: String?
+    var notes: String?
+
+    var isEffectivelyEmpty: Bool {
+        width?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty != false &&
+        length?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty != false &&
+        height?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty != false &&
+        notes?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty != false
+    }
+
+    mutating func pruneForExport() {
+        width = width?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty
+        length = length?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty
+        height = height?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty
+        notes = notes?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty
+    }
+
+    var dimensionSummary: String? {
+        structuralSummaryParts([
+            labeledStructuralValue("Width", width),
+            labeledStructuralValue("Length", length),
+            labeledStructuralValue("Height", height)
+        ])
+    }
+}
+
+struct CedarPergolaDetails: Codable, Hashable {
+    var postSize: CedarPergolaPostSize?
+    var postSizeOther: String?
+    var beamSize: CedarPergolaBeamSize?
+    var beamSizeOther: String?
+    var rafterSize: CedarPergolaRafterSize?
+    var rafterSizeOther: String?
+    var lattice: CedarPergolaLattice?
+    var hardware: CedarPergolaHardware?
+    var finish: CedarPergolaFinish?
+    var productCode: String?
+
+    var isEffectivelyEmpty: Bool {
+        postSize == nil &&
+        postSizeOther?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty != false &&
+        beamSize == nil &&
+        beamSizeOther?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty != false &&
+        rafterSize == nil &&
+        rafterSizeOther?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty != false &&
+        lattice == nil &&
+        hardware == nil &&
+        finish == nil &&
+        productCode?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty != false
+    }
+
+    mutating func pruneForExport() {
+        if postSize != .other {
+            postSizeOther = nil
+        } else {
+            postSizeOther = postSizeOther?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty
+        }
+
+        if beamSize != .other {
+            beamSizeOther = nil
+        } else {
+            beamSizeOther = beamSizeOther?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty
+        }
+
+        if rafterSize != .other {
+            rafterSizeOther = nil
+        } else {
+            rafterSizeOther = rafterSizeOther?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty
+        }
+
+        productCode = productCode?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty
+    }
+
+    var detailSummary: String? {
+        structuralSummaryParts([
+            labeledStructuralValue("Post Size", resolvedPostSize),
+            labeledStructuralValue("Beam Size", resolvedBeamSize),
+            labeledStructuralValue("Rafter Size", resolvedRafterSize),
+            labeledStructuralValue("Lattice", lattice?.displayName),
+            labeledStructuralValue("Hardware", hardware?.displayName),
+            labeledStructuralValue("Finish", finish?.displayName),
+            labeledStructuralValue("Product Code", productCode)
+        ])
+    }
+
+    var resolvedPostSize: String? {
+        postSize == .other ? (postSizeOther?.nilIfBlank ?? postSize?.displayName) : postSize?.displayName
+    }
+
+    var resolvedBeamSize: String? {
+        beamSize == .other ? (beamSizeOther?.nilIfBlank ?? beamSize?.displayName) : beamSize?.displayName
+    }
+
+    var resolvedRafterSize: String? {
+        rafterSize == .other ? (rafterSizeOther?.nilIfBlank ?? rafterSize?.displayName) : rafterSize?.displayName
+    }
+}
+
+struct AlumawoodPergolaDetails: Codable, Hashable {
+    var mountType: AlumawoodPergolaMountType?
+    var width: String?
+    var length: String?
+    var height: String?
+    var attachmentType: AlumawoodPergolaAttachmentType?
+    var color: AlumawoodPergolaColor?
+    var privacyWall: Bool?
+
+    var isEffectivelyEmpty: Bool {
+        mountType == nil &&
+        width?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty != false &&
+        length?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty != false &&
+        height?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty != false &&
+        attachmentType == nil &&
+        color == nil &&
+        privacyWall == nil
+    }
+
+    mutating func pruneForExport() {
+        width = width?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty
+        length = length?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty
+        height = height?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty
+    }
+
+    var layoutSummary: String? {
+        structuralSummaryParts([
+            labeledStructuralValue("Width", width),
+            labeledStructuralValue("Length", length),
+            labeledStructuralValue("Height", height)
+        ])
+    }
+
+    var detailSummary: String? {
+        let privacyWallSummary = privacyWall.map { $0 ? "Yes" : "No" }
+
+        return structuralSummaryParts([
+            labeledStructuralValue("Mount Type", mountType?.displayName),
+            layoutSummary,
+            labeledStructuralValue("Attachment Type", attachmentType?.displayName),
+            labeledStructuralValue("Color", color?.displayName),
+            labeledStructuralValue("Privacy Wall", privacyWallSummary)
+        ])
+    }
+}
+
 struct StructuralSystem: Codable, Hashable {
+    var systemType: StructuralSystemType?
+    var systemTypeOther: String?
+    var insulatedAluminumPatioCover: InsulatedAluminumPatioCoverDetails?
+    var pergolaType: PergolaType?
+    var motorizedLouveredPergola: PergolaDimensionDetails?
+    var manuallyRetractableLouveredPergola: PergolaDimensionDetails?
+    var cedarPergola: CedarPergolaDetails?
+    var alumawoodPergola: AlumawoodPergolaDetails?
     var frameMaterial: FrameMaterial?
     var postSize: String?
     var beamType: String?
@@ -966,6 +1295,254 @@ struct StructuralSystem: Codable, Hashable {
     var roofColor: String?
     var frameColor: String?
     var notes: String?
+
+    var hasLegacyFlatValues: Bool {
+        frameMaterial != nil ||
+        postSize?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false ||
+        beamType?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false ||
+        roofSystem != nil ||
+        roofColor?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false ||
+        frameColor?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false
+    }
+
+    var legacyFlatSummary: String? {
+        structuralSummaryParts([
+            labeledStructuralValue("Frame Material", frameMaterial?.displayName),
+            labeledStructuralValue("Post Size", postSize),
+            labeledStructuralValue("Beam Type", beamType),
+            labeledStructuralValue("Roof System", roofSystem?.displayName),
+            labeledStructuralValue("Roof Color", roofColor),
+            labeledStructuralValue("Frame Color", frameColor)
+        ])
+    }
+
+    var resolvedSelectionDisplayName: String? {
+        if let systemType {
+            if systemType == .other {
+                return systemTypeOther?.nilIfBlank ?? systemType.displayName
+            }
+            return systemType.displayName
+        }
+        return nil
+    }
+
+    var resolvedDetailSummary: String? {
+        switch systemType {
+        case .some(.insulatedAluminumPatioCover):
+            return insulatedAluminumPatioCover?.detailSummary
+        case .some(.pergola):
+            switch pergolaType {
+            case .some(.motorizedLouveredPergola):
+                return motorizedLouveredPergola?.dimensionSummary
+            case .some(.manuallyRetractableLouveredPergola):
+                return manuallyRetractableLouveredPergola?.dimensionSummary
+            case .some(.cedarPergola):
+                return cedarPergola?.detailSummary
+            case .some(.alumawoodPergola):
+                return alumawoodPergola?.detailSummary
+            case .none:
+                return nil
+            }
+        case .some(.none), .some(.other), nil:
+            return nil
+        }
+    }
+
+    var resolvedPergolaNotes: String? {
+        guard systemType == .pergola else { return nil }
+
+        switch pergolaType {
+        case .motorizedLouveredPergola:
+            return motorizedLouveredPergola?.notes?.nilIfBlank
+        case .manuallyRetractableLouveredPergola:
+            return manuallyRetractableLouveredPergola?.notes?.nilIfBlank
+        default:
+            return nil
+        }
+    }
+
+    var isEffectivelyEmpty: Bool {
+        systemType == nil &&
+        systemTypeOther?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty != false &&
+        insulatedAluminumPatioCover == nil &&
+        pergolaType == nil &&
+        motorizedLouveredPergola == nil &&
+        manuallyRetractableLouveredPergola == nil &&
+        cedarPergola == nil &&
+        alumawoodPergola == nil &&
+        !hasLegacyFlatValues &&
+        notes?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty != false
+    }
+
+    mutating func pruneInactiveDependentValuesForExport() {
+        notes = notes?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty
+        systemTypeOther = systemTypeOther?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty
+
+        if systemType != .other {
+            systemTypeOther = nil
+        }
+
+        if systemType == .insulatedAluminumPatioCover {
+            insulatedAluminumPatioCover?.pruneForExport()
+            insulatedAluminumPatioCover = insulatedAluminumPatioCover?.isEffectivelyEmpty == true ? nil : insulatedAluminumPatioCover
+            pergolaType = nil
+            motorizedLouveredPergola = nil
+            manuallyRetractableLouveredPergola = nil
+            cedarPergola = nil
+            alumawoodPergola = nil
+        } else if systemType == .pergola {
+            insulatedAluminumPatioCover = nil
+
+            switch pergolaType {
+            case .motorizedLouveredPergola:
+                motorizedLouveredPergola?.pruneForExport()
+                motorizedLouveredPergola = motorizedLouveredPergola?.isEffectivelyEmpty == true ? nil : motorizedLouveredPergola
+                manuallyRetractableLouveredPergola = nil
+                cedarPergola = nil
+                alumawoodPergola = nil
+            case .manuallyRetractableLouveredPergola:
+                manuallyRetractableLouveredPergola?.pruneForExport()
+                manuallyRetractableLouveredPergola = manuallyRetractableLouveredPergola?.isEffectivelyEmpty == true ? nil : manuallyRetractableLouveredPergola
+                motorizedLouveredPergola = nil
+                cedarPergola = nil
+                alumawoodPergola = nil
+            case .cedarPergola:
+                cedarPergola?.pruneForExport()
+                cedarPergola = cedarPergola?.isEffectivelyEmpty == true ? nil : cedarPergola
+                motorizedLouveredPergola = nil
+                manuallyRetractableLouveredPergola = nil
+                alumawoodPergola = nil
+            case .alumawoodPergola:
+                alumawoodPergola?.pruneForExport()
+                alumawoodPergola = alumawoodPergola?.isEffectivelyEmpty == true ? nil : alumawoodPergola
+                motorizedLouveredPergola = nil
+                manuallyRetractableLouveredPergola = nil
+                cedarPergola = nil
+            case .none:
+                motorizedLouveredPergola = nil
+                manuallyRetractableLouveredPergola = nil
+                cedarPergola = nil
+                alumawoodPergola = nil
+            }
+        } else {
+            insulatedAluminumPatioCover = nil
+            pergolaType = nil
+            motorizedLouveredPergola = nil
+            manuallyRetractableLouveredPergola = nil
+            cedarPergola = nil
+            alumawoodPergola = nil
+        }
+
+        if systemType != nil {
+            frameMaterial = nil
+            postSize = nil
+            beamType = nil
+            roofSystem = nil
+            roofColor = nil
+            frameColor = nil
+        } else {
+            postSize = postSize?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty
+            beamType = beamType?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty
+            roofColor = roofColor?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty
+            frameColor = frameColor?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty
+        }
+    }
+
+    func normalizedForExport() -> StructuralSystem? {
+        var normalized = self
+        normalized.pruneInactiveDependentValuesForExport()
+        return normalized.isEffectivelyEmpty ? nil : normalized
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case systemType
+        case systemTypeOther
+        case insulatedAluminumPatioCover
+        case pergolaType
+        case motorizedLouveredPergola
+        case manuallyRetractableLouveredPergola
+        case cedarPergola
+        case alumawoodPergola
+        case frameMaterial
+        case postSize
+        case beamType
+        case roofSystem
+        case roofColor
+        case frameColor
+        case notes
+    }
+
+    init(
+        systemType: StructuralSystemType? = nil,
+        systemTypeOther: String? = nil,
+        insulatedAluminumPatioCover: InsulatedAluminumPatioCoverDetails? = nil,
+        pergolaType: PergolaType? = nil,
+        motorizedLouveredPergola: PergolaDimensionDetails? = nil,
+        manuallyRetractableLouveredPergola: PergolaDimensionDetails? = nil,
+        cedarPergola: CedarPergolaDetails? = nil,
+        alumawoodPergola: AlumawoodPergolaDetails? = nil,
+        frameMaterial: FrameMaterial? = nil,
+        postSize: String? = nil,
+        beamType: String? = nil,
+        roofSystem: RoofSystem? = nil,
+        roofColor: String? = nil,
+        frameColor: String? = nil,
+        notes: String? = nil
+    ) {
+        self.systemType = systemType
+        self.systemTypeOther = systemTypeOther?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty
+        self.insulatedAluminumPatioCover = insulatedAluminumPatioCover?.isEffectivelyEmpty == true ? nil : insulatedAluminumPatioCover
+        self.pergolaType = pergolaType
+        self.motorizedLouveredPergola = motorizedLouveredPergola?.isEffectivelyEmpty == true ? nil : motorizedLouveredPergola
+        self.manuallyRetractableLouveredPergola = manuallyRetractableLouveredPergola?.isEffectivelyEmpty == true ? nil : manuallyRetractableLouveredPergola
+        self.cedarPergola = cedarPergola?.isEffectivelyEmpty == true ? nil : cedarPergola
+        self.alumawoodPergola = alumawoodPergola?.isEffectivelyEmpty == true ? nil : alumawoodPergola
+        self.frameMaterial = frameMaterial
+        self.postSize = postSize?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty
+        self.beamType = beamType?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty
+        self.roofSystem = roofSystem
+        self.roofColor = roofColor?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty
+        self.frameColor = frameColor?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty
+        self.notes = notes?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        systemType = try container.decodeIfPresent(StructuralSystemType.self, forKey: .systemType)
+        systemTypeOther = try container.decodeIfPresent(String.self, forKey: .systemTypeOther)
+        insulatedAluminumPatioCover = try container.decodeIfPresent(InsulatedAluminumPatioCoverDetails.self, forKey: .insulatedAluminumPatioCover)
+        pergolaType = try container.decodeIfPresent(PergolaType.self, forKey: .pergolaType)
+        motorizedLouveredPergola = try container.decodeIfPresent(PergolaDimensionDetails.self, forKey: .motorizedLouveredPergola)
+        manuallyRetractableLouveredPergola = try container.decodeIfPresent(PergolaDimensionDetails.self, forKey: .manuallyRetractableLouveredPergola)
+        cedarPergola = try container.decodeIfPresent(CedarPergolaDetails.self, forKey: .cedarPergola)
+        alumawoodPergola = try container.decodeIfPresent(AlumawoodPergolaDetails.self, forKey: .alumawoodPergola)
+        frameMaterial = try container.decodeIfPresent(FrameMaterial.self, forKey: .frameMaterial)
+        postSize = try container.decodeIfPresent(String.self, forKey: .postSize)
+        beamType = try container.decodeIfPresent(String.self, forKey: .beamType)
+        roofSystem = try container.decodeIfPresent(RoofSystem.self, forKey: .roofSystem)
+        roofColor = try container.decodeIfPresent(String.self, forKey: .roofColor)
+        frameColor = try container.decodeIfPresent(String.self, forKey: .frameColor)
+        notes = try container.decodeIfPresent(String.self, forKey: .notes)
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encodeIfPresent(systemType, forKey: .systemType)
+        try container.encodeIfPresent(systemTypeOther?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty, forKey: .systemTypeOther)
+        try container.encodeIfPresent(insulatedAluminumPatioCover?.isEffectivelyEmpty == true ? nil : insulatedAluminumPatioCover, forKey: .insulatedAluminumPatioCover)
+        try container.encodeIfPresent(pergolaType, forKey: .pergolaType)
+        try container.encodeIfPresent(motorizedLouveredPergola?.isEffectivelyEmpty == true ? nil : motorizedLouveredPergola, forKey: .motorizedLouveredPergola)
+        try container.encodeIfPresent(manuallyRetractableLouveredPergola?.isEffectivelyEmpty == true ? nil : manuallyRetractableLouveredPergola, forKey: .manuallyRetractableLouveredPergola)
+        try container.encodeIfPresent(cedarPergola?.isEffectivelyEmpty == true ? nil : cedarPergola, forKey: .cedarPergola)
+        try container.encodeIfPresent(alumawoodPergola?.isEffectivelyEmpty == true ? nil : alumawoodPergola, forKey: .alumawoodPergola)
+        try container.encodeIfPresent(frameMaterial, forKey: .frameMaterial)
+        try container.encodeIfPresent(postSize?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty, forKey: .postSize)
+        try container.encodeIfPresent(beamType?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty, forKey: .beamType)
+        try container.encodeIfPresent(roofSystem, forKey: .roofSystem)
+        try container.encodeIfPresent(roofColor?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty, forKey: .roofColor)
+        try container.encodeIfPresent(frameColor?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty, forKey: .frameColor)
+        try container.encodeIfPresent(notes?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty, forKey: .notes)
+    }
 }
 
 struct Enclosure: Codable, Hashable {
@@ -1835,7 +2412,23 @@ enum ScopeTemplate {
     }
 }
 
-private extension String {
+private func labeledStructuralValue(_ label: String, _ value: String?) -> String? {
+    guard let value = value?.nilIfBlank else { return nil }
+    return "\(label): \(value)"
+}
+
+private func structuralSummaryParts(_ parts: [String?]) -> String? {
+    let values = parts.compactMap { $0?.nilIfBlank }
+    guard !values.isEmpty else { return nil }
+    return values.joined(separator: " • ")
+}
+
+extension String {
+    var nilIfBlank: String? {
+        let trimmed = trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? nil : trimmed
+    }
+
     var nilIfEmpty: String? {
         isEmpty ? nil : self
     }

@@ -4,71 +4,143 @@ Current working focus:
 Production-hardening for TestFlight field beta distribution, while continuing small, surgical workflow improvements that directly support real field use.
 
 Current active feature task:
-Update the Existing Conditions section so the Photo Checklist becomes a structured photo-capture workflow instead of the current tri-state Not Set / Yes / No control pattern.
+Restructure the Structural System section so it follows the client-approved decision-tree workflow rather than the current shallow Frame Material / Roof System form.
 
-Required Existing Conditions behavior:
+Required Structural System behavior:
 
-Exterior Finish:
-- The current single Exterior Finish selector is no longer sufficient
-- Replace the current Exterior Finish behavior with a first-level multi-select that allows selecting any combination of:
-  - Posts/Columns
-  - Exterior House Wall
-- These first-level Exterior Finish options must each be independently selectable and unselectable
-- If Posts/Columns is selected, a dependent multi-select material control must appear for Posts/Columns with:
-  - Wood
-  - Brick
-  - Stone
-  - Hardie
-- If Exterior House Wall is selected, a dependent multi-select material control must appear for Exterior House Wall with:
-  - Wood
-  - Vinyl
-  - Brick
-  - Stone
-  - Hardie
-  - LP Siding
+Structural System:
+- The current Structure section is too shallow and does not reflect the real estimator workflow
+- Replace the current Structure / Roof + Finish flow with a top-level Structural System workflow
+- Structural System should be a single primary selection that drives conditional UI
+- Initial Structural System options should be:
+  - Insulated Aluminum Patio Cover
+  - Pergola
+  - None
   - Other
-- If Exterior House Wall -> Other is selected, a required text field must appear that clearly refers to that specific Other selection
-- If Posts/Columns is selected, two additional dependent controls must also appear:
-  - Post Trim = yes/no
-  - Trim Thickness = free text field
-- Nested selections should support multiple simultaneous selections where applicable
-- The UI should make parent/child relationships obvious and field-friendly
+- If Other is selected, a clearly labeled required text field should appear
 
-Existing Structure:
-- Keep the current Existing Structure option list
-- Change Existing Structure from single-select to multi-select
-- The user must be able to select any combination of Existing Structure options
-- No new dependent fields are required for Existing Structure at this time
+Insulated Aluminum Patio Cover:
+- If Structural System = Insulated Aluminum Patio Cover, show fields for:
+  - Width
+  - Projection
+  - Number of Posts
+  - Roof Type
+- Width should reflect the client note that this is typically handled in 4-foot increments
+- Projection should reflect the client note that this is typically handled in 2-foot increments
+- Number of Posts should be captured as a field; client notes suggest:
+  - 20 feet or less = 2 posts
+  - 20+ feet = 3 or more posts
+- Roof Type options should include:
+  - Shingles
+  - Roll Roofing
 
-Photo Checklist:
-- The current Photo Checklist tri-state controls (Not Set / Yes / No) should be replaced with a structured per-category photo workflow
-- Each checklist category should allow multiple photos
-- Each checklist category should support adding images from:
-  - Camera
-  - Photo Library
-  - Files
-- If no photos are attached for a category, that category can simply remain blank; there is no need for a separate explicit status control
-- Each checklist category should display a clean, field-friendly thumbnail strip / thumbnail stack when photos exist
-- The thumbnail presentation should make multiple attached photos visible and tappable at a glance, with horizontal scrolling if needed
-- Tapping the row / preview area should support inline expand/collapse behavior for a richer photo view
-- Long-pressing a photo thumbnail should offer appropriate management actions such as:
-  - Remove
-  - Preview / Quick Look
-- The row should also support direct photo-management actions such as:
-  - Add more photos
-  - Remove individual photos
-- This structured Photo Checklist workflow should remain separate from the general Documents / Attachments section
-- The resulting checklist photos should be included in PDF export in a clean, understandable labeled format at reasonable visible size; they do not need a full page per image
+Pergola:
+- If Structural System = Pergola, show a Pergola Type selector
+- Pergola Type options should be:
+  - Motorized Louvered Pergola
+  - Manually Retractable Louvered Pergola
+  - Cedar Pergola
+  - Alumawood Pergola
+
+Motorized Louvered Pergola:
+- If Pergola Type = Motorized Louvered Pergola, show:
+  - Width
+  - Length
+  - Height
+  - Optional notes/help text if needed for client guidance
+- Preserve the client note that max-per-unit constraints may apply, but keep first-pass implementation practical and not overengineered
+
+Manually Retractable Louvered Pergola:
+- If Pergola Type = Manually Retractable Louvered Pergola, show:
+  - Width
+  - Length
+  - Height
+  - Optional notes
+- Treat this similarly to the Motorized Louvered branch for the first implementation pass unless the client later specifies more detailed branching
+
+Cedar Pergola:
+- If Pergola Type = Cedar Pergola, show:
+  - Post Size
+  - Beam Size
+  - Rafter Size
+  - Lattice
+  - Hardware
+  - Finish
+  - Product Code
+- Cedar Pergola field behavior:
+  - Post Size options:
+    - 4x4
+    - 6x6
+    - Other
+  - If Post Size = Other, show a write-in field
+  - Beam Size options:
+    - 2x8
+    - Other
+  - If Beam Size = Other, show a write-in field
+  - Rafter Size options:
+    - 2x6
+    - Other
+  - If Rafter Size = Other, show a write-in field
+  - Lattice options:
+    - 2x2
+    - 2x4
+  - Hardware options:
+    - Galvanized
+    - Ornamental
+  - Finish options:
+    - Stained
+    - Painted
+  - Product Code should be a write-in field
+
+Alumawood Pergola:
+- If Pergola Type = Alumawood Pergola, show:
+  - Mount Type
+  - Layout / Dimensions
+  - Attachment Type
+  - Color
+  - Privacy Wall
+  - Dimensions / Notes as needed
+- Alumawood Pergola field behavior:
+  - Mount Type options:
+    - Freestanding
+    - Attached
+  - Layout should support Width x Length x Height
+  - Attachment Type options:
+    - Isolated Footing
+    - Surface Attachment
+  - Color options:
+    - White
+    - Desert Sand
+    - Mojave
+    - Tan
+    - Latte
+    - Adobe
+    - Spanish Brown
+    - Graphite
+  - Privacy Wall should be yes/no
+
+Structural Notes:
+- Preserve a Structural Notes area
+- It should remain a long-form text entry field appropriate for Scribble/TextEditor use
+
+General Structural System UX expectations:
+- This section should behave like a decision tree with progressive disclosure
+- Do not show irrelevant child fields until the parent selection requires them
+- Keep the layout clean, obvious, and field-friendly
+- Avoid overengineering calculations in this pass; capture the needed estimator inputs first
+- Use sensible first-pass controls:
+  - Pickers / Menus / segmented controls where appropriate
+  - write-in fields only where clearly required
+- If an Other option is selected anywhere, the corresponding write-in field should be clearly labeled
 
 Hidden/dependent state behavior:
-- If a parent option is unselected, its dependent child controls must disappear from the UI
-- Hidden dependent values should be temporarily preserved while the user is still editing
-- Hidden preserved values must not be treated as active data for output generation
-- On PDF export / proposal output, hidden inactive values must be pruned so they are not included in exported output and do not remain as lingering hidden state afterward
-- This hidden-state behavior should remain consistent with the recent Enclosure multi-select pattern where practical
+- If a parent option is changed so a child branch becomes inactive, those hidden child values may be temporarily preserved during editing
+- Hidden inactive values must not be treated as active output data
+- On PDF export / proposal output, inactive hidden values must be pruned so they do not appear in exported output and do not remain as lingering hidden state afterward
+- This hidden-state behavior should remain consistent with the recent Enclosure and Existing Conditions patterns where practical
 
 Important constraint:
-Do not destabilize the current working JobTread customer search/select, linked-customer hydration, verified read-only ownership behavior, Documents / Attachments section, pricing engine, returned pricing normalization/validation path, debug inspector, PDF export pipeline, recent Scope Title text-entry fix, recent Enclosure multi-select work, or recent Existing Conditions nested selection work unless the task explicitly requires it.
+Do not destabilize the current working JobTread customer search/select, linked-customer hydration, verified read-only ownership behavior, Documents / Attachments section, pricing engine, returned pricing normalization/validation path, debug inspector, PDF export pipeline, recent Scope Title text-entry fix, Enclosure multi-select work, Existing Conditions nested selection work, or Existing Conditions checklist photo workflow unless the task explicitly requires it.
 
 Current app phase:
 The app is advanced enough for real field beta use, but production hardening is still in progress. Current work should prioritize reliability in Release/TestFlight-style conditions while making small, targeted UX improvements required for real estimating workflows.
@@ -107,6 +179,8 @@ What is already true:
 - Hidden Enclosure-dependent values may be preserved during editing and pruned from export/output when inactive
 - Existing Conditions now supports nested multi-select behavior for Exterior Finish and multi-select behavior for Existing Structure
 - Existing Conditions export/proposal output has already been updated to normalize/prune inactive hidden branch data for output
+- Existing Conditions Photo Checklist now uses structured photo capture and file-backed checklist photo storage rather than tri-state status toggles
+- Checklist photos can be added from Camera, Photo Library, and Files, persist across reopen, and are included in PDF export
 
 Known limitations / current truths:
 - The app is still primarily local-storage based
@@ -159,13 +233,14 @@ UI/input architecture guidance:
 - Required text fields that are revealed by selecting an Other option should be clearly labeled to indicate which Other selection they belong to
 - Photo-heavy UI should feel first-party Apple-like, visually calm, and easy to scan in the field
 - Prefer inline expansion/collapse and clean thumbnail presentation over heavy modal complexity when possible
+- Structural System should be implemented as a progressive-disclosure decision tree rather than a flat collection of unrelated pickers
 
 Immediate implementation direction:
 - Preserve current production stability
 - Make targeted real-workflow improvements only when they are clearly needed by field testing
-- Update Existing Conditions Photo Checklist from tri-state controls to structured photo capture and management
-- Ensure checklist photos are easy to add, preview, expand/collapse, and remove
-- Include checklist photos in PDF export in a clean labeled way
+- Replace the current Structural System section with the client-approved branching workflow
+- Keep the first pass practical and capture-oriented rather than overly automated
+- Ensure inactive branch data is excluded from export/output
 - Keep the implementation incremental and production-safe
 - Defer broader cloud-sync architecture to a future phase
 
@@ -181,13 +256,13 @@ Most relevant near-term hardening / workflow domains:
 - persistence-shape freeze / migration discipline
 - continuity test procedure for build-to-build upgrades
 - near-term backup/export/recovery planning
-- stable section workflows for real estimators, including multi-select-driven dependent option groups and structured checklist photo capture
+- stable section workflows for real estimators, including branching section logic, structured checklist photo capture, and progressive disclosure
 
 Current priorities:
 1. Preserve build stability and core field-beta workflow reliability
-2. Support real estimator workflows with targeted UX fixes in Existing Conditions and related section flows
+2. Support real estimator workflows with targeted UX fixes in Structural System, Existing Conditions, and related section flows
 3. Preserve recent Enclosure and Existing Conditions selection architecture consistency
-4. Preserve PDF export/render/share reliability for real field beta use while expanding checklist-photo output cleanly
+4. Preserve PDF export/render/share reliability for real field beta use while expanding structured section output cleanly
 5. Preserve Release/TestFlight launch/configuration safety
 6. Remove bundled secret/config resource risks
 7. Identify and reduce release-blocking continuity risks

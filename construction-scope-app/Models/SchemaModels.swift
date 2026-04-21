@@ -2429,6 +2429,10 @@ extension String {
         return trimmed.isEmpty ? nil : trimmed
     }
 
+    var nilIfWhitespaceOnly: String? {
+        trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : self
+    }
+
     var nilIfEmpty: String? {
         isEmpty ? nil : self
     }

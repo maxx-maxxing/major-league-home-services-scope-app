@@ -150,7 +150,7 @@ struct ProjectInfoEditorView: View {
                             VStack(alignment: .leading, spacing: 6) {
                                 Text("ZIP")
                                     .font(.body)
-                                TextField("ZIP", text: optionalStringBinding(\.zip))
+                                TextField("ZIP", text: constrainedOptionalStringBinding(\.zip))
                                     .liquidGlassInput()
                                     .keyboardType(.numberPad)
                             }
@@ -171,7 +171,7 @@ struct ProjectInfoEditorView: View {
                     VStack(alignment: .leading, spacing: 6) {
                         Text("Phone")
                             .font(.body)
-                        TextField("Phone", text: optionalStringBinding(\.phone))
+                        TextField("Phone", text: constrainedOptionalStringBinding(\.phone))
                             .liquidGlassInput()
                             .keyboardType(.phonePad)
                     }
@@ -179,7 +179,7 @@ struct ProjectInfoEditorView: View {
                     VStack(alignment: .leading, spacing: 6) {
                         Text("Email")
                             .font(.body)
-                        TextField("Email", text: optionalStringBinding(\.email))
+                        TextField("Email", text: constrainedOptionalStringBinding(\.email))
                             .liquidGlassInput()
                             .keyboardType(.emailAddress)
                             .textInputAutocapitalization(.never)
@@ -267,7 +267,7 @@ struct ProjectInfoEditorView: View {
         Binding(
             get: { scope.projectInfo.notes ?? "" },
             set: { newValue in
-                updateProjectInfo { $0.notes = newValue.nilIfBlank }
+                updateProjectInfo { $0.notes = newValue.nilIfWhitespaceOnly }
             }
         )
     }
@@ -302,6 +302,15 @@ struct ProjectInfoEditorView: View {
     }
 
     private func optionalStringBinding(_ keyPath: WritableKeyPath<ProjectInfo, String?>) -> Binding<String> {
+        Binding(
+            get: { scope.projectInfo[keyPath: keyPath] ?? "" },
+            set: { newValue in
+                updateProjectInfo { $0[keyPath: keyPath] = newValue.nilIfWhitespaceOnly }
+            }
+        )
+    }
+
+    private func constrainedOptionalStringBinding(_ keyPath: WritableKeyPath<ProjectInfo, String?>) -> Binding<String> {
         Binding(
             get: { scope.projectInfo[keyPath: keyPath] ?? "" },
             set: { newValue in
@@ -565,7 +574,7 @@ struct ExistingConditionsEditorView: View {
         Binding(
             get: { scope.existingConditions?.obstaclesNotes ?? "" },
             set: { newValue in
-                updateExistingConditions { $0.obstaclesNotes = newValue.nilIfBlank }
+                updateExistingConditions { $0.obstaclesNotes = newValue.nilIfWhitespaceOnly }
             }
         )
     }
@@ -574,7 +583,7 @@ struct ExistingConditionsEditorView: View {
         Binding(
             get: { scope.existingConditions?.utilitiesNotes ?? "" },
             set: { newValue in
-                updateExistingConditions { $0.utilitiesNotes = newValue.nilIfBlank }
+                updateExistingConditions { $0.utilitiesNotes = newValue.nilIfWhitespaceOnly }
             }
         )
     }
@@ -583,7 +592,7 @@ struct ExistingConditionsEditorView: View {
         Binding(
             get: { scope.existingConditions?.hoaNotes ?? "" },
             set: { newValue in
-                updateExistingConditions { $0.hoaNotes = newValue.nilIfBlank }
+                updateExistingConditions { $0.hoaNotes = newValue.nilIfWhitespaceOnly }
             }
         )
     }
@@ -607,7 +616,7 @@ struct ExistingConditionsEditorView: View {
             set: { newValue in
                 updateExistingConditions { conditions in
                     var finish = conditions.exteriorFinish ?? ExistingConditionsExteriorFinish()
-                    finish.trimThickness = newValue.nilIfBlank
+                    finish.trimThickness = newValue.nilIfWhitespaceOnly
                     conditions.exteriorFinish = finish.isEffectivelyEmpty ? nil : finish
                 }
             }
@@ -620,7 +629,7 @@ struct ExistingConditionsEditorView: View {
             set: { newValue in
                 updateExistingConditions { conditions in
                     var finish = conditions.exteriorFinish ?? ExistingConditionsExteriorFinish()
-                    finish.exteriorHouseWallOther = newValue.nilIfBlank
+                    finish.exteriorHouseWallOther = newValue.nilIfWhitespaceOnly
                     conditions.exteriorFinish = finish.isEffectivelyEmpty ? nil : finish
                 }
             }
@@ -1224,7 +1233,7 @@ struct DimensionsEditorView: View {
         Binding(
             get: { scope.dimensions?.elevationNotes ?? "" },
             set: { newValue in
-                updateDimensions { $0.elevationNotes = newValue.nilIfBlank }
+                updateDimensions { $0.elevationNotes = newValue.nilIfWhitespaceOnly }
             }
         )
     }
@@ -1554,7 +1563,7 @@ struct StructuralSystemEditorView: View {
         Binding(
             get: { scope.structuralSystem?.systemTypeOther ?? "" },
             set: { newValue in
-                updateStructuralSystem { $0.systemTypeOther = newValue.nilIfBlank }
+                updateStructuralSystem { $0.systemTypeOther = newValue.nilIfWhitespaceOnly }
             }
         )
     }
@@ -1607,11 +1616,15 @@ struct StructuralSystemEditorView: View {
     private var motorizedPergolaWidthBinding: Binding<String> { pergolaDimensionBinding(\.motorizedLouveredPergola, \.width) }
     private var motorizedPergolaLengthBinding: Binding<String> { pergolaDimensionBinding(\.motorizedLouveredPergola, \.length) }
     private var motorizedPergolaHeightBinding: Binding<String> { pergolaDimensionBinding(\.motorizedLouveredPergola, \.height) }
-    private var motorizedPergolaNotesBinding: Binding<String> { pergolaDimensionBinding(\.motorizedLouveredPergola, \.notes) }
+    private var motorizedPergolaNotesBinding: Binding<String> {
+        pergolaDimensionBinding(\.motorizedLouveredPergola, \.notes, preservesEditingWhitespace: true)
+    }
     private var manualPergolaWidthBinding: Binding<String> { pergolaDimensionBinding(\.manuallyRetractableLouveredPergola, \.width) }
     private var manualPergolaLengthBinding: Binding<String> { pergolaDimensionBinding(\.manuallyRetractableLouveredPergola, \.length) }
     private var manualPergolaHeightBinding: Binding<String> { pergolaDimensionBinding(\.manuallyRetractableLouveredPergola, \.height) }
-    private var manualPergolaNotesBinding: Binding<String> { pergolaDimensionBinding(\.manuallyRetractableLouveredPergola, \.notes) }
+    private var manualPergolaNotesBinding: Binding<String> {
+        pergolaDimensionBinding(\.manuallyRetractableLouveredPergola, \.notes, preservesEditingWhitespace: true)
+    }
 
     private var cedarPostSizeBinding: Binding<CedarPergolaPostSize?> {
         Binding(
@@ -1626,7 +1639,7 @@ struct StructuralSystemEditorView: View {
         Binding(
             get: { scope.structuralSystem?.cedarPergola?.postSizeOther ?? "" },
             set: { newValue in
-                updateCedarPergola { $0.postSizeOther = newValue.nilIfBlank }
+                updateCedarPergola { $0.postSizeOther = newValue.nilIfWhitespaceOnly }
             }
         )
     }
@@ -1644,7 +1657,7 @@ struct StructuralSystemEditorView: View {
         Binding(
             get: { scope.structuralSystem?.cedarPergola?.beamSizeOther ?? "" },
             set: { newValue in
-                updateCedarPergola { $0.beamSizeOther = newValue.nilIfBlank }
+                updateCedarPergola { $0.beamSizeOther = newValue.nilIfWhitespaceOnly }
             }
         )
     }
@@ -1662,7 +1675,7 @@ struct StructuralSystemEditorView: View {
         Binding(
             get: { scope.structuralSystem?.cedarPergola?.rafterSizeOther ?? "" },
             set: { newValue in
-                updateCedarPergola { $0.rafterSizeOther = newValue.nilIfBlank }
+                updateCedarPergola { $0.rafterSizeOther = newValue.nilIfWhitespaceOnly }
             }
         )
     }
@@ -1770,7 +1783,7 @@ struct StructuralSystemEditorView: View {
         Binding(
             get: { scope.structuralSystem?.notes ?? "" },
             set: { newValue in
-                updateStructuralSystem { $0.notes = newValue.nilIfBlank }
+                updateStructuralSystem { $0.notes = newValue.nilIfWhitespaceOnly }
             }
         )
     }
@@ -1808,14 +1821,15 @@ struct StructuralSystemEditorView: View {
 
     private func pergolaDimensionBinding(
         _ keyPath: WritableKeyPath<StructuralSystem, PergolaDimensionDetails?>,
-        _ field: WritableKeyPath<PergolaDimensionDetails, String?>
+        _ field: WritableKeyPath<PergolaDimensionDetails, String?>,
+        preservesEditingWhitespace: Bool = false
     ) -> Binding<String> {
         Binding(
             get: { scope.structuralSystem?[keyPath: keyPath]?[keyPath: field] ?? "" },
             set: { newValue in
                 updateStructuralSystem { structuralSystem in
                     var details = structuralSystem[keyPath: keyPath] ?? emptyPergolaDimensionDetails()
-                    details[keyPath: field] = newValue.nilIfBlank
+                    details[keyPath: field] = preservesEditingWhitespace ? newValue.nilIfWhitespaceOnly : newValue.nilIfBlank
                     structuralSystem[keyPath: keyPath] = details.isEffectivelyEmpty ? nil : details
                 }
             }
@@ -2215,7 +2229,7 @@ struct EnclosureEditorView: View {
         Binding(
             get: { scope.enclosure?.screenFrameColorCustom ?? "" },
             set: { newValue in
-                updateEnclosure { $0.screenFrameColorCustom = newValue.nilIfBlank }
+                updateEnclosure { $0.screenFrameColorCustom = newValue.nilIfWhitespaceOnly }
             }
         )
     }
@@ -2297,7 +2311,7 @@ struct EnclosureEditorView: View {
             set: { newValue in
                 updateEnclosure { enclosure in
                     var kneeWall = enclosure.kneeWall ?? emptyKneeWall()
-                    kneeWall.panelColor = newValue.nilIfBlank
+                    kneeWall.panelColor = newValue.nilIfWhitespaceOnly
                     enclosure.kneeWall = kneeWall
                 }
             }
@@ -2515,7 +2529,7 @@ struct EnclosureEditorView: View {
             set: { newValue in
                 updateEnclosure { enclosure in
                     var doors = enclosure.doors ?? emptyDoorOptions()
-                    doors.color = newValue.nilIfBlank
+                    doors.color = newValue.nilIfWhitespaceOnly
                     enclosure.doors = doors
                 }
             }
@@ -2528,7 +2542,7 @@ struct EnclosureEditorView: View {
             set: { newValue in
                 updateEnclosure { enclosure in
                     var doors = enclosure.doors ?? emptyDoorOptions()
-                    doors.dimensions = newValue.nilIfBlank
+                    doors.dimensions = newValue.nilIfWhitespaceOnly
                     enclosure.doors = doors
                 }
             }
@@ -2541,7 +2555,7 @@ struct EnclosureEditorView: View {
             set: { newValue in
                 updateEnclosure { enclosure in
                     var doors = enclosure.doors ?? emptyDoorOptions()
-                    doors.notes = newValue.nilIfBlank
+                    doors.notes = newValue.nilIfWhitespaceOnly
                     enclosure.doors = doors
                 }
             }
@@ -2810,7 +2824,7 @@ struct WindowsAndGlassEditorView: View {
         Binding(
             get: { scope.enclosure?.windowSystem?.colorCustom ?? "" },
             set: { newValue in
-                updateWindowSystem { $0.colorCustom = newValue.nilIfBlank }
+                updateWindowSystem { $0.colorCustom = newValue.nilIfWhitespaceOnly }
             }
         )
     }
@@ -2846,7 +2860,7 @@ struct WindowsAndGlassEditorView: View {
         Binding(
             get: { scope.enclosure?.windowSystem?.notes ?? "" },
             set: { newValue in
-                updateWindowSystem { $0.notes = newValue.nilIfBlank }
+                updateWindowSystem { $0.notes = newValue.nilIfWhitespaceOnly }
             }
         )
     }
@@ -2944,7 +2958,7 @@ struct ElectricalEditorView: View {
         Binding(
             get: { scope.electrical?.switchLocations ?? "" },
             set: { newValue in
-                updateElectrical { $0.switchLocations = newValue.nilIfBlank }
+                updateElectrical { $0.switchLocations = newValue.nilIfWhitespaceOnly }
             }
         )
     }
@@ -2953,7 +2967,7 @@ struct ElectricalEditorView: View {
         Binding(
             get: { scope.electrical?.notes ?? "" },
             set: { newValue in
-                updateElectrical { $0.notes = newValue.nilIfBlank }
+                updateElectrical { $0.notes = newValue.nilIfWhitespaceOnly }
             }
         )
     }
@@ -3021,7 +3035,7 @@ struct DrainageEditorView: View {
         Binding(
             get: { scope.drainage?.downspoutLocations ?? "" },
             set: { newValue in
-                updateDrainage { $0.downspoutLocations = newValue.nilIfBlank }
+                updateDrainage { $0.downspoutLocations = newValue.nilIfWhitespaceOnly }
             }
         )
     }
@@ -3039,7 +3053,7 @@ struct DrainageEditorView: View {
         Binding(
             get: { scope.drainage?.slopeNotes ?? "" },
             set: { newValue in
-                updateDrainage { $0.slopeNotes = newValue.nilIfBlank }
+                updateDrainage { $0.slopeNotes = newValue.nilIfWhitespaceOnly }
             }
         )
     }
@@ -3210,7 +3224,7 @@ struct AttachmentConditionsEditorView: View {
         Binding(
             get: { scope.attachment?.houseWallOther ?? "" },
             set: { newValue in
-                updateAttachment { $0.houseWallOther = newValue.nilIfBlank }
+                updateAttachment { $0.houseWallOther = newValue.nilIfWhitespaceOnly }
             }
         )
     }
@@ -3251,7 +3265,7 @@ struct AttachmentConditionsEditorView: View {
         Binding(
             get: { scope.attachment?.postColumnOther ?? "" },
             set: { newValue in
-                updateAttachment { $0.postColumnOther = newValue.nilIfBlank }
+                updateAttachment { $0.postColumnOther = newValue.nilIfWhitespaceOnly }
             }
         )
     }
@@ -3260,7 +3274,7 @@ struct AttachmentConditionsEditorView: View {
         Binding(
             get: { scope.attachment?.postSize ?? "" },
             set: { newValue in
-                updateAttachment { $0.postSize = newValue.nilIfBlank }
+                updateAttachment { $0.postSize = newValue.nilIfWhitespaceOnly }
             }
         )
     }
@@ -3269,7 +3283,7 @@ struct AttachmentConditionsEditorView: View {
         Binding(
             get: { scope.attachment?.postSpacing ?? "" },
             set: { newValue in
-                updateAttachment { $0.postSpacing = newValue.nilIfBlank }
+                updateAttachment { $0.postSpacing = newValue.nilIfWhitespaceOnly }
             }
         )
     }
@@ -3309,7 +3323,7 @@ struct AttachmentConditionsEditorView: View {
         Binding(
             get: { scope.attachment?.trimMaterialOther ?? "" },
             set: { newValue in
-                updateAttachment { $0.trimMaterialOther = newValue.nilIfBlank }
+                updateAttachment { $0.trimMaterialOther = newValue.nilIfWhitespaceOnly }
             }
         )
     }
@@ -3350,7 +3364,7 @@ struct AttachmentConditionsEditorView: View {
         Binding(
             get: { scope.attachment?.notes ?? "" },
             set: { newValue in
-                updateAttachment { $0.notes = newValue.nilIfBlank }
+                updateAttachment { $0.notes = newValue.nilIfWhitespaceOnly }
             }
         )
     }
@@ -3579,7 +3593,7 @@ struct DocumentsEditorView: View {
                 updateDocuments { documents in
                     guard var rows = documents.additionalAttachments,
                           let index = rows.firstIndex(where: { $0.id == rowID }) else { return }
-                    rows[index].name = newValue.nilIfBlank
+                    rows[index].name = newValue.nilIfWhitespaceOnly
                     documents.additionalAttachments = rows
                 }
             }
@@ -3940,7 +3954,7 @@ struct FinishesEditorView: View {
         Binding(
             get: { scope.finishes?.trimType ?? "" },
             set: { newValue in
-                updateFinishes { $0.trimType = newValue.nilIfBlank }
+                updateFinishes { $0.trimType = newValue.nilIfWhitespaceOnly }
             }
         )
     }
@@ -3949,7 +3963,7 @@ struct FinishesEditorView: View {
         Binding(
             get: { scope.finishes?.paintOrPowderColor ?? "" },
             set: { newValue in
-                updateFinishes { $0.paintOrPowderColor = newValue.nilIfBlank }
+                updateFinishes { $0.paintOrPowderColor = newValue.nilIfWhitespaceOnly }
             }
         )
     }
@@ -3967,7 +3981,7 @@ struct FinishesEditorView: View {
         Binding(
             get: { scope.finishes?.caulkingSealingNotes ?? "" },
             set: { newValue in
-                updateFinishes { $0.caulkingSealingNotes = newValue.nilIfBlank }
+                updateFinishes { $0.caulkingSealingNotes = newValue.nilIfWhitespaceOnly }
             }
         )
     }
@@ -4016,7 +4030,7 @@ struct PermitsHOAEditorView: View {
         Binding(
             get: { scope.permitsHOA?.jurisdiction ?? "" },
             set: { newValue in
-                updatePermitsHOA { $0.jurisdiction = newValue.nilIfBlank }
+                updatePermitsHOA { $0.jurisdiction = newValue.nilIfWhitespaceOnly }
             }
         )
     }
@@ -4043,7 +4057,7 @@ struct PermitsHOAEditorView: View {
         Binding(
             get: { scope.permitsHOA?.statusNotes ?? "" },
             set: { newValue in
-                updatePermitsHOA { $0.statusNotes = newValue.nilIfBlank }
+                updatePermitsHOA { $0.statusNotes = newValue.nilIfWhitespaceOnly }
             }
         )
     }
@@ -4198,7 +4212,7 @@ struct ProductionNotesEditorView: View {
         Binding(
             get: { scope.production?.crewLead ?? "" },
             set: { newValue in
-                updateProduction { $0.crewLead = newValue.nilIfBlank }
+                updateProduction { $0.crewLead = newValue.nilIfWhitespaceOnly }
             }
         )
     }
@@ -4207,7 +4221,7 @@ struct ProductionNotesEditorView: View {
         Binding(
             get: { scope.production?.durationEstimate ?? "" },
             set: { newValue in
-                updateProduction { $0.durationEstimate = newValue.nilIfBlank }
+                updateProduction { $0.durationEstimate = newValue.nilIfWhitespaceOnly }
             }
         )
     }
@@ -4253,7 +4267,7 @@ struct ProductionNotesEditorView: View {
         Binding(
             get: { scope.customerApproval?.optionsConfirmedText ?? "" },
             set: { newValue in
-                updateCustomerApproval { $0.optionsConfirmedText = newValue.nilIfBlank }
+                updateCustomerApproval { $0.optionsConfirmedText = newValue.nilIfWhitespaceOnly }
             }
         )
     }

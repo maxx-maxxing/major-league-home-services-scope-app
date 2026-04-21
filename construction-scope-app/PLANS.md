@@ -764,3 +764,9 @@ Keep milestones small, testable, and reviewable.
     - attachment/photo/signature/sketch reopening
     - delete/relaunch edge cases
   - Define a near-term local backup/export path for production scopes before broader beta distribution
+- Milestone 7.6.5 – General Text Entry Whitespace Repair
+  - Audit SwiftUI `TextField` / `TextEditor` bindings and related setter paths for live whitespace normalization
+  - Keep the established Scope Title behavior: editable text stores raw user input during typing, while display/export/persistence boundaries may still trim blank-only values
+  - Replace live-edit `nilIfBlank` setters for general-purpose text fields with an editing-safe optionalization helper that only converts whitespace-only text to `nil`
+  - Preserve intentionally constrained fields, including phone, email, ZIP, numeric measurements, product/job codes, and numeric/tokenized inputs
+  - Validate notes fields, multiline editors, ordinary single-line fields, constrained fields, save/reopen, and PDF/export output

@@ -57,8 +57,31 @@
 - Milestone 7.6.2: Implemented (Release/TestFlight configuration safety first pass)
 - Milestone 7.6.2.1: Implemented (internal debug entry point Release gating)
 - Milestone 7.6.3: In progress (persistence schema discipline, with checklist store-compatibility repair applied)
+- Milestone 7.6.5: Implemented (general text entry whitespace repair)
 
 ## Decisions
+- Milestone 7.6.5 General text entry whitespace repair:
+  - Task scope:
+    - audit SwiftUI text-entry bindings for live whitespace normalization
+    - repair general-purpose fields where a trailing typed space is removed before the next word can be entered
+    - preserve constrained numeric, phone, email, ZIP, product-code, job-number, and measurement paths
+  - Root cause identified:
+    - many optional `TextField` and `TextEditor` bindings used `nilIfBlank` directly in their setter
+    - `nilIfBlank` trims leading/trailing whitespace and returns the trimmed value
+    - during live editing, typing `word ` caused the setter to immediately store `word`, so the visible trailing space disappeared
+  - Implementation direction:
+    - add a small shared string helper for edit-time optional text that preserves raw text unless it is whitespace-only
+    - update only general-purpose live-edit bindings in `SectionEditors.swift`
+    - keep existing model/PDF/export normalization helpers in place for output boundaries
+  - Implemented change:
+    - added `String.nilIfWhitespaceOnly` in [SchemaModels.swift](/Users/maxx/Documents/major-league-home-services-scope-app/construction-scope-app/Models/SchemaModels.swift) for live editing paths that should preserve typed spaces
+    - updated general-purpose single-line and multiline bindings in [SectionEditors.swift](/Users/maxx/Documents/major-league-home-services-scope-app/construction-scope-app/Views/SectionEditors.swift) to use edit-safe optionalization
+    - left phone, email, ZIP, decimal measurement, number-of-posts, product-code, job-number, and parser-backed numeric fields on their existing constrained paths
+  - Validation:
+    - attempted `xcodebuild -project ConstructionScopeApp.xcodeproj -scheme ConstructionScopeApp -destination 'generic/platform=iOS' -derivedDataPath /tmp/ConstructionScopeAppTextEntryDerivedData CODE_SIGNING_ALLOWED=NO build`
+    - build reached the Swift driver with no source diagnostics surfaced for the text-entry changes
+    - build still failed at asset catalog compilation because this environment cannot access simulator runtime services: `No available simulator runtimes for platform iphonesimulator`
+
 - Milestone 2.3.2 Structural System branching workflow alignment:
   - Task scope:
     - replace the flat Structural System `Frame Material` / `Roof System` form with the client-approved branching workflow

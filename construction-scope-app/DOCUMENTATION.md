@@ -1972,3 +1972,45 @@
 ### Migration Notes
 - Existing saved scopes do need compatibility fallback handling because older payloads can contain only `projectType`.
 - New saves encode `projectTypes`; the legacy `projectType` key is read only as a decode fallback.
+
+## Section-Scoped Measurements – 2026-04-22
+
+### What Changed
+- Removed the standalone Dimensions sidebar/editor path.
+- Added reusable Measurements blocks to Structural System, Screen Enclosure, Sunroom, Electrical, Drainage, Attachment Conditions, and Finishes.
+- Each block has an `Add Measurements` toggle, repeatable measurement rows, section-specific type choices, an Other/custom type path, free-form value text, notes, add, and remove actions.
+- Measurement values are stored as strings so field users can enter values such as `12' 6"`, `approx 8 feet`, or other letter/number/space/apostrophe/quote combinations.
+- PDF output no longer renders a global Key Dimensions section. Enabled measurements render under their owning PDF section.
+
+### Data Model
+- Added reusable `MeasurementItem`:
+  - `id`
+  - `type`
+  - `customType`
+  - `value`
+  - `notes`
+- Added reusable `MeasurementsBlock`:
+  - `isEnabled`
+  - `items`
+- Section storage:
+  - `StructuralSystem.measurements`
+  - `Enclosure.screenMeasurements`
+  - `Enclosure.sunroomMeasurements`
+  - `Electrical.measurements`
+  - `Drainage.measurements`
+  - `AttachmentConditions.measurements`
+  - `Finishes.measurements`
+
+### Editing and Export Behavior
+- Turning a Measurements block off preserves existing rows in the local editing model.
+- Disabled blocks are excluded from PDF rows through `MeasurementsBlock.activeItems`.
+- Empty disabled blocks are omitted from encoded section payloads.
+
+### Compatibility Notes
+- New measurement fields are optional, additive Codable fields.
+- Existing saved scopes without these fields should decode normally.
+- The legacy `JobScope.dimensions` property remains in the persisted model for compatibility, but it is no longer reachable from the sidebar and no longer renders as a standalone PDF section.
+
+### Validation
+- `xcodebuild -project ConstructionScopeApp.xcodeproj -scheme ConstructionScopeApp -destination 'generic/platform=iOS Simulator' -derivedDataPath /tmp/ConstructionScopeDerivedData build` succeeded.
+- Building with DerivedData under the repo’s Documents path reached Swift compilation but failed at codesign because File Provider metadata was attached to the generated `.app`; `/tmp` DerivedData avoids that environment-specific issue.

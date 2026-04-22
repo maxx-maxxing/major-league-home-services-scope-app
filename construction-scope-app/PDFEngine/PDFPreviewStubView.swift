@@ -503,10 +503,9 @@ enum ScopePDFExporter {
 
     private static func pageOne(_ scope: JobScope) -> PDFPageContent {
         let project = scope.projectInfo
-        let dims = scope.dimensions
 
         return PDFPageContent(
-            title: "Page 1: Job Header + Project Info + Key Dimensions",
+            title: "Page 1: Job Header + Project Info",
             sections: [
                 PDFSection(title: "Project Information", rows: [
                     .init(label: "Scope Title", value: scope.resolvedScopeTitle ?? "Not set"),
@@ -521,15 +520,6 @@ enum ScopePDFExporter {
                     .init(label: "Site Visit", value: formattedDate(project.siteVisitDate)),
                     .init(label: "Project Type", value: project.projectTypeDisplaySummary),
                     .init(label: "Notes", value: project.notes?.nilIfBlank ?? "None")
-                ]),
-                PDFSection(title: "Key Dimensions", rows: [
-                    .init(label: "Width", value: formatNumber(dims?.width, suffix: "ft")),
-                    .init(label: "Projection", value: formatNumber(dims?.projection, suffix: "ft")),
-                    .init(label: "Fascia Height", value: formatNumber(dims?.fasciaHeight, suffix: "ft")),
-                    .init(label: "Beam Height", value: formatNumber(dims?.beamHeight, suffix: "ft")),
-                    .init(label: "Roof Style", value: dims?.roofStyle?.displayName ?? "Not set"),
-                    .init(label: "Attachment Type", value: dims?.attachmentType?.displayName ?? "Not set"),
-                    .init(label: "Elevation Notes", value: dims?.elevationNotes?.nilIfBlank ?? "None")
                 ])
             ],
             kind: .core
@@ -569,7 +559,7 @@ enum ScopePDFExporter {
                     .init(label: "Trim Thickness", value: resolvedTrimThickness(attachment)),
                     .init(label: "Fastener Plan", value: attachment?.fastenerPlan?.map(\.displayName).joined(separator: ", ") ?? "Not set"),
                     .init(label: "Notes", value: attachment?.notes?.nilIfBlank ?? "None")
-                ])
+                ] + measurementRows(attachment?.measurements))
             ],
             kind: .core
         )
@@ -600,14 +590,15 @@ enum ScopePDFExporter {
                     .init(label: "Sliding Door Color", value: enclosure?.doors?.color?.nilIfBlank ?? "Not set"),
                     .init(label: "Sliding Door Dimensions", value: enclosure?.doors?.dimensions?.nilIfBlank ?? "Not set"),
                     .init(label: "Door Notes", value: enclosure?.doors?.notes?.nilIfBlank ?? "None")
-                ])
+                ] + measurementRows(enclosure?.screenMeasurements))
             ],
             kind: .core
         )
     }
 
     private static func pageFour(_ scope: JobScope) -> PDFPageContent {
-        let window = scope.enclosure?.normalizedForExport()?.windowSystem
+        let enclosure = scope.enclosure?.normalizedForExport()
+        let window = enclosure?.windowSystem
         let electrical = scope.electrical
         let drainage = scope.drainage
 
@@ -625,7 +616,7 @@ enum ScopePDFExporter {
                     .init(label: "Height / Bays", value: combinedValue(formatOptionalPDFNumber(window?.windowHeight, suffix: "ft"), formatOptionalPDFNumber(window?.numBays, suffix: "bays"))),
                     .init(label: "Configuration", value: window?.configuration?.displayName ?? "Not set"),
                     .init(label: "Notes", value: window?.notes?.nilIfBlank ?? "None")
-                ]),
+                ] + measurementRows(enclosure?.sunroomMeasurements)),
                 PDFSection(title: "Electrical", rows: [
                     .init(label: "Outlets", value: formatNumber(electrical?.outletCount, suffix: "")),
                     .init(label: "Lighting", value: electrical?.lighting?.displayName ?? "Not set"),
@@ -633,13 +624,13 @@ enum ScopePDFExporter {
                     .init(label: "Switch Locations", value: electrical?.switchLocations?.nilIfBlank ?? "Not set"),
                     .init(label: "Dedicated Circuits", value: electrical?.dedicatedCircuits?.map(\.displayName).joined(separator: ", ") ?? "Not set"),
                     .init(label: "Notes", value: electrical?.notes?.nilIfBlank ?? "None")
-                ]),
+                ] + measurementRows(electrical?.measurements)),
                 PDFSection(title: "Drainage", rows: [
                     .init(label: "Gutters", value: boolString(drainage?.gutters)),
                     .init(label: "Downspouts", value: drainage?.downspoutLocations?.nilIfBlank ?? "Not set"),
                     .init(label: "Drain Tie-In", value: boolString(drainage?.drainTieIn)),
                     .init(label: "Drain Notes", value: drainage?.slopeNotes?.nilIfBlank ?? "None")
-                ])
+                ] + measurementRows(drainage?.measurements))
             ],
             kind: .core
         )
@@ -666,7 +657,7 @@ enum ScopePDFExporter {
                         .init(label: "Paint / Powder", value: finishes?.paintOrPowderColor?.nilIfBlank ?? "Not set"),
                         .init(label: "Siding Replacement", value: boolString(finishes?.sidingReplacementRequired)),
                         .init(label: "Caulking / Sealing", value: finishes?.caulkingSealingNotes?.nilIfBlank ?? "None")
-                    ]),
+                    ] + measurementRows(finishes?.measurements)),
                     PDFSection(title: "Permits / HOA", rows: [
                         .init(label: "Permit Required", value: boolString(permits?.permitRequired)),
                         .init(label: "HOA Required", value: boolString(permits?.hoaApprovalRequired)),
@@ -697,7 +688,7 @@ enum ScopePDFExporter {
                     .init(label: "Paint / Powder", value: finishes?.paintOrPowderColor?.nilIfBlank ?? "Not set"),
                     .init(label: "Siding Replacement", value: boolString(finishes?.sidingReplacementRequired)),
                     .init(label: "Caulking / Sealing", value: finishes?.caulkingSealingNotes?.nilIfBlank ?? "None")
-                ]),
+                ] + measurementRows(finishes?.measurements)),
                 PDFSection(title: "Permits / HOA", rows: [
                     .init(label: "Permit Required", value: boolString(permits?.permitRequired)),
                     .init(label: "HOA Required", value: boolString(permits?.hoaApprovalRequired)),
@@ -799,7 +790,18 @@ enum ScopePDFExporter {
         }
 
         rows.append(.init(label: "Notes", value: structural.notes?.nilIfBlank ?? "None"))
+        rows.append(contentsOf: measurementRows(structural.measurements))
         return rows
+    }
+
+    private static func measurementRows(_ block: MeasurementsBlock?) -> [PDFRow] {
+        block?.activeItems.map { item in
+            let type = item.resolvedType ?? "Measurement"
+            let value = item.value?.nilIfBlank ?? "Not set"
+            let notes = item.notes?.nilIfBlank
+            let output = notes.map { "\(value)\nNotes: \($0)" } ?? value
+            return PDFRow(label: "Measurement - \(type)", value: output)
+        } ?? []
     }
 
     private static func pergolaDimensionRows(_ details: PergolaDimensionDetails?) -> [PDFRow] {

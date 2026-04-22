@@ -9,7 +9,6 @@ private let rootNavigationDebugSelectedScopeStorageKey = "debug.selected-scope-i
 enum ScopeSection: String, CaseIterable, Identifiable {
     case projectInfo = "Project Information"
     case existingConditions = "Existing Conditions"
-    case dimensions = "Dimensions"
     case structuralSystem = "Structural System"
     case enclosure = "Screen Enclosure"
     case windowsAndGlass = "Sunroom"
@@ -28,7 +27,6 @@ enum ScopeSection: String, CaseIterable, Identifiable {
         switch self {
         case .projectInfo: return "person.text.rectangle"
         case .existingConditions: return "house"
-        case .dimensions: return "ruler"
         case .structuralSystem: return "building.columns"
         case .enclosure: return "rectangle.3.group"
         case .windowsAndGlass: return "window.casement"
@@ -1468,8 +1466,6 @@ struct SectionEditorView: View {
                     )
                 case .existingConditions:
                     ExistingConditionsEditorView(scope: scope, autosave: autosave)
-                case .dimensions:
-                    DimensionsEditorView(scope: scope, autosave: autosave)
                 case .structuralSystem:
                     StructuralSystemEditorView(scope: scope, autosave: autosave)
                 case .enclosure:

@@ -1163,122 +1163,6 @@ private struct ChecklistPhotoPreviewSheet: View {
     }
 }
 
-struct DimensionsEditorView: View {
-    let scope: JobScope
-    @ObservedObject var autosave: DebouncedAutosave
-
-    var body: some View {
-        VStack(spacing: 16) {
-            CardGroup(title: "Measurements") {
-                VStack(spacing: 12) {
-                    MeasurementTextField(title: "Width", text: widthBinding)
-                    MeasurementTextField(title: "Projection", text: projectionBinding)
-                    MeasurementTextField(title: "Fascia Height", text: fasciaHeightBinding)
-                    MeasurementTextField(title: "Beam Height", text: beamHeightBinding)
-                }
-            }
-
-            CardGroup(title: "Configuration") {
-                VStack(spacing: 12) {
-                    FieldHeader("Roof Style")
-                    Picker("Roof Style", selection: roofStyleBinding) {
-                        Text("Not Set").tag(nil as RoofStyle?)
-                        ForEach(RoofStyle.allCases, id: \.self) { value in
-                            Text(value.displayName).tag(Optional(value))
-                        }
-                    }
-                    .pickerStyle(.menu)
-                    .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
-
-                    FieldHeader("Attachment Type")
-                    Picker("Attachment Type", selection: attachmentTypeBinding) {
-                        Text("Not Set").tag(nil as DimensionsAttachmentType?)
-                        ForEach(DimensionsAttachmentType.allCases, id: \.self) { value in
-                            Text(value.displayName).tag(Optional(value))
-                        }
-                    }
-                    .pickerStyle(.menu)
-                    .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
-                }
-            }
-
-            CardGroup(title: "Elevation Notes") {
-                NotesField(title: "Elevation Notes", text: elevationNotesBinding, minHeight: 140, showInlineTitle: false)
-            }
-        }
-    }
-
-    private var widthBinding: Binding<String> {
-        Binding(
-            get: { formatOptionalDouble(scope.dimensions?.width) },
-            set: { newValue in
-                updateDimensions { $0.width = parseOptionalDouble(newValue) }
-            }
-        )
-    }
-
-    private var projectionBinding: Binding<String> {
-        Binding(
-            get: { formatOptionalDouble(scope.dimensions?.projection) },
-            set: { newValue in
-                updateDimensions { $0.projection = parseOptionalDouble(newValue) }
-            }
-        )
-    }
-
-    private var fasciaHeightBinding: Binding<String> {
-        Binding(
-            get: { formatOptionalDouble(scope.dimensions?.fasciaHeight) },
-            set: { newValue in
-                updateDimensions { $0.fasciaHeight = parseOptionalDouble(newValue) }
-            }
-        )
-    }
-
-    private var beamHeightBinding: Binding<String> {
-        Binding(
-            get: { formatOptionalDouble(scope.dimensions?.beamHeight) },
-            set: { newValue in
-                updateDimensions { $0.beamHeight = parseOptionalDouble(newValue) }
-            }
-        )
-    }
-
-    private var roofStyleBinding: Binding<RoofStyle?> {
-        Binding(
-            get: { scope.dimensions?.roofStyle },
-            set: { newValue in
-                updateDimensions { $0.roofStyle = newValue }
-            }
-        )
-    }
-
-    private var attachmentTypeBinding: Binding<DimensionsAttachmentType?> {
-        Binding(
-            get: { scope.dimensions?.attachmentType },
-            set: { newValue in
-                updateDimensions { $0.attachmentType = newValue }
-            }
-        )
-    }
-
-    private var elevationNotesBinding: Binding<String> {
-        Binding(
-            get: { scope.dimensions?.elevationNotes ?? "" },
-            set: { newValue in
-                updateDimensions { $0.elevationNotes = newValue.nilIfWhitespaceOnly }
-            }
-        )
-    }
-
-    private func updateDimensions(_ update: (inout Dimensions) -> Void) {
-        var dimensions = scope.dimensions ?? emptyDimensions()
-        update(&dimensions)
-        scope.dimensions = dimensions.isEffectivelyEmpty ? nil : dimensions
-        autosave.scheduleSave(for: scope)
-    }
-}
-
 struct StructuralSystemEditorView: View {
     let scope: JobScope
     @ObservedObject var autosave: DebouncedAutosave
@@ -1530,6 +1414,12 @@ struct StructuralSystemEditorView: View {
                 }
                 .formRevealTransition()
             }
+
+            MeasurementsBlockEditor(
+                block: scope.structuralSystem?.measurements,
+                preset: .structuralSystem,
+                setBlock: updateMeasurements
+            )
 
             CardGroup(title: "Structural Notes") {
                 VStack(spacing: 12) {
@@ -1828,6 +1718,10 @@ struct StructuralSystemEditorView: View {
         autosave.scheduleSave(for: scope)
     }
 
+    private func updateMeasurements(_ block: MeasurementsBlock?) {
+        updateStructuralSystem { $0.measurements = block }
+    }
+
     private func updatePatioCover(_ update: (inout InsulatedAluminumPatioCoverDetails) -> Void) {
         updateStructuralSystem { structuralSystem in
             var details = structuralSystem.insulatedAluminumPatioCover ?? emptyInsulatedAluminumPatioCoverDetails()
@@ -1934,6 +1828,12 @@ struct EnclosureEditorView: View {
                     prompt: "Add notes specific to screen enclosure"
                 )
             }
+
+            MeasurementsBlockEditor(
+                block: scope.enclosure?.screenMeasurements,
+                preset: .screenEnclosure,
+                setBlock: updateScreenMeasurements
+            )
 
             if showsScreenOptions {
                 CardGroup(title: "Screen Options") {
@@ -2621,6 +2521,10 @@ struct EnclosureEditorView: View {
         autosave.scheduleSave(for: scope)
     }
 
+    private func updateScreenMeasurements(_ block: MeasurementsBlock?) {
+        updateEnclosure { $0.screenMeasurements = block }
+    }
+
     private func supportsPanelHeight(_ option: KneeWallOption?) -> Bool {
         switch option {
         case .aluminumKickplate, .insulatedAluminumPanel:
@@ -2681,6 +2585,12 @@ struct WindowsAndGlassEditorView: View {
                     }
                 }
             }
+
+            MeasurementsBlockEditor(
+                block: scope.enclosure?.sunroomMeasurements,
+                preset: .sunroom,
+                setBlock: updateSunroomMeasurements
+            )
 
             if isWindowSystemEnabled {
                 CardGroup(title: "Glass") {
@@ -2924,6 +2834,10 @@ struct WindowsAndGlassEditorView: View {
         autosave.scheduleSave(for: scope)
     }
 
+    private func updateSunroomMeasurements(_ block: MeasurementsBlock?) {
+        updateEnclosure { $0.sunroomMeasurements = block }
+    }
+
     private func updateWindowSystem(_ update: (inout WindowSystem) -> Void) {
         updateEnclosure { enclosure in
             var windowSystem = enclosure.windowSystem ?? emptyWindowSystem()
@@ -2972,6 +2886,12 @@ struct ElectricalEditorView: View {
                     }
                 }
             }
+
+            MeasurementsBlockEditor(
+                block: scope.electrical?.measurements,
+                preset: .electrical,
+                setBlock: updateMeasurements
+            )
 
             CardGroup(title: "Electrical Notes") {
                 NotesField(title: "Electrical Notes", text: notesBinding, minHeight: 140, showInlineTitle: false)
@@ -3049,6 +2969,10 @@ struct ElectricalEditorView: View {
         scope.electrical = electrical.isEffectivelyEmpty ? nil : electrical
         autosave.scheduleSave(for: scope)
     }
+
+    private func updateMeasurements(_ block: MeasurementsBlock?) {
+        updateElectrical { $0.measurements = block }
+    }
 }
 
 struct DrainageEditorView: View {
@@ -3071,6 +2995,12 @@ struct DrainageEditorView: View {
             CardGroup(title: "Slope Notes") {
                 NotesField(title: "Slope Notes", text: slopeNotesBinding, minHeight: 140, showInlineTitle: false)
             }
+
+            MeasurementsBlockEditor(
+                block: scope.drainage?.measurements,
+                preset: .drainage,
+                setBlock: updateMeasurements
+            )
         }
     }
 
@@ -3115,6 +3045,10 @@ struct DrainageEditorView: View {
         update(&drainage)
         scope.drainage = drainage.isEffectivelyEmpty ? nil : drainage
         autosave.scheduleSave(for: scope)
+    }
+
+    private func updateMeasurements(_ block: MeasurementsBlock?) {
+        updateDrainage { $0.measurements = block }
     }
 }
 
@@ -3243,6 +3177,12 @@ struct AttachmentConditionsEditorView: View {
                     }
                 }
             }
+
+            MeasurementsBlockEditor(
+                block: scope.attachment?.measurements,
+                preset: .attachmentConditions,
+                setBlock: updateMeasurements
+            )
 
             CardGroup(title: "Attachment Notes") {
                 TextEditor(text: attachmentNotesBinding)
@@ -3445,6 +3385,10 @@ struct AttachmentConditionsEditorView: View {
         update(&attachment)
         scope.attachment = attachment
         autosave.scheduleSave(for: scope)
+    }
+
+    private func updateMeasurements(_ block: MeasurementsBlock?) {
+        updateAttachment { $0.measurements = block }
     }
 }
 
@@ -3999,6 +3943,12 @@ struct FinishesEditorView: View {
             CardGroup(title: "Sealant Notes") {
                 NotesField(title: "Caulking and Sealing Notes", text: caulkingSealingNotesBinding, minHeight: 140, showInlineTitle: false)
             }
+
+            MeasurementsBlockEditor(
+                block: scope.finishes?.measurements,
+                preset: .finishes,
+                setBlock: updateMeasurements
+            )
         }
     }
 
@@ -4043,6 +3993,10 @@ struct FinishesEditorView: View {
         update(&finishes)
         scope.finishes = finishes.isEffectivelyEmpty ? nil : finishes
         autosave.scheduleSave(for: scope)
+    }
+
+    private func updateMeasurements(_ block: MeasurementsBlock?) {
+        updateFinishes { $0.measurements = block }
     }
 }
 
@@ -4712,6 +4666,228 @@ private struct MeasurementTextField: View {
     }
 }
 
+private enum MeasurementSectionPreset {
+    case structuralSystem
+    case screenEnclosure
+    case sunroom
+    case electrical
+    case drainage
+    case attachmentConditions
+    case finishes
+
+    var typeOptions: [String] {
+        switch self {
+        case .structuralSystem:
+            return ["Width", "Length", "Height", "Projection", "Fascia Height", "Beam Height", "Post Height", "Post Spacing", "Knee Wall Height", MeasurementTypeOption.otherValue]
+        case .screenEnclosure:
+            return ["Width", "Length", "Height", "Wall Height", "Knee Wall Height", "Door Width", "Door Height", "Opening Width", "Opening Height", MeasurementTypeOption.otherValue]
+        case .sunroom:
+            return ["Width", "Length", "Height", "Wall Height", "Window Width", "Window Height", "Door Width", "Door Height", "Opening Width", "Opening Height", MeasurementTypeOption.otherValue]
+        case .electrical:
+            return ["Panel Distance", "Outlet Height", "Switch Height", "Trench Length", "Run Length", "Clearance", MeasurementTypeOption.otherValue]
+        case .drainage:
+            return ["Length", "Width", "Depth", "Drop", "Slope", "Elevation Change", "Distance", MeasurementTypeOption.otherValue]
+        case .attachmentConditions:
+            return ["Attachment Height", "Offset", "Clearance", "Span", "Depth", MeasurementTypeOption.otherValue]
+        case .finishes:
+            return ["Width", "Height", "Length", "Coverage Area", "Thickness", "Reveal", MeasurementTypeOption.otherValue]
+        }
+    }
+}
+
+private struct MeasurementsBlockEditor: View {
+    let block: MeasurementsBlock?
+    let preset: MeasurementSectionPreset
+    let setBlock: (MeasurementsBlock?) -> Void
+
+    private var items: [MeasurementItem] {
+        block?.items ?? []
+    }
+
+    var body: some View {
+        CardGroup(title: "Measurements") {
+            VStack(alignment: .leading, spacing: 12) {
+                Toggle("Add Measurements", isOn: enabledBinding)
+                    .frame(minHeight: 44)
+
+                if block?.isEnabled == true {
+                    Text("Add section-specific measurements for production. Use ' for feet and \" for inches.")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .formRevealTransition()
+
+                    if items.isEmpty {
+                        Text("No measurements added.")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .formRevealTransition()
+                    }
+
+                    ForEach(items) { item in
+                        measurementRow(item)
+                            .formRevealTransition()
+                    }
+
+                    Button {
+                        addMeasurement()
+                    } label: {
+                        Label("Add Measurement", systemImage: "plus.circle.fill")
+                            .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+                    }
+                    .buttonStyle(.borderless)
+                    .formRevealTransition()
+                }
+            }
+        }
+        .animation(.formReveal, value: block?.isEnabled == true)
+        .animation(.formReveal, value: items.count)
+    }
+
+    private var enabledBinding: Binding<Bool> {
+        Binding(
+            get: { block?.isEnabled == true },
+            set: { isEnabled in
+                var updated = block ?? MeasurementsBlock(isEnabled: nil, items: nil)
+                updated.isEnabled = isEnabled
+                if isEnabled && (updated.items ?? []).isEmpty {
+                    updated.items = [newMeasurementItem()]
+                }
+                setBlock(updated.isEffectivelyEmpty ? nil : updated)
+            }
+        )
+    }
+
+    @ViewBuilder
+    private func measurementRow(_ item: MeasurementItem) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(alignment: .top, spacing: 10) {
+                VStack(alignment: .leading, spacing: 8) {
+                    FieldHeader("Measurement Type")
+                    Picker("Measurement Type", selection: typeBinding(for: item.id)) {
+                        ForEach(preset.typeOptions, id: \.self) { type in
+                            Text(type).tag(type)
+                        }
+                    }
+                    .pickerStyle(.menu)
+                    .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+                }
+
+                Button(role: .destructive) {
+                    removeMeasurement(id: item.id)
+                } label: {
+                    Image(systemName: "trash")
+                        .frame(width: 44, height: 44)
+                }
+                .buttonStyle(.borderless)
+                .accessibilityLabel("Remove measurement")
+            }
+
+            if item.type == MeasurementTypeOption.otherValue {
+                TextField("Custom measurement type", text: customTypeBinding(for: item.id))
+                    .liquidGlassInput()
+                    .formRevealTransition()
+            }
+
+            TextField("Measurement Value", text: valueBinding(for: item.id))
+                .liquidGlassInput()
+                .textInputAutocapitalization(.never)
+
+            Text("Use ' for feet and \" for inches.")
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+
+            NotesField(
+                title: "Measurement Notes",
+                text: notesBinding(for: item.id),
+                minHeight: 92,
+                prompt: "Add notes for this measurement"
+            )
+        }
+        .padding(12)
+        .liquidGlassSurface(cornerRadius: 16)
+    }
+
+    private func typeBinding(for id: UUID) -> Binding<String> {
+        Binding(
+            get: { item(with: id)?.type ?? preset.typeOptions.first ?? MeasurementTypeOption.otherValue },
+            set: { newValue in
+                updateItem(id: id) { item in
+                    item.type = newValue
+                }
+            }
+        )
+    }
+
+    private func customTypeBinding(for id: UUID) -> Binding<String> {
+        Binding(
+            get: { item(with: id)?.customType ?? "" },
+            set: { newValue in
+                updateItem(id: id) { item in
+                    item.customType = newValue.nilIfWhitespaceOnly
+                }
+            }
+        )
+    }
+
+    private func valueBinding(for id: UUID) -> Binding<String> {
+        Binding(
+            get: { item(with: id)?.value ?? "" },
+            set: { newValue in
+                updateItem(id: id) { item in
+                    item.value = newValue.nilIfWhitespaceOnly
+                }
+            }
+        )
+    }
+
+    private func notesBinding(for id: UUID) -> Binding<String> {
+        Binding(
+            get: { item(with: id)?.notes ?? "" },
+            set: { newValue in
+                updateItem(id: id) { item in
+                    item.notes = newValue.nilIfWhitespaceOnly
+                }
+            }
+        )
+    }
+
+    private func item(with id: UUID) -> MeasurementItem? {
+        items.first { $0.id == id }
+    }
+
+    private func addMeasurement() {
+        var updated = block ?? MeasurementsBlock(isEnabled: true, items: nil)
+        updated.isEnabled = true
+        var rows = updated.items ?? []
+        rows.append(newMeasurementItem())
+        updated.items = rows
+        setBlock(updated)
+    }
+
+    private func removeMeasurement(id: UUID) {
+        var updated = block ?? MeasurementsBlock(isEnabled: true, items: nil)
+        var rows = updated.items ?? []
+        rows.removeAll { $0.id == id }
+        updated.items = rows
+        setBlock(updated.isEffectivelyEmpty ? nil : updated)
+    }
+
+    private func updateItem(id: UUID, _ update: (inout MeasurementItem) -> Void) {
+        var updated = block ?? MeasurementsBlock(isEnabled: true, items: nil)
+        var rows = updated.items ?? []
+        guard let index = rows.firstIndex(where: { $0.id == id }) else { return }
+        update(&rows[index])
+        updated.items = rows
+        setBlock(updated.isEffectivelyEmpty ? nil : updated)
+    }
+
+    private func newMeasurementItem() -> MeasurementItem {
+        MeasurementItem(type: preset.typeOptions.first)
+    }
+}
+
 private struct NotesField: View {
     let title: String
     @Binding var text: String
@@ -4841,7 +5017,9 @@ private func emptyEnclosure() -> Enclosure {
         screenFrameColor: nil,
         screenFrameColorCustom: nil,
         screenEnclosureNotes: nil,
+        screenMeasurements: nil,
         windowSystem: nil,
+        sunroomMeasurements: nil,
         kneeWall: nil,
         doors: nil
     )
@@ -4860,22 +5038,11 @@ private func emptyExistingConditions() -> ExistingConditions {
     )
 }
 
-private func emptyDimensions() -> Dimensions {
-    Dimensions(
-        width: nil,
-        projection: nil,
-        fasciaHeight: nil,
-        beamHeight: nil,
-        roofStyle: nil,
-        attachmentType: nil,
-        elevationNotes: nil
-    )
-}
-
 private func emptyStructuralSystem() -> StructuralSystem {
     StructuralSystem(
         systemType: nil,
         systemTypeOther: nil,
+        measurements: nil,
         insulatedAluminumPatioCover: nil,
         pergolaType: nil,
         motorizedLouveredPergola: nil,
@@ -4961,7 +5128,8 @@ private func emptyElectrical() -> Electrical {
         fanInstall: nil,
         switchLocations: nil,
         dedicatedCircuits: nil,
-        notes: nil
+        notes: nil,
+        measurements: nil
     )
 }
 
@@ -4970,20 +5138,9 @@ private func emptyDrainage() -> Drainage {
         gutters: nil,
         downspoutLocations: nil,
         drainTieIn: nil,
-        slopeNotes: nil
+        slopeNotes: nil,
+        measurements: nil
     )
-}
-
-private extension Dimensions {
-    var isEffectivelyEmpty: Bool {
-        width == nil &&
-        projection == nil &&
-        fasciaHeight == nil &&
-        beamHeight == nil &&
-        roofStyle == nil &&
-        attachmentType == nil &&
-        (elevationNotes ?? "").nilIfBlank == nil
-    }
 }
 
 private extension WindowSystem {
@@ -5046,7 +5203,8 @@ private func emptyAttachmentConditions() -> AttachmentConditions {
         trimThicknessCustom: nil,
         mountCondition: nil,
         fastenerPlan: nil,
-        notes: nil
+        notes: nil,
+        measurements: nil
     )
 }
 
@@ -5063,7 +5221,8 @@ private func emptyFinishes() -> Finishes {
         trimType: nil,
         paintOrPowderColor: nil,
         sidingReplacementRequired: nil,
-        caulkingSealingNotes: nil
+        caulkingSealingNotes: nil,
+        measurements: nil
     )
 }
 
@@ -5104,7 +5263,8 @@ private extension Electrical {
         fanInstall == nil &&
         (switchLocations ?? "").nilIfBlank == nil &&
         (dedicatedCircuits ?? []).isEmpty &&
-        (notes ?? "").nilIfBlank == nil
+        (notes ?? "").nilIfBlank == nil &&
+        measurements?.isEffectivelyEmpty != false
     }
 }
 
@@ -5113,7 +5273,8 @@ private extension Drainage {
         gutters == nil &&
         (downspoutLocations ?? "").nilIfBlank == nil &&
         drainTieIn == nil &&
-        (slopeNotes ?? "").nilIfBlank == nil
+        (slopeNotes ?? "").nilIfBlank == nil &&
+        measurements?.isEffectivelyEmpty != false
     }
 }
 
@@ -5130,7 +5291,8 @@ private extension Finishes {
         (trimType ?? "").nilIfBlank == nil &&
         (paintOrPowderColor ?? "").nilIfBlank == nil &&
         sidingReplacementRequired == nil &&
-        (caulkingSealingNotes ?? "").nilIfBlank == nil
+        (caulkingSealingNotes ?? "").nilIfBlank == nil &&
+        measurements?.isEffectivelyEmpty != false
     }
 }
 

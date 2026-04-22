@@ -781,3 +781,17 @@ Keep milestones small, testable, and reviewable.
   - Replace live-edit `nilIfBlank` setters for general-purpose text fields with an editing-safe optionalization helper that only converts whitespace-only text to `nil`
   - Preserve intentionally constrained fields, including phone, email, ZIP, numeric measurements, product/job codes, and numeric/tokenized inputs
   - Validate notes fields, multiline editors, ordinary single-line fields, constrained fields, save/reopen, and PDF/export output
+
+## Milestone 7.7 – Section-Scoped Measurements
+- Replace the standalone Dimensions sidebar section with reusable Measurements blocks embedded in the sections where those values are used.
+- Add optional, section-owned measurement blocks to:
+  - Structural System
+  - Screen Enclosure
+  - Sunroom
+  - Electrical
+  - Drainage
+  - Attachment Conditions
+  - Finishes
+- Keep disabled measurement values preserved during editing, but exclude disabled/inactive measurements from PDF/export output.
+- Use section-specific type lists with an Other/custom path and repeatable rows.
+- Keep persistence changes additive and optional; do not alter JobTread, scope title, project type, existing conditions, checklist photo, pricing/proposal, or debug inspector workflows.

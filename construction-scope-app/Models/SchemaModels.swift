@@ -1215,6 +1215,54 @@ struct Dimensions: Codable, Hashable {
     var elevationNotes: String?
 }
 
+struct MeasurementItem: Codable, Hashable, Identifiable {
+    var id: UUID
+    var type: String?
+    var customType: String?
+    var value: String?
+    var notes: String?
+
+    init(id: UUID = UUID(), type: String? = nil, customType: String? = nil, value: String? = nil, notes: String? = nil) {
+        self.id = id
+        self.type = type
+        self.customType = customType
+        self.value = value
+        self.notes = notes
+    }
+
+    var resolvedType: String? {
+        if type == MeasurementTypeOption.otherValue {
+            return customType?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty ?? type
+        }
+        return type?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty
+    }
+
+    var isEffectivelyEmpty: Bool {
+        type?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty != false &&
+        customType?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty != false &&
+        value?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty != false &&
+        notes?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty != false
+    }
+}
+
+struct MeasurementsBlock: Codable, Hashable {
+    var isEnabled: Bool?
+    var items: [MeasurementItem]?
+
+    var activeItems: [MeasurementItem] {
+        guard isEnabled == true else { return [] }
+        return (items ?? []).filter { !$0.isEffectivelyEmpty }
+    }
+
+    var isEffectivelyEmpty: Bool {
+        isEnabled != true && (items ?? []).filter { !$0.isEffectivelyEmpty }.isEmpty
+    }
+}
+
+enum MeasurementTypeOption {
+    static let otherValue = "Other"
+}
+
 struct InsulatedAluminumPatioCoverDetails: Codable, Hashable {
     var width: String?
     var projection: String?
@@ -1394,6 +1442,7 @@ struct AlumawoodPergolaDetails: Codable, Hashable {
 struct StructuralSystem: Codable, Hashable {
     var systemType: StructuralSystemType?
     var systemTypeOther: String?
+    var measurements: MeasurementsBlock?
     var insulatedAluminumPatioCover: InsulatedAluminumPatioCoverDetails?
     var pergolaType: PergolaType?
     var motorizedLouveredPergola: PergolaDimensionDetails?
@@ -1476,6 +1525,7 @@ struct StructuralSystem: Codable, Hashable {
     var isEffectivelyEmpty: Bool {
         systemType == nil &&
         systemTypeOther?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty != false &&
+        measurements?.isEffectivelyEmpty != false &&
         insulatedAluminumPatioCover == nil &&
         pergolaType == nil &&
         motorizedLouveredPergola == nil &&
@@ -1569,6 +1619,7 @@ struct StructuralSystem: Codable, Hashable {
     private enum CodingKeys: String, CodingKey {
         case systemType
         case systemTypeOther
+        case measurements
         case insulatedAluminumPatioCover
         case pergolaType
         case motorizedLouveredPergola
@@ -1587,6 +1638,7 @@ struct StructuralSystem: Codable, Hashable {
     init(
         systemType: StructuralSystemType? = nil,
         systemTypeOther: String? = nil,
+        measurements: MeasurementsBlock? = nil,
         insulatedAluminumPatioCover: InsulatedAluminumPatioCoverDetails? = nil,
         pergolaType: PergolaType? = nil,
         motorizedLouveredPergola: PergolaDimensionDetails? = nil,
@@ -1603,6 +1655,7 @@ struct StructuralSystem: Codable, Hashable {
     ) {
         self.systemType = systemType
         self.systemTypeOther = systemTypeOther?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty
+        self.measurements = measurements?.isEffectivelyEmpty == true ? nil : measurements
         self.insulatedAluminumPatioCover = insulatedAluminumPatioCover?.isEffectivelyEmpty == true ? nil : insulatedAluminumPatioCover
         self.pergolaType = pergolaType
         self.motorizedLouveredPergola = motorizedLouveredPergola?.isEffectivelyEmpty == true ? nil : motorizedLouveredPergola
@@ -1622,6 +1675,7 @@ struct StructuralSystem: Codable, Hashable {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         systemType = try container.decodeIfPresent(StructuralSystemType.self, forKey: .systemType)
         systemTypeOther = try container.decodeIfPresent(String.self, forKey: .systemTypeOther)
+        measurements = try container.decodeIfPresent(MeasurementsBlock.self, forKey: .measurements)
         insulatedAluminumPatioCover = try container.decodeIfPresent(InsulatedAluminumPatioCoverDetails.self, forKey: .insulatedAluminumPatioCover)
         pergolaType = try container.decodeIfPresent(PergolaType.self, forKey: .pergolaType)
         motorizedLouveredPergola = try container.decodeIfPresent(PergolaDimensionDetails.self, forKey: .motorizedLouveredPergola)
@@ -1641,6 +1695,7 @@ struct StructuralSystem: Codable, Hashable {
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encodeIfPresent(systemType, forKey: .systemType)
         try container.encodeIfPresent(systemTypeOther?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty, forKey: .systemTypeOther)
+        try container.encodeIfPresent(measurements?.isEffectivelyEmpty == true ? nil : measurements, forKey: .measurements)
         try container.encodeIfPresent(insulatedAluminumPatioCover?.isEffectivelyEmpty == true ? nil : insulatedAluminumPatioCover, forKey: .insulatedAluminumPatioCover)
         try container.encodeIfPresent(pergolaType, forKey: .pergolaType)
         try container.encodeIfPresent(motorizedLouveredPergola?.isEffectivelyEmpty == true ? nil : motorizedLouveredPergola, forKey: .motorizedLouveredPergola)
@@ -1665,7 +1720,9 @@ struct Enclosure: Codable, Hashable {
     var screenFrameColor: EnclosureScreenFrameColorOption?
     var screenFrameColorCustom: String?
     var screenEnclosureNotes: String?
+    var screenMeasurements: MeasurementsBlock?
     var windowSystem: WindowSystem?
+    var sunroomMeasurements: MeasurementsBlock?
     var kneeWall: KneeWall?
     var doors: DoorOptions?
 
@@ -1703,7 +1760,9 @@ struct Enclosure: Codable, Hashable {
         screenFrameColor == nil &&
         screenFrameColorCustom?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty != false &&
         screenEnclosureNotes?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty != false &&
+        screenMeasurements?.isEffectivelyEmpty != false &&
         windowSystem == nil &&
+        sunroomMeasurements?.isEffectivelyEmpty != false &&
         kneeWall == nil &&
         doors == nil
     }
@@ -1716,7 +1775,9 @@ struct Enclosure: Codable, Hashable {
         screenFrameColor: EnclosureScreenFrameColorOption? = nil,
         screenFrameColorCustom: String? = nil,
         screenEnclosureNotes: String? = nil,
+        screenMeasurements: MeasurementsBlock? = nil,
         windowSystem: WindowSystem? = nil,
+        sunroomMeasurements: MeasurementsBlock? = nil,
         kneeWall: KneeWall? = nil,
         doors: DoorOptions? = nil
     ) {
@@ -1727,7 +1788,9 @@ struct Enclosure: Codable, Hashable {
         self.screenFrameColor = screenFrameColor
         self.screenFrameColorCustom = screenFrameColorCustom
         self.screenEnclosureNotes = screenEnclosureNotes?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty
+        self.screenMeasurements = screenMeasurements?.isEffectivelyEmpty == true ? nil : screenMeasurements
         self.windowSystem = windowSystem
+        self.sunroomMeasurements = sunroomMeasurements?.isEffectivelyEmpty == true ? nil : sunroomMeasurements
         self.kneeWall = kneeWall
         self.doors = doors
     }
@@ -1780,7 +1843,9 @@ struct Enclosure: Codable, Hashable {
         case screenFrameColor
         case screenFrameColorCustom
         case screenEnclosureNotes
+        case screenMeasurements
         case windowSystem
+        case sunroomMeasurements
         case kneeWall
         case doors
     }
@@ -1798,7 +1863,9 @@ struct Enclosure: Codable, Hashable {
         screenFrameColor = try container.decodeIfPresent(EnclosureScreenFrameColorOption.self, forKey: .screenFrameColor)
         screenFrameColorCustom = try container.decodeIfPresent(String.self, forKey: .screenFrameColorCustom)
         screenEnclosureNotes = try container.decodeIfPresent(String.self, forKey: .screenEnclosureNotes)
+        screenMeasurements = try container.decodeIfPresent(MeasurementsBlock.self, forKey: .screenMeasurements)
         windowSystem = try container.decodeIfPresent(WindowSystem.self, forKey: .windowSystem)
+        sunroomMeasurements = try container.decodeIfPresent(MeasurementsBlock.self, forKey: .sunroomMeasurements)
         kneeWall = try container.decodeIfPresent(KneeWall.self, forKey: .kneeWall)
         doors = try container.decodeIfPresent(DoorOptions.self, forKey: .doors)
     }
@@ -1812,7 +1879,9 @@ struct Enclosure: Codable, Hashable {
         try container.encodeIfPresent(screenFrameColor, forKey: .screenFrameColor)
         try container.encodeIfPresent(screenFrameColorCustom, forKey: .screenFrameColorCustom)
         try container.encodeIfPresent(screenEnclosureNotes?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty, forKey: .screenEnclosureNotes)
+        try container.encodeIfPresent(screenMeasurements?.isEffectivelyEmpty == true ? nil : screenMeasurements, forKey: .screenMeasurements)
         try container.encodeIfPresent(windowSystem, forKey: .windowSystem)
+        try container.encodeIfPresent(sunroomMeasurements?.isEffectivelyEmpty == true ? nil : sunroomMeasurements, forKey: .sunroomMeasurements)
         try container.encodeIfPresent(kneeWall, forKey: .kneeWall)
         try container.encodeIfPresent(doors, forKey: .doors)
     }
@@ -2011,6 +2080,7 @@ struct Electrical: Codable, Hashable {
     var switchLocations: String?
     var dedicatedCircuits: [DedicatedCircuitType]?
     var notes: String?
+    var measurements: MeasurementsBlock?
 }
 
 struct Drainage: Codable, Hashable {
@@ -2018,6 +2088,7 @@ struct Drainage: Codable, Hashable {
     var downspoutLocations: String?
     var drainTieIn: Bool?
     var slopeNotes: String?
+    var measurements: MeasurementsBlock?
 }
 
 struct AttachmentConditions: Codable, Hashable {
@@ -2036,6 +2107,7 @@ struct AttachmentConditions: Codable, Hashable {
     var mountCondition: MountCondition?
     var fastenerPlan: [FastenerType]?
     var notes: String?
+    var measurements: MeasurementsBlock?
 }
 
 struct Finishes: Codable, Hashable {
@@ -2043,6 +2115,7 @@ struct Finishes: Codable, Hashable {
     var paintOrPowderColor: String?
     var sidingReplacementRequired: Bool?
     var caulkingSealingNotes: String?
+    var measurements: MeasurementsBlock?
 }
 
 struct PermitsHOA: Codable, Hashable {

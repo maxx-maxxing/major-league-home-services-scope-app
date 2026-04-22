@@ -5,11 +5,22 @@ Produce a **professional production-order PDF** that crews can build from.
 The exported PDF must be **flattened** by default (no editable form fields).
 
 ## Layout Outline
-- Page 1: Job header + Project Info + Key Dimensions summary
+- Page 1: Job header + Project Info
 - Page 2: Existing Conditions + Attachment Conditions
 - Page 3: Structural + Roof System + Screen Enclosure summary
 - Page 4: Sunroom + Knee Wall + Electrical + Drainage
 - Page 5: Permits/HOA + Production Notes + Customer Signature
+
+Measurements are section-owned. Enabled Measurements rows render under their owning section:
+- Structural System
+- Screen Enclosure
+- Sunroom
+- Electrical
+- Drainage
+- Attachment Conditions
+- Finishes
+
+Disabled/hidden Measurements blocks must not render in PDF output.
 
 Optional appendices:
 - Photos

@@ -26,6 +26,7 @@ Stable areas that must not be broken:
 - Existing Conditions nested selection behavior
 - Existing Conditions checklist photo workflow and file-backed persistence
 - Structural System branching workflow
+- Section-scoped Measurements workflow
 - Current PDF export/render/share pipeline
 - Debug inspector
 - Pricing/proposal foundation
@@ -36,36 +37,34 @@ Established UX/data patterns:
 - Branch-driven sections use progressive disclosure
 - Hidden inactive values may be preserved during editing
 - Hidden inactive values must be excluded/pruned from export/output
+- The app should feel like a first-party Apple productivity app: calm, obvious, low ambiguity
 
 Current active task:
-Adjust section naming and options so Enclosure becomes Screen Enclosure, Windows & Glass becomes Sunroom, remove outdated enclosure-type options, and add a dedicated Screen Enclosure Notes field.
+Improve text-field clarity so values remain understandable after users type into fields.
 
 Required behavior:
-- Rename the visible section title `Enclosure` to `Screen Enclosure`
-- Rename the visible section title `Windows & Glass` to `Sunroom`
-- In Enclosure Type, remove:
-  - Vinyl Window Enclosure
-  - Glass Sunroom
-- Preserve the remaining Enclosure Type options unless code structure requires otherwise
-- Add a dedicated `Screen Enclosure Notes` text field
-- This notes field should:
-  - be a normal human text-entry field
-  - allow spaces / multi-word text
-  - autosave and persist
-  - be clearly associated with Screen Enclosure
-- Prefer a safe UI/data change, not a broad internal architectural rename, unless absolutely required
+- Most text-entry fields should no longer rely on placeholder text alone to communicate meaning
+- Once a field has a value, the UI must still clearly indicate what that value represents
+- Prefer persistent visible labels for fields where placeholder-only behavior currently creates ambiguity
+- This is especially important for stacked fields such as:
+  - widths
+  - heights
+  - projections
+  - counts
+  - measurement values
+  - write-in fields
+  - other repeated form fields where multiple similar inputs appear together
 
 Implementation guidance:
-- Audit the full Enclosure / Windows & Glass flow before changing code:
-  - visible section labels
-  - Enclosure Type option source
-  - model storage if relevant
-  - editor UI
-  - export/proposal/PDF labels/output if these section names or values appear there
-- Prefer the smallest production-safe path
-- Reuse existing notes/text-entry patterns
-- Keep Sort/sidebar/list behavior untouched
-- Avoid broad persistence risk if possible
+- Audit text-entry fields across the app
+- Convert placeholder-only fields into persistently labeled fields where appropriate
+- Prefer a shared labeled-field pattern rather than inconsistent one-off fixes
+- Keep the UI clean and uncluttered
+- Do not duplicate labels unnecessarily where the surrounding card/section title already makes the field’s meaning obvious
+- Good default rule:
+  - stacked/shared fields inside a card should each have their own visible label
+  - single obvious standalone note fields do not need redundant duplicate labels if the card title already communicates the meaning clearly
+- Preserve existing helper text below fields where it adds value
 
 Editing rules:
 - Follow READ → PLAN → EDIT

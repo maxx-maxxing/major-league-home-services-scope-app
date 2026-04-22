@@ -315,6 +315,43 @@
         }
       }
     },
+    "MeasurementItem": {
+      "fields": {
+        "id": {
+          "type": "uuid",
+          "required": true
+        },
+        "type": {
+          "type": "string",
+          "required": false
+        },
+        "customType": {
+          "type": "string",
+          "required": false
+        },
+        "value": {
+          "type": "string",
+          "required": false
+        },
+        "notes": {
+          "type": "string",
+          "required": false
+        }
+      }
+    },
+    "MeasurementsBlock": {
+      "fields": {
+        "isEnabled": {
+          "type": "bool",
+          "required": false
+        },
+        "items": {
+          "type": "array",
+          "items": "MeasurementItem",
+          "required": false
+        }
+      }
+    },
     "StructuralSystem": {
       "fields": {
         "systemType": {
@@ -329,6 +366,10 @@
         },
         "systemTypeOther": {
           "type": "string",
+          "required": false
+        },
+        "measurements": {
+          "type": "MeasurementsBlock",
           "required": false
         },
         "insulatedAluminumPatioCover": {
@@ -644,8 +685,16 @@
           "type": "string",
           "required": false
         },
+        "screenMeasurements": {
+          "type": "MeasurementsBlock",
+          "required": false
+        },
         "windowSystem": {
           "type": "WindowSystem",
+          "required": false
+        },
+        "sunroomMeasurements": {
+          "type": "MeasurementsBlock",
           "required": false
         },
         "kneeWall": {
@@ -920,6 +969,10 @@
         "notes": {
           "type": "string",
           "required": false
+        },
+        "measurements": {
+          "type": "MeasurementsBlock",
+          "required": false
         }
       }
     },
@@ -939,6 +992,10 @@
         },
         "slopeNotes": {
           "type": "string",
+          "required": false
+        },
+        "measurements": {
+          "type": "MeasurementsBlock",
           "required": false
         }
       }
@@ -1057,6 +1114,10 @@
         "notes": {
           "type": "string",
           "required": false
+        },
+        "measurements": {
+          "type": "MeasurementsBlock",
+          "required": false
         }
       }
     },
@@ -1076,6 +1137,10 @@
         },
         "caulkingSealingNotes": {
           "type": "string",
+          "required": false
+        },
+        "measurements": {
+          "type": "MeasurementsBlock",
           "required": false
         }
       }

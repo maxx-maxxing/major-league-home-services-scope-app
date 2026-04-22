@@ -207,13 +207,19 @@ struct ProjectInfoEditorView: View {
                         Text("Project Type")
                             .font(.body)
 
-                        Picker("Project Type", selection: projectTypeBinding) {
-                            ForEach(ProjectType.allCases, id: \.self) { type in
-                                Text(type.displayName).tag(type)
+                        Text(projectTypeSummary)
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+
+                        ForEach(ProjectType.selectableCases, id: \.self) { type in
+                            MultiSelectOptionRow(
+                                title: type.displayName,
+                                isSelected: isProjectTypeSelected(type)
+                            ) {
+                                toggleProjectType(type)
                             }
                         }
-                        .pickerStyle(.menu)
-                        .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
                     }
 
                     Toggle("Include Site Visit Date", isOn: includesSiteVisitDateBinding)
@@ -244,13 +250,18 @@ struct ProjectInfoEditorView: View {
         .animation(.formReveal, value: scope.projectInfo.siteVisitDate != nil)
     }
 
-    private var projectTypeBinding: Binding<ProjectType> {
-        Binding(
-            get: { scope.projectInfo.projectType },
-            set: { newValue in
-                updateProjectInfo { $0.projectType = newValue }
-            }
-        )
+    private var projectTypeSummary: String {
+        scope.projectInfo.activeProjectTypes.isEmpty ? "No project types selected" : scope.projectInfo.projectTypeDisplaySummary
+    }
+
+    private func isProjectTypeSelected(_ type: ProjectType) -> Bool {
+        scope.projectInfo.activeProjectTypes.contains(type)
+    }
+
+    private func toggleProjectType(_ type: ProjectType) {
+        updateProjectInfo { info in
+            info.setProjectType(type, isSelected: !info.activeProjectTypes.contains(type))
+        }
     }
 
     private var scopeTitleBinding: Binding<String> {
@@ -480,6 +491,19 @@ struct ExistingConditionsEditorView: View {
                             toggleExistingStructure(value)
                         }
                     }
+
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text("Existing Structure Notes")
+                            .font(.body)
+                        NotesField(
+                            title: "Existing Structure Notes",
+                            text: existingStructureNotesBinding,
+                            minHeight: 100,
+                            showInlineTitle: false,
+                            prompt: "Add notes specific to existing structure"
+                        )
+                    }
+                    .padding(.top, 4)
                 }
             }
 
@@ -575,6 +599,15 @@ struct ExistingConditionsEditorView: View {
             get: { scope.existingConditions?.obstaclesNotes ?? "" },
             set: { newValue in
                 updateExistingConditions { $0.obstaclesNotes = newValue.nilIfWhitespaceOnly }
+            }
+        )
+    }
+
+    private var existingStructureNotesBinding: Binding<String> {
+        Binding(
+            get: { scope.existingConditions?.existingStructureNotes ?? "" },
+            set: { newValue in
+                updateExistingConditions { $0.existingStructureNotes = newValue.nilIfWhitespaceOnly }
             }
         )
     }
@@ -1858,7 +1891,7 @@ struct EnclosureEditorView: View {
 
     var body: some View {
         VStack(spacing: 16) {
-            CardGroup(title: "Enclosure Type") {
+            CardGroup(title: "Screen Enclosure Type") {
                 VStack(alignment: .leading, spacing: 10) {
                     FieldHeader("Types")
 
@@ -1867,7 +1900,7 @@ struct EnclosureEditorView: View {
                         .foregroundStyle(.secondary)
                         .frame(maxWidth: .infinity, alignment: .leading)
 
-                    ForEach(EnclosureType.allCases, id: \.self) { type in
+                    ForEach(EnclosureType.selectableCases, id: \.self) { type in
                         Button {
                             toggleEnclosureType(type)
                         } label: {
@@ -1890,6 +1923,16 @@ struct EnclosureEditorView: View {
                         .accessibilityAddTraits(isEnclosureTypeSelected(type) ? .isSelected : [])
                     }
                 }
+            }
+
+            CardGroup(title: "Screen Enclosure Notes") {
+                NotesField(
+                    title: "Screen Enclosure Notes",
+                    text: screenEnclosureNotesBinding,
+                    minHeight: 120,
+                    showInlineTitle: false,
+                    prompt: "Add notes specific to screen enclosure"
+                )
             }
 
             if showsScreenOptions {
@@ -2230,6 +2273,15 @@ struct EnclosureEditorView: View {
             get: { scope.enclosure?.screenFrameColorCustom ?? "" },
             set: { newValue in
                 updateEnclosure { $0.screenFrameColorCustom = newValue.nilIfWhitespaceOnly }
+            }
+        )
+    }
+
+    private var screenEnclosureNotesBinding: Binding<String> {
+        Binding(
+            get: { scope.enclosure?.screenEnclosureNotes ?? "" },
+            set: { newValue in
+                updateEnclosure { $0.screenEnclosureNotes = newValue.nilIfWhitespaceOnly }
             }
         )
     }
@@ -4665,12 +4717,20 @@ private struct NotesField: View {
     @Binding var text: String
     let minHeight: CGFloat
     let showInlineTitle: Bool
+    let prompt: String?
 
-    init(title: String, text: Binding<String>, minHeight: CGFloat, showInlineTitle: Bool = true) {
+    init(
+        title: String,
+        text: Binding<String>,
+        minHeight: CGFloat,
+        showInlineTitle: Bool = true,
+        prompt: String? = nil
+    ) {
         self.title = title
         self._text = text
         self.minHeight = minHeight
         self.showInlineTitle = showInlineTitle
+        self.prompt = prompt
     }
 
     var body: some View {
@@ -4682,6 +4742,15 @@ private struct NotesField: View {
             TextEditor(text: $text)
                 .frame(minHeight: minHeight)
                 .padding(8)
+                .overlay(alignment: .topLeading) {
+                    if text.isEmpty, let prompt {
+                        Text(prompt)
+                            .foregroundStyle(.tertiary)
+                            .padding(.horizontal, 13)
+                            .padding(.vertical, 16)
+                            .allowsHitTesting(false)
+                    }
+                }
                 .liquidGlassInputBackground(cornerRadius: 14)
         }
     }
@@ -4771,6 +4840,7 @@ private func emptyEnclosure() -> Enclosure {
         screenFrameSize: nil,
         screenFrameColor: nil,
         screenFrameColorCustom: nil,
+        screenEnclosureNotes: nil,
         windowSystem: nil,
         kneeWall: nil,
         doors: nil
@@ -4782,6 +4852,7 @@ private func emptyExistingConditions() -> ExistingConditions {
         houseStories: nil,
         exteriorFinish: nil,
         existingStructure: nil,
+        existingStructureNotes: nil,
         obstaclesNotes: nil,
         utilitiesNotes: nil,
         hoaNotes: nil,

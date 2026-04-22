@@ -448,7 +448,7 @@ enum ScopePDFExporter {
         let title = scope.resolvedDocumentTitle
         let customerName = scope.resolvedExportCustomerName ?? "Not set"
         let address = scope.projectInfo.formattedAddressLine ?? "No address"
-        let type = scope.projectInfo.projectType.displayName
+        let type = scope.projectInfo.projectTypeDisplaySummary
         let jobNumber = scope.jobNumber ?? "N/A"
 
         drawAdaptiveText(title, font: headerTitleFont, in: CGRect(x: 40, y: 34, width: rect.width - 80, height: 22), context: context, color: primaryTextColor, minimumScaleFactor: 0.72, logContext: "header-title")
@@ -519,7 +519,7 @@ enum ScopePDFExporter {
                     .init(label: "Salesperson", value: project.salesperson?.nilIfBlank ?? "Not set"),
                     .init(label: "Estimator", value: project.estimator?.nilIfBlank ?? "Not set"),
                     .init(label: "Site Visit", value: formattedDate(project.siteVisitDate)),
-                    .init(label: "Project Type", value: project.projectType.displayName),
+                    .init(label: "Project Type", value: project.projectTypeDisplaySummary),
                     .init(label: "Notes", value: project.notes?.nilIfBlank ?? "None")
                 ]),
                 PDFSection(title: "Key Dimensions", rows: [
@@ -552,6 +552,7 @@ enum ScopePDFExporter {
                     .init(label: "Exterior House Wall Material", value: existing?.exteriorFinish?.exteriorHouseWallMaterialDisplaySummary ?? "Not set"),
                     .init(label: "Exterior House Wall -> Other", value: existing?.exteriorFinish?.exteriorHouseWallOther?.nilIfBlank ?? "Not set"),
                     .init(label: "Existing Structure", value: existing?.existingStructureDisplaySummary ?? "Not set"),
+                    .init(label: "Existing Structure Notes", value: existing?.existingStructureNotes?.nilIfBlank ?? "None"),
                     .init(label: "Obstacles", value: existing?.obstaclesNotes?.nilIfBlank ?? "None"),
                     .init(label: "Utilities", value: existing?.utilitiesNotes?.nilIfBlank ?? "None"),
                     .init(label: "HOA Notes", value: existing?.hoaNotes?.nilIfBlank ?? "None"),
@@ -579,15 +580,16 @@ enum ScopePDFExporter {
         let enclosure = scope.enclosure?.normalizedForExport()
 
         return PDFPageContent(
-            title: "Page 3: Structural + Roof System + Enclosure",
+            title: "Page 3: Structural + Roof System + Screen Enclosure",
             sections: [
                 PDFSection(title: "Structural System", rows: structuralRows(structural)),
-                PDFSection(title: "Enclosure", rows: [
-                    .init(label: "Type", value: enclosure?.enclosureTypeDisplaySummary ?? "Not set"),
+                PDFSection(title: "Screen Enclosure", rows: [
+                    .init(label: "Screen Enclosure Type", value: enclosure?.enclosureTypeDisplaySummary ?? "Not set"),
                     .init(label: "Screen Type", value: enclosure?.screenWallType?.displayName ?? "Not set"),
                     .init(label: "Tint", value: enclosure?.screenTint?.displayName ?? "Not set"),
                     .init(label: "Frame Size", value: enclosure?.screenFrameSize?.displayName ?? "Not set"),
                     .init(label: "Frame Color", value: resolvedScreenFrameColor(enclosure?.screenFrameColor, custom: enclosure?.screenFrameColorCustom)),
+                    .init(label: "Screen Enclosure Notes", value: enclosure?.screenEnclosureNotes?.nilIfBlank ?? "None"),
                     .init(label: "Knee Wall", value: enclosure?.kneeWall?.option?.displayName ?? "Not set"),
                     .init(label: "Knee Wall Details", value: kneeWallSummary(enclosure?.kneeWall)),
                     .init(label: "Door Type", value: enclosure?.doors?.doorType?.displayName ?? "Not set"),
@@ -610,9 +612,9 @@ enum ScopePDFExporter {
         let drainage = scope.drainage
 
         return PDFPageContent(
-            title: "Page 4: Windows/Glass + Knee Wall + Electrical + Drainage",
+            title: "Page 4: Sunroom + Knee Wall + Electrical + Drainage",
             sections: [
-                PDFSection(title: "Windows & Glass", rows: [
+                PDFSection(title: "Sunroom", rows: [
                     .init(label: "Window Type", value: window?.windowType?.displayName ?? "Not set"),
                     .init(label: "Frame System", value: window?.frameSystem?.displayName ?? "Not set"),
                     .init(label: "Glass Type", value: window?.glassType?.displayName ?? "Not set"),
@@ -971,7 +973,7 @@ enum ScopePDFExporter {
         let identity = scope.resolvedExportIdentityToken.replacingOccurrences(of: " ", with: "")
         let address = (scope.projectInfo.address.nilIfBlank ?? "Address")
             .replacingOccurrences(of: " ", with: "")
-        let projectType = scope.projectInfo.projectType.displayName.replacingOccurrences(of: " ", with: "")
+        let projectType = scope.projectInfo.projectTypeDisplaySummary.replacingOccurrences(of: " ", with: "")
         return "\(sanitize(identity))-\(sanitize(address))-\(sanitize(projectType))-Scope"
     }
 

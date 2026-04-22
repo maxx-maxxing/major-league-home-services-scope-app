@@ -6,9 +6,11 @@
 - Milestone 1: Implemented
 - Milestone 2: Implemented (requested section editors)
 - Milestone 2.1: Implemented (Windows & Glass stability/usability pass)
+- Milestone 2.1.1: Implemented (Screen Enclosure / Sunroom terminology)
 - Milestone 2.2: Implemented (remaining schema-backed section editors)
 - Milestone 2.3: Implemented (Existing Conditions multi-select workflow alignment)
 - Milestone 2.3.1: Implemented (Existing Conditions photo checklist structured photo workflow)
+- Milestone 2.3.3: Implemented (Existing Structure notes field)
 - Milestone 2.3.2: Implemented (Structural System branching workflow alignment)
 - Milestone 3: Implemented (PencilKit signature + sketch capture)
 - Milestone 3.4.1: Implemented (Signature/diagram persistence repair)
@@ -60,6 +62,25 @@
 - Milestone 7.6.5: Implemented (general text entry whitespace repair)
 
 ## Decisions
+- Milestone 2.1.1 Screen Enclosure / Sunroom terminology:
+  - renamed visible navigation labels from `Enclosure` to `Screen Enclosure` and from `Windows & Glass` to `Sunroom`
+  - removed `Vinyl Window Enclosure` and `Glass Sunroom` from current Enclosure Type choices by filtering selectable types while keeping those enum cases decodable for older saved payloads
+  - added optional `Enclosure.screenEnclosureNotes` to [schema.json](/Users/maxx/Documents/major-league-home-services-scope-app/construction-scope-app/schema.json) and [SchemaModels.swift](/Users/maxx/Documents/major-league-home-services-scope-app/construction-scope-app/Models/SchemaModels.swift)
+  - added a dedicated `Screen Enclosure Notes` editor card in [SectionEditors.swift](/Users/maxx/Documents/major-league-home-services-scope-app/construction-scope-app/Views/SectionEditors.swift), using the existing multiline notes field pattern and edit-safe whitespace handling
+  - updated affected PDF/proposal labels to use `Screen Enclosure` and `Sunroom`, and included `Screen Enclosure Notes` in output snapshots
+  - Validation:
+    - attempted `xcodebuild -project ConstructionScopeApp.xcodeproj -scheme ConstructionScopeApp -destination 'generic/platform=iOS' -derivedDataPath /tmp/ConstructionScopeAppScreenEnclosureDerivedData CODE_SIGNING_ALLOWED=NO build`
+    - build reached the Swift driver with no source diagnostics surfaced before failing at asset catalog compilation because this environment cannot access simulator runtime services: `No available simulator runtimes for platform iphonesimulator`
+
+- Milestone 2.3.3 Existing Structure notes field:
+  - added optional `ExistingConditions.existingStructureNotes` to [schema.json](/Users/maxx/Documents/major-league-home-services-scope-app/construction-scope-app/schema.json) and [SchemaModels.swift](/Users/maxx/Documents/major-league-home-services-scope-app/construction-scope-app/Models/SchemaModels.swift)
+  - placed a dedicated `Existing Structure Notes` TextEditor directly under the Existing Structure multi-select rows and above the general Field Notes card in [SectionEditors.swift](/Users/maxx/Documents/major-league-home-services-scope-app/construction-scope-app/Views/SectionEditors.swift)
+  - included the notes in normalized Existing Conditions proposal/PDF output beside the Existing Structure selections
+  - behavior preserves normal multi-word text entry, autosaves through the existing section update path, and remains visible even when all Existing Structure selections are cleared
+  - Validation:
+    - attempted `xcodebuild -project ConstructionScopeApp.xcodeproj -scheme ConstructionScopeApp -destination 'generic/platform=iOS' -derivedDataPath /tmp/ConstructionScopeAppExistingStructureNotesDerivedData CODE_SIGNING_ALLOWED=NO build`
+    - build reached the Swift driver with no source diagnostics surfaced before failing at asset catalog compilation because this environment cannot access simulator runtime services: `No available simulator runtimes for platform iphonesimulator`
+
 - Milestone 7.6.5 General text entry whitespace repair:
   - Task scope:
     - audit SwiftUI text-entry bindings for live whitespace normalization
@@ -1936,3 +1957,18 @@
 - Existing saved scopes with `enclosureType` should open through the custom Enclosure decoder and appear as a one-item `enclosureTypes` selection.
 - New saves encode `enclosureTypes`; `enclosureType` remains a deprecated schema key for legacy decode fallback only.
 - This is a persistence-shape change and should be included in same-device upgrade validation before handing a build to the field beta user.
+
+## Project Type Multi-Select + Flat Scope List – 2026-04-22
+
+### What Changed
+- Project Information `Project Type` now stores the selected values in `ProjectInfo.projectTypes`.
+- Legacy saved `projectType` payloads decode into the new `projectTypes` array as a one-item selection.
+- The Project Information editor now uses toggleable multi-select rows, matching the app's established selected/unselected row pattern.
+- The expanded Scopes header no longer shows the Group control; Sort remains the only visible list control.
+- Scope lists now render flat, with no project-type grouping path in the visible UI.
+- Scope card metadata no longer displays project type and now shows only the scope status such as `Draft`.
+- PDF/proposal summaries now render the selected project type list as comma-separated text instead of assuming a single selected project type.
+
+### Migration Notes
+- Existing saved scopes do need compatibility fallback handling because older payloads can contain only `projectType`.
+- New saves encode `projectTypes`; the legacy `projectType` key is read only as a decode fallback.

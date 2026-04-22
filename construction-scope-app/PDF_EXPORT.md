@@ -7,8 +7,8 @@ The exported PDF must be **flattened** by default (no editable form fields).
 ## Layout Outline
 - Page 1: Job header + Project Info + Key Dimensions summary
 - Page 2: Existing Conditions + Attachment Conditions
-- Page 3: Structural + Roof System + Enclosure summary
-- Page 4: Windows/Glass + Knee Wall + Electrical + Drainage
+- Page 3: Structural + Roof System + Screen Enclosure summary
+- Page 4: Sunroom + Knee Wall + Electrical + Drainage
 - Page 5: Permits/HOA + Production Notes + Customer Signature
 
 Optional appendices:

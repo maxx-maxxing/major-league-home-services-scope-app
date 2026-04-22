@@ -24,7 +24,7 @@ enum ScopeCaptureSectionKey: String, Codable, CaseIterable, Identifiable {
         case .existingConditions: return "Existing Conditions"
         case .dimensions: return "Dimensions"
         case .structuralSystem: return "Structural System"
-        case .enclosure: return "Enclosure / Windows / Doors"
+        case .enclosure: return "Screen Enclosure / Sunroom / Doors"
         case .electrical: return "Electrical"
         case .drainage: return "Drainage"
         case .attachmentConditions: return "Attachment Conditions"
@@ -53,6 +53,7 @@ enum ScopeInputKey: String, Codable, CaseIterable, Identifiable {
     case houseStories
     case exteriorFinish
     case existingStructure
+    case existingStructureNotes
     case obstaclesNotes
     case utilitiesNotes
     case hoaNotes
@@ -71,6 +72,7 @@ enum ScopeInputKey: String, Codable, CaseIterable, Identifiable {
     case structuralBranchNotes
     case structuralNotes
     case enclosureType
+    case screenEnclosureNotes
     case screenWallType
     case screenTint
     case screenFrameSize
@@ -330,7 +332,54 @@ struct ProposalCustomerContext: Codable, Hashable {
     let linkedCustomerID: String?
     let customerName: String?
     let scopeTitle: String?
-    let projectType: ProjectType
+    let projectTypes: [ProjectType]
+
+    var projectTypeDisplaySummary: String {
+        projectTypes.map(\.displayName).joined(separator: ", ")
+    }
+
+    init(
+        linkedCustomerID: String?,
+        customerName: String?,
+        scopeTitle: String?,
+        projectTypes: [ProjectType]
+    ) {
+        self.linkedCustomerID = linkedCustomerID
+        self.customerName = customerName
+        self.scopeTitle = scopeTitle
+        self.projectTypes = Self.normalizedProjectTypes(projectTypes)
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case linkedCustomerID
+        case customerName
+        case scopeTitle
+        case projectTypes
+        case projectType
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        linkedCustomerID = try container.decodeIfPresent(String.self, forKey: .linkedCustomerID)
+        customerName = try container.decodeIfPresent(String.self, forKey: .customerName)
+        scopeTitle = try container.decodeIfPresent(String.self, forKey: .scopeTitle)
+
+        let decodedTypes = try container.decodeIfPresent([ProjectType].self, forKey: .projectTypes)
+        let legacyType = try container.decodeIfPresent(ProjectType.self, forKey: .projectType)
+        projectTypes = Self.normalizedProjectTypes(decodedTypes ?? legacyType.map { [$0] } ?? [])
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encodeIfPresent(linkedCustomerID, forKey: .linkedCustomerID)
+        try container.encodeIfPresent(customerName, forKey: .customerName)
+        try container.encodeIfPresent(scopeTitle, forKey: .scopeTitle)
+        try container.encode(projectTypes, forKey: .projectTypes)
+    }
+
+    private static func normalizedProjectTypes(_ types: [ProjectType]) -> [ProjectType] {
+        ProjectType.selectableCases.filter { types.contains($0) }
+    }
 }
 
 struct ProposalCompositionInput: Codable, Hashable {
@@ -899,7 +948,11 @@ enum ProposalFoundationBuilder {
                     textValue(.email, "Email", scope.projectInfo.email),
                     textValue(.salesperson, "Salesperson", scope.projectInfo.salesperson),
                     textValue(.estimator, "Estimator", scope.projectInfo.estimator),
-                    enumValue(.projectType, "Project Type", scope.projectInfo.projectType == .notSet ? nil : scope.projectInfo.projectType),
+                    textValue(
+                        .projectType,
+                        "Project Type",
+                        scope.projectInfo.activeProjectTypes.isEmpty ? nil : scope.projectInfo.projectTypeDisplaySummary
+                    ),
                     dateValue(.siteVisitDate, "Site Visit Date", scope.projectInfo.siteVisitDate),
                     textValue(.projectNotes, "Project Notes", scope.projectInfo.notes)
                 ].compactMap { $0 }
@@ -915,6 +968,7 @@ enum ProposalFoundationBuilder {
                     textValue(.houseWallMaterial, "Exterior House Wall Material", exportExistingConditions?.exteriorFinish?.exteriorHouseWallMaterialDisplaySummary),
                     textValue(.houseWallOther, "Exterior House Wall -> Other", exportExistingConditions?.exteriorFinish?.exteriorHouseWallOther),
                     textValue(.existingStructure, "Existing Structure", exportExistingConditions?.existingStructureDisplaySummary),
+                    textValue(.existingStructureNotes, "Existing Structure Notes", exportExistingConditions?.existingStructureNotes),
                     textValue(.obstaclesNotes, "Obstacles Notes", exportExistingConditions?.obstaclesNotes),
                     textValue(.utilitiesNotes, "Utilities Notes", exportExistingConditions?.utilitiesNotes),
                     textValue(.hoaNotes, "HOA Notes", exportExistingConditions?.hoaNotes),
@@ -947,7 +1001,8 @@ enum ProposalFoundationBuilder {
             ScopeCaptureSectionSnapshot(
                 section: .enclosure,
                 values: [
-                    textValue(.enclosureType, "Enclosure Type", exportEnclosure?.enclosureTypeDisplaySummary),
+                    textValue(.enclosureType, "Screen Enclosure Type", exportEnclosure?.enclosureTypeDisplaySummary),
+                    textValue(.screenEnclosureNotes, "Screen Enclosure Notes", exportEnclosure?.screenEnclosureNotes),
                     enumValue(.screenWallType, "Screen Wall Type", exportEnclosure?.screenWallType),
                     enumValue(.screenTint, "Screen Tint", exportEnclosure?.screenTint),
                     enumValue(.screenFrameSize, "Screen Frame Size", exportEnclosure?.screenFrameSize),
@@ -1076,7 +1131,7 @@ enum ProposalFoundationBuilder {
                 linkedCustomerID: scope.jobTreadCustomer?.customerID,
                 customerName: scope.resolvedCustomerDisplayName,
                 scopeTitle: scope.resolvedScopeTitle,
-                projectType: scope.projectInfo.projectType
+                projectTypes: scope.projectInfo.activeProjectTypes
             ),
             sections: sections
         )
@@ -1259,7 +1314,7 @@ enum ProposalFoundationBuilder {
         case .whenAnyTriggerValueAffirmativeOrMeaningful:
             return triggerValues.contains(where: isAffirmativeOrMeaningful)
         case .whenProjectTypeIsSet:
-            return input.customerContext.projectType != .notSet
+            return !input.customerContext.projectTypes.isEmpty
         }
     }
 
@@ -1284,8 +1339,8 @@ enum ProposalFoundationBuilder {
             }
             return "Excluded because no relevant scope selections are active."
         case .whenProjectTypeIsSet:
-            if input.customerContext.projectType != .notSet {
-                return "Included because project type is set to \(input.customerContext.projectType.displayName)."
+            if !input.customerContext.projectTypes.isEmpty {
+                return "Included because project type is set to \(input.customerContext.projectTypeDisplaySummary)."
             }
             return "Excluded because project type is not set."
         }
@@ -4681,11 +4736,11 @@ extension ProposalTemplateDefinition {
                 id: .siteConditions,
                 title: "Site Conditions",
                 sourceSections: [.existingConditions, .attachmentConditions],
-                customerFacingInputKeys: [.houseStories, .exteriorFinish, .existingStructure, .houseWallMaterial, .houseMountingType],
+                customerFacingInputKeys: [.houseStories, .exteriorFinish, .existingStructure, .existingStructureNotes, .houseWallMaterial, .houseMountingType],
                 internalInputKeys: [.obstaclesNotes, .utilitiesNotes, .hoaNotes, .mountCondition, .fastenerPlan, .attachmentNotes],
                 visibility: ProposalVisibilityDefinition(
                     rule: .whenAnyTriggerValueAffirmativeOrMeaningful,
-                    triggerInputKeys: [.houseStories, .exteriorFinish, .existingStructure, .obstaclesNotes, .utilitiesNotes, .houseWallMaterial, .houseMountingType]
+                    triggerInputKeys: [.houseStories, .exteriorFinish, .existingStructure, .existingStructureNotes, .obstaclesNotes, .utilitiesNotes, .houseWallMaterial, .houseMountingType]
                 ),
                 relatedPricingGroupIDs: ["site-readiness-and-coordination", "base-structure"],
                 syncTargets: [
@@ -4710,18 +4765,18 @@ extension ProposalTemplateDefinition {
             ),
             ProposalTemplateSectionDefinition(
                 id: .enclosureAndOpenings,
-                title: "Enclosure and Openings",
+                title: "Screen Enclosure and Openings",
                 sourceSections: [.enclosure],
-                customerFacingInputKeys: [.enclosureType, .screenWallType, .windowType, .glassType, .windowBayCount, .kneeWallOption, .doorType, .doorStyle],
+                customerFacingInputKeys: [.enclosureType, .screenEnclosureNotes, .screenWallType, .windowType, .glassType, .windowBayCount, .kneeWallOption, .doorType, .doorStyle],
                 internalInputKeys: [.windowFrameSystem, .glassSafety, .gridOption, .windowOperation, .windowColor, .windowHeight, .windowConfiguration, .windowNotes, .kneeWallPanelHeight, .kneeWallPanelColor, .kneeWallLinearFootage, .kneeWallHeight, .kneeWallFraming, .doorOperableSide, .doorHingeSide, .doorWidth, .doorHeight, .doorColor, .doorDimensions, .doorNotes],
                 visibility: ProposalVisibilityDefinition(
                     rule: .whenAnyTriggerValueAffirmativeOrMeaningful,
-                    triggerInputKeys: [.enclosureType, .screenWallType, .windowType, .glassType, .windowBayCount, .kneeWallOption, .doorType]
+                    triggerInputKeys: [.enclosureType, .screenEnclosureNotes, .screenWallType, .windowType, .glassType, .windowBayCount, .kneeWallOption, .doorType]
                 ),
                 relatedPricingGroupIDs: ["enclosure-options"],
                 syncTargets: [
-                    FutureSyncTargetBlueprint(kind: .costGroup, targetKey: "enclosure-openings", title: "Enclosure / Openings Cost Group", notes: "Candidate parent group for screen/window/door items."),
-                    FutureSyncTargetBlueprint(kind: .customField, targetKey: "enclosure-specs", title: "Enclosure Specs", notes: "Fallback structured sync bucket.")
+                    FutureSyncTargetBlueprint(kind: .costGroup, targetKey: "enclosure-openings", title: "Screen Enclosure / Openings Cost Group", notes: "Candidate parent group for screen/window/door items."),
+                    FutureSyncTargetBlueprint(kind: .customField, targetKey: "enclosure-specs", title: "Screen Enclosure Specs", notes: "Fallback structured sync bucket.")
                 ]
             ),
             ProposalTemplateSectionDefinition(
@@ -4784,10 +4839,10 @@ extension ProposalTemplateDefinition {
                         id: "site-conditions-review",
                         title: "Site Conditions Review",
                         summary: "Existing conditions, obstacles, utilities, and attachment conditions that may affect setup or labor.",
-                        mappedInputKeys: [.houseStories, .exteriorFinish, .existingStructure, .obstaclesNotes, .utilitiesNotes, .houseWallMaterial, .houseMountingType, .mountCondition],
+                        mappedInputKeys: [.houseStories, .exteriorFinish, .existingStructure, .existingStructureNotes, .obstaclesNotes, .utilitiesNotes, .houseWallMaterial, .houseMountingType, .mountCondition],
                         visibility: ProposalVisibilityDefinition(
                             rule: .whenAnyTriggerValueAffirmativeOrMeaningful,
-                            triggerInputKeys: [.houseStories, .exteriorFinish, .existingStructure, .obstaclesNotes, .utilitiesNotes, .houseWallMaterial, .houseMountingType, .mountCondition]
+                            triggerInputKeys: [.houseStories, .exteriorFinish, .existingStructure, .existingStructureNotes, .obstaclesNotes, .utilitiesNotes, .houseWallMaterial, .houseMountingType, .mountCondition]
                         ),
                         quantitySource: nil,
                         quantityBasisLabel: "Per Scope Review",
@@ -4896,7 +4951,7 @@ extension ProposalTemplateDefinition {
             ),
             PricingGroupDefinition(
                 id: "enclosure-options",
-                title: "Enclosure Options",
+                title: "Screen Enclosure Options",
                 sourceSections: [.enclosure],
                 outputChannels: [.internalOnly, .syncCandidate],
                 components: [
@@ -4904,10 +4959,10 @@ extension ProposalTemplateDefinition {
                         id: "screen-or-wall-package",
                         title: "Screen / Wall Package",
                         summary: "Screen wall and enclosure selections independent of final vendor catalog.",
-                        mappedInputKeys: [.enclosureType, .screenWallType, .screenTint, .screenFrameSize, .screenFrameColor],
+                        mappedInputKeys: [.enclosureType, .screenEnclosureNotes, .screenWallType, .screenTint, .screenFrameSize, .screenFrameColor],
                         visibility: ProposalVisibilityDefinition(
                             rule: .whenAnyTriggerValueAffirmativeOrMeaningful,
-                            triggerInputKeys: [.enclosureType, .screenWallType, .screenTint, .screenFrameSize, .screenFrameColor]
+                            triggerInputKeys: [.enclosureType, .screenEnclosureNotes, .screenWallType, .screenTint, .screenFrameSize, .screenFrameColor]
                         ),
                         quantitySource: .perimeterFeet,
                         quantityBasisLabel: "Perimeter",

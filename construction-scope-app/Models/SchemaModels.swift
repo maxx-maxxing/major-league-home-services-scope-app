@@ -41,6 +41,10 @@ enum ProjectType: String, Codable, CaseIterable, SchemaEnumDisplayable {
                 .capitalized
         }
     }
+
+    static var selectableCases: [ProjectType] {
+        allCases.filter { $0 != .notSet }
+    }
 }
 
 enum HouseStories: String, Codable, CaseIterable, SchemaEnumDisplayable {
@@ -315,7 +319,11 @@ enum EnclosureType: String, Codable, CaseIterable, SchemaEnumDisplayable {
     case legacyScreenRoomWithDoor = "screen_room_with_door"
 
     static var allCases: [EnclosureType] {
-        [.screenEnclosure, .vinylWindowEnclosure, .glassSunroom, .mixed, .other]
+        selectableCases
+    }
+
+    static var selectableCases: [EnclosureType] {
+        [.screenEnclosure, .mixed, .other]
     }
 
     init(from decoder: Decoder) throws {
@@ -325,7 +333,7 @@ enum EnclosureType: String, Codable, CaseIterable, SchemaEnumDisplayable {
         switch rawValue {
         case Self.legacyScreenOnly.rawValue, Self.legacyScreenRoomWithDoor.rawValue:
             self = .screenEnclosure
-        case let value where Self.allCases.contains(where: { $0.rawValue == value }):
+        case let value where Self(rawValue: value) != nil:
             self = Self(rawValue: value) ?? .other
         default:
             self = .other
@@ -712,8 +720,23 @@ struct ProjectInfo: Codable, Hashable {
     var salesperson: String?
     var estimator: String?
     var siteVisitDate: Date?
-    var projectType: ProjectType
+    var projectTypes: [ProjectType]?
     var notes: String?
+
+    var projectType: ProjectType {
+        get { activeProjectTypes.first ?? .notSet }
+        set { projectTypes = Self.normalizedProjectTypes(newValue == .notSet ? nil : [newValue]) }
+    }
+
+    var activeProjectTypes: [ProjectType] {
+        Self.normalizedProjectTypes(projectTypes) ?? []
+    }
+
+    var projectTypeDisplaySummary: String {
+        let names = activeProjectTypes.map(\.displayName)
+        guard !names.isEmpty else { return ProjectType.notSet.displayName }
+        return names.joined(separator: ", ")
+    }
 
     init(
         clientName: String = "",
@@ -728,6 +751,7 @@ struct ProjectInfo: Codable, Hashable {
         estimator: String? = nil,
         siteVisitDate: Date? = nil,
         projectType: ProjectType = .notSet,
+        projectTypes: [ProjectType]? = nil,
         notes: String? = nil
     ) {
         self.clientName = clientName
@@ -741,8 +765,25 @@ struct ProjectInfo: Codable, Hashable {
         self.salesperson = salesperson
         self.estimator = estimator
         self.siteVisitDate = siteVisitDate
-        self.projectType = projectType
+        self.projectTypes = Self.normalizedProjectTypes(projectTypes ?? (projectType == .notSet ? nil : [projectType]))
         self.notes = notes
+    }
+
+    mutating func setProjectType(_ type: ProjectType, isSelected: Bool) {
+        guard type != .notSet else {
+            projectTypes = nil
+            return
+        }
+
+        var selectedTypes = activeProjectTypes
+        if isSelected {
+            guard !selectedTypes.contains(type) else { return }
+            selectedTypes.append(type)
+        } else {
+            selectedTypes.removeAll { $0 == type }
+        }
+
+        projectTypes = Self.normalizedProjectTypes(selectedTypes)
     }
 
     var formattedAddressLine: String? {
@@ -759,6 +800,69 @@ struct ProjectInfo: Codable, Hashable {
         case (nil, nil):
             return nil
         }
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case clientName
+        case address
+        case unitNumber
+        case city
+        case state
+        case zip
+        case phone
+        case email
+        case salesperson
+        case estimator
+        case siteVisitDate
+        case projectTypes
+        case projectType
+        case notes
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        clientName = try container.decodeIfPresent(String.self, forKey: .clientName) ?? ""
+        address = try container.decodeIfPresent(String.self, forKey: .address) ?? ""
+        unitNumber = try container.decodeIfPresent(String.self, forKey: .unitNumber)
+        city = try container.decodeIfPresent(String.self, forKey: .city)
+        state = try container.decodeIfPresent(String.self, forKey: .state)
+        zip = try container.decodeIfPresent(String.self, forKey: .zip)
+        phone = try container.decodeIfPresent(String.self, forKey: .phone)
+        email = try container.decodeIfPresent(String.self, forKey: .email)
+        salesperson = try container.decodeIfPresent(String.self, forKey: .salesperson)
+        estimator = try container.decodeIfPresent(String.self, forKey: .estimator)
+        siteVisitDate = try container.decodeIfPresent(Date.self, forKey: .siteVisitDate)
+
+        let decodedTypes = try container.decodeIfPresent([ProjectType].self, forKey: .projectTypes)
+        let legacyType = try container.decodeIfPresent(ProjectType.self, forKey: .projectType)
+        projectTypes = Self.normalizedProjectTypes(decodedTypes ?? legacyType.map { [$0] })
+
+        notes = try container.decodeIfPresent(String.self, forKey: .notes)
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(clientName, forKey: .clientName)
+        try container.encode(address, forKey: .address)
+        try container.encodeIfPresent(unitNumber, forKey: .unitNumber)
+        try container.encodeIfPresent(city, forKey: .city)
+        try container.encodeIfPresent(state, forKey: .state)
+        try container.encodeIfPresent(zip, forKey: .zip)
+        try container.encodeIfPresent(phone, forKey: .phone)
+        try container.encodeIfPresent(email, forKey: .email)
+        try container.encodeIfPresent(salesperson, forKey: .salesperson)
+        try container.encodeIfPresent(estimator, forKey: .estimator)
+        try container.encodeIfPresent(siteVisitDate, forKey: .siteVisitDate)
+        try container.encodeIfPresent(Self.normalizedProjectTypes(projectTypes), forKey: .projectTypes)
+        try container.encodeIfPresent(notes, forKey: .notes)
+    }
+
+    private static func normalizedProjectTypes(_ types: [ProjectType]?) -> [ProjectType]? {
+        guard let types else { return nil }
+        let activeTypes = ProjectType.selectableCases.filter { type in
+            types.contains(type)
+        }
+        return activeTypes.isEmpty ? nil : activeTypes
     }
 }
 
@@ -919,6 +1023,7 @@ struct ExistingConditions: Codable, Hashable {
     var houseStories: HouseStories?
     var exteriorFinish: ExistingConditionsExteriorFinish?
     var existingStructure: [ExistingStructure]?
+    var existingStructureNotes: String?
     var obstaclesNotes: String?
     var utilitiesNotes: String?
     var hoaNotes: String?
@@ -938,6 +1043,7 @@ struct ExistingConditions: Codable, Hashable {
         houseStories == nil &&
         exteriorFinish == nil &&
         activeExistingStructures.isEmpty &&
+        existingStructureNotes?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty != false &&
         obstaclesNotes?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty != false &&
         utilitiesNotes?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty != false &&
         hoaNotes?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty != false &&
@@ -948,6 +1054,7 @@ struct ExistingConditions: Codable, Hashable {
         houseStories: HouseStories? = nil,
         exteriorFinish: ExistingConditionsExteriorFinish? = nil,
         existingStructure: [ExistingStructure]? = nil,
+        existingStructureNotes: String? = nil,
         obstaclesNotes: String? = nil,
         utilitiesNotes: String? = nil,
         hoaNotes: String? = nil,
@@ -956,6 +1063,7 @@ struct ExistingConditions: Codable, Hashable {
         self.houseStories = houseStories
         self.exteriorFinish = exteriorFinish?.isEffectivelyEmpty == true ? nil : exteriorFinish
         self.existingStructure = Self.normalizedExistingStructures(existingStructure)
+        self.existingStructureNotes = existingStructureNotes?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty
         self.obstaclesNotes = obstaclesNotes?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty
         self.utilitiesNotes = utilitiesNotes?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty
         self.hoaNotes = hoaNotes?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty
@@ -980,6 +1088,7 @@ struct ExistingConditions: Codable, Hashable {
         }
 
         existingStructure = Self.normalizedExistingStructures(existingStructure)
+        existingStructureNotes = existingStructureNotes?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty
         obstaclesNotes = obstaclesNotes?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty
         utilitiesNotes = utilitiesNotes?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty
         hoaNotes = hoaNotes?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty
@@ -996,6 +1105,7 @@ struct ExistingConditions: Codable, Hashable {
         case houseStories
         case exteriorFinish
         case existingStructure
+        case existingStructureNotes
         case obstaclesNotes
         case utilitiesNotes
         case hoaNotes
@@ -1005,6 +1115,7 @@ struct ExistingConditions: Codable, Hashable {
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         houseStories = try container.decodeIfPresent(HouseStories.self, forKey: .houseStories)
+        existingStructureNotes = try container.decodeIfPresent(String.self, forKey: .existingStructureNotes)
         obstaclesNotes = try container.decodeIfPresent(String.self, forKey: .obstaclesNotes)
         utilitiesNotes = try container.decodeIfPresent(String.self, forKey: .utilitiesNotes)
         hoaNotes = try container.decodeIfPresent(String.self, forKey: .hoaNotes)
@@ -1031,6 +1142,7 @@ struct ExistingConditions: Codable, Hashable {
         try container.encodeIfPresent(houseStories, forKey: .houseStories)
         try container.encodeIfPresent(exteriorFinish, forKey: .exteriorFinish)
         try container.encodeIfPresent(Self.normalizedExistingStructures(existingStructure), forKey: .existingStructure)
+        try container.encodeIfPresent(existingStructureNotes?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty, forKey: .existingStructureNotes)
         try container.encodeIfPresent(obstaclesNotes?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty, forKey: .obstaclesNotes)
         try container.encodeIfPresent(utilitiesNotes?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty, forKey: .utilitiesNotes)
         try container.encodeIfPresent(hoaNotes?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty, forKey: .hoaNotes)
@@ -1552,6 +1664,7 @@ struct Enclosure: Codable, Hashable {
     var screenFrameSize: ScreenFrameSizeOption?
     var screenFrameColor: EnclosureScreenFrameColorOption?
     var screenFrameColorCustom: String?
+    var screenEnclosureNotes: String?
     var windowSystem: WindowSystem?
     var kneeWall: KneeWall?
     var doors: DoorOptions?
@@ -1589,6 +1702,7 @@ struct Enclosure: Codable, Hashable {
         screenFrameSize == nil &&
         screenFrameColor == nil &&
         screenFrameColorCustom?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty != false &&
+        screenEnclosureNotes?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty != false &&
         windowSystem == nil &&
         kneeWall == nil &&
         doors == nil
@@ -1601,6 +1715,7 @@ struct Enclosure: Codable, Hashable {
         screenFrameSize: ScreenFrameSizeOption? = nil,
         screenFrameColor: EnclosureScreenFrameColorOption? = nil,
         screenFrameColorCustom: String? = nil,
+        screenEnclosureNotes: String? = nil,
         windowSystem: WindowSystem? = nil,
         kneeWall: KneeWall? = nil,
         doors: DoorOptions? = nil
@@ -1611,6 +1726,7 @@ struct Enclosure: Codable, Hashable {
         self.screenFrameSize = screenFrameSize
         self.screenFrameColor = screenFrameColor
         self.screenFrameColorCustom = screenFrameColorCustom
+        self.screenEnclosureNotes = screenEnclosureNotes?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty
         self.windowSystem = windowSystem
         self.kneeWall = kneeWall
         self.doors = doors
@@ -1634,6 +1750,8 @@ struct Enclosure: Codable, Hashable {
                 screenFrameColorCustom = nil
             }
         }
+
+        screenEnclosureNotes = screenEnclosureNotes?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty
     }
 
     mutating func setEnclosureType(_ type: EnclosureType, isSelected: Bool) {
@@ -1661,6 +1779,7 @@ struct Enclosure: Codable, Hashable {
         case screenFrameSize
         case screenFrameColor
         case screenFrameColorCustom
+        case screenEnclosureNotes
         case windowSystem
         case kneeWall
         case doors
@@ -1678,6 +1797,7 @@ struct Enclosure: Codable, Hashable {
         screenFrameSize = try container.decodeIfPresent(ScreenFrameSizeOption.self, forKey: .screenFrameSize)
         screenFrameColor = try container.decodeIfPresent(EnclosureScreenFrameColorOption.self, forKey: .screenFrameColor)
         screenFrameColorCustom = try container.decodeIfPresent(String.self, forKey: .screenFrameColorCustom)
+        screenEnclosureNotes = try container.decodeIfPresent(String.self, forKey: .screenEnclosureNotes)
         windowSystem = try container.decodeIfPresent(WindowSystem.self, forKey: .windowSystem)
         kneeWall = try container.decodeIfPresent(KneeWall.self, forKey: .kneeWall)
         doors = try container.decodeIfPresent(DoorOptions.self, forKey: .doors)
@@ -1691,6 +1811,7 @@ struct Enclosure: Codable, Hashable {
         try container.encodeIfPresent(screenFrameSize, forKey: .screenFrameSize)
         try container.encodeIfPresent(screenFrameColor, forKey: .screenFrameColor)
         try container.encodeIfPresent(screenFrameColorCustom, forKey: .screenFrameColorCustom)
+        try container.encodeIfPresent(screenEnclosureNotes?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty, forKey: .screenEnclosureNotes)
         try container.encodeIfPresent(windowSystem, forKey: .windowSystem)
         try container.encodeIfPresent(kneeWall, forKey: .kneeWall)
         try container.encodeIfPresent(doors, forKey: .doors)
@@ -1698,7 +1819,7 @@ struct Enclosure: Codable, Hashable {
 
     private static func normalizedTypes(_ types: [EnclosureType]?) -> [EnclosureType]? {
         guard let types else { return nil }
-        let activeTypes = EnclosureType.allCases.filter { type in
+        let activeTypes = EnclosureType.selectableCases.filter { type in
             types.contains(type)
         }
         return activeTypes.isEmpty ? nil : activeTypes

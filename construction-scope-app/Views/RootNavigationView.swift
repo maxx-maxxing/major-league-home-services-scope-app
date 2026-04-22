@@ -11,8 +11,8 @@ enum ScopeSection: String, CaseIterable, Identifiable {
     case existingConditions = "Existing Conditions"
     case dimensions = "Dimensions"
     case structuralSystem = "Structural System"
-    case enclosure = "Enclosure"
-    case windowsAndGlass = "Windows & Glass"
+    case enclosure = "Screen Enclosure"
+    case windowsAndGlass = "Sunroom"
     case electrical = "Electrical"
     case drainage = "Drainage"
     case attachmentConditions = "Attachment Conditions"
@@ -71,27 +71,6 @@ private enum ScopeSortOption: String, CaseIterable, Identifiable {
     }
 }
 
-private enum ScopeGroupingOption: String, CaseIterable, Identifiable {
-    case none
-    case projectType
-
-    var id: String { rawValue }
-
-    var label: String {
-        switch self {
-        case .none: return "No Grouping"
-        case .projectType: return "Project Type"
-        }
-    }
-
-    var systemImage: String {
-        switch self {
-        case .none: return "list.bullet"
-        case .projectType: return "square.grid.2x2"
-        }
-    }
-}
-
 private enum ScopeSortDirection {
     case ascending
     case descending
@@ -107,21 +86,6 @@ private enum ScopeSortDirection {
 private enum SidebarRenamePromptMode {
     case newScope
     case existingScope
-}
-
-private struct ProjectTypeScopeGroup: Identifiable {
-    let projectType: ProjectType
-    let scopes: [JobScope]
-
-    var id: ProjectType { projectType }
-}
-
-private func groupedScopesByProjectType(_ scopes: [JobScope]) -> [ProjectTypeScopeGroup] {
-    ProjectType.allCases.compactMap { projectType in
-        let matchingScopes = scopes.filter { $0.projectInfo.projectType == projectType }
-        guard !matchingScopes.isEmpty else { return nil }
-        return ProjectTypeScopeGroup(projectType: projectType, scopes: matchingScopes)
-    }
 }
 
 private func statusRank(for status: JobStatus) -> Int {
@@ -192,7 +156,6 @@ struct RootNavigationView: View {
 
     @State private var selectedScopeID: UUID?
     @State private var selectedSection: ScopeSection = .projectInfo
-    @State private var selectedGroupingOption: ScopeGroupingOption = .projectType
     @State private var selectedSortOption: ScopeSortOption? = .recentActivity
     @State private var sortDirection: ScopeSortDirection? = .descending
     @State private var sidebarRenameScope: JobScope?
@@ -233,7 +196,6 @@ struct RootNavigationView: View {
                 if useCompactNavigation {
                     PhoneScopesListView(
                         scopes: visibleScopes,
-                        selectedGroupingOption: $selectedGroupingOption,
                         selectedSortOption: $selectedSortOption,
                         sortDirection: $sortDirection,
                         createNewScope: createNewScope,
@@ -247,7 +209,6 @@ struct RootNavigationView: View {
                     NavigationSplitView {
                         ScopeSidebarView(
                             scopes: visibleScopes,
-                            selectedGroupingOption: $selectedGroupingOption,
                             selectedSortOption: $selectedSortOption,
                             sortDirection: $sortDirection,
                             selectedScopeID: $selectedScopeID,
@@ -541,7 +502,6 @@ struct RootNavigationView: View {
 
 private struct ScopeSidebarView: View {
     let scopes: [JobScope]
-    @Binding var selectedGroupingOption: ScopeGroupingOption
     @Binding var selectedSortOption: ScopeSortOption?
     @Binding var sortDirection: ScopeSortDirection?
     @Binding var selectedScopeID: UUID?
@@ -560,14 +520,6 @@ private struct ScopeSidebarView: View {
 
     private var selectedScope: JobScope? {
         scopes.first(where: { $0.id == selectedScopeID })
-    }
-
-    private var groupedScopes: [ProjectTypeScopeGroup] {
-        groupedScopesByProjectType(scopes)
-    }
-
-    private var showsGroupedScopes: Bool {
-        selectedGroupingOption == .projectType
     }
 
     var body: some View {
@@ -614,7 +566,6 @@ private struct ScopeSidebarView: View {
                 if !scopes.isEmpty {
                     ScopeSidebarHeaderRow(
                         isExpanded: $scopesExpanded,
-                        selectedGroupingOption: $selectedGroupingOption,
                         selectedSortOption: $selectedSortOption,
                         sortDirection: $sortDirection,
                         folderPulseToken: folderPulseToken,
@@ -708,23 +659,9 @@ private struct ScopeSidebarView: View {
 
     @ViewBuilder
     private var scopesListContent: some View {
-        if showsGroupedScopes {
-            VStack(alignment: .leading, spacing: 14) {
-                ForEach(groupedScopes) { group in
-                    VStack(alignment: .leading, spacing: 6) {
-                        projectTypeGroupHeader(for: group.projectType, count: group.scopes.count)
-
-                        ForEach(group.scopes) { scope in
-                            scopeRow(for: scope)
-                        }
-                    }
-                }
-            }
-        } else {
-            VStack(alignment: .leading, spacing: 4) {
-                ForEach(scopes) { scope in
-                    scopeRow(for: scope)
-                }
+        VStack(alignment: .leading, spacing: 4) {
+            ForEach(scopes) { scope in
+                scopeRow(for: scope)
             }
         }
     }
@@ -783,45 +720,12 @@ private struct ScopeSidebarView: View {
         )
     }
 
-    @ViewBuilder
-    private func projectTypeGroupHeader(for projectType: ProjectType, count: Int) -> some View {
-        HStack(spacing: 8) {
-            Text(projectType.displayName)
-                .font(.caption.weight(.semibold))
-                .foregroundStyle(.secondary)
-                .textCase(.uppercase)
-
-            Circle()
-                .fill(.secondary.opacity(0.2))
-                .frame(width: 4, height: 4)
-
-            Text(count == 1 ? "1 scope" : "\(count) scopes")
-                .font(.caption)
-                .foregroundStyle(.tertiary)
-
-            Spacer(minLength: 0)
-        }
-        .padding(.horizontal, 12)
-        .padding(.top, 0.5)
-    }
-
     private func scopeAddressSummary(for scope: JobScope) -> String {
         scope.projectInfo.formattedAddressLine ?? "No address"
     }
 
     private func scopeMetadataSummary(for scope: JobScope) -> String? {
-        let parts: [String] = [
-            scope.projectInfo.projectType == .notSet ? nil : scope.projectInfo.projectType.displayName,
-            scope.status.displayName
-        ]
-        .compactMap { value in
-            guard let value else { return nil }
-            let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
-            return trimmed.isEmpty ? nil : trimmed
-        }
-
-        guard !parts.isEmpty else { return nil }
-        return parts.joined(separator: " • ")
+        scope.projectInfo.activeProjectTypes.isEmpty ? "No Project Type" : scope.projectInfo.projectTypeDisplaySummary
     }
 
     @ViewBuilder
@@ -905,7 +809,6 @@ private struct ScopeSidebarHeaderRow: View {
     private let controlsRevealDelay: TimeInterval = 0.125
 
     @Binding var isExpanded: Bool
-    @Binding var selectedGroupingOption: ScopeGroupingOption
     @Binding var selectedSortOption: ScopeSortOption?
     @Binding var sortDirection: ScopeSortDirection?
     let folderPulseToken: Int
@@ -919,7 +822,6 @@ private struct ScopeSidebarHeaderRow: View {
             if isExpanded {
                 if controlsVisible {
                     ScopeListControlGroup(
-                        selectedGroupingOption: $selectedGroupingOption,
                         selectedSortOption: $selectedSortOption,
                         sortDirection: $sortDirection
                     )
@@ -993,7 +895,6 @@ private struct ScopeSidebarHeaderRow: View {
 
 private struct PhoneScopesListView: View {
     let scopes: [JobScope]
-    @Binding var selectedGroupingOption: ScopeGroupingOption
     @Binding var selectedSortOption: ScopeSortOption?
     @Binding var sortDirection: ScopeSortDirection?
     let createNewScope: () -> JobScope
@@ -1009,33 +910,13 @@ private struct PhoneScopesListView: View {
     @State private var scopePendingDelete: JobScope?
     @State private var showingScopeCreationSheet = false
 
-    private var groupedScopes: [ProjectTypeScopeGroup] {
-        groupedScopesByProjectType(scopes)
-    }
-
-    private var showsGroupedScopes: Bool {
-        selectedGroupingOption == .projectType
-    }
-
     var body: some View {
         ZStack {
             NavigationStack {
                 List {
-                    if showsGroupedScopes {
-                        ForEach(groupedScopes) { group in
-                            Section {
-                                ForEach(group.scopes) { scope in
-                                    phoneScopeRow(for: scope)
-                                }
-                            } header: {
-                                PhoneProjectTypeHeader(projectType: group.projectType, count: group.scopes.count)
-                            }
-                        }
-                    } else {
-                        Section {
-                            ForEach(scopes) { scope in
-                                phoneScopeRow(for: scope)
-                            }
+                    Section {
+                        ForEach(scopes) { scope in
+                            phoneScopeRow(for: scope)
                         }
                     }
                 }
@@ -1045,7 +926,6 @@ private struct PhoneScopesListView: View {
                 .toolbar {
                     ToolbarItem(placement: .topBarLeading) {
                         ScopeListControlGroup(
-                            selectedGroupingOption: $selectedGroupingOption,
                             selectedSortOption: $selectedSortOption,
                             sortDirection: $sortDirection
                         )
@@ -1174,60 +1054,12 @@ private struct PhoneScopesListView: View {
     }
 }
 
-private struct PhoneProjectTypeHeader: View {
-    let projectType: ProjectType
-    let count: Int
-
-    var body: some View {
-        HStack(spacing: 8) {
-            Text(projectType.displayName)
-                .font(.caption.weight(.semibold))
-                .textCase(.uppercase)
-
-            Text(count == 1 ? "1 scope" : "\(count) scopes")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-        }
-    }
-}
-
 private struct ScopeListControlGroup: View {
-    @Binding var selectedGroupingOption: ScopeGroupingOption
     @Binding var selectedSortOption: ScopeSortOption?
     @Binding var sortDirection: ScopeSortDirection?
 
     var body: some View {
         HStack(spacing: 10) {
-            Menu {
-                Button {
-                    selectedGroupingOption = .none
-                } label: {
-                    ScopeMenuSelectionLabel(
-                        title: "No Grouping",
-                        systemImage: "list.bullet",
-                        isSelected: selectedGroupingOption == .none
-                    )
-                }
-
-                Button {
-                    selectedGroupingOption = selectedGroupingOption == .projectType ? .none : .projectType
-                } label: {
-                    ScopeMenuSelectionLabel(
-                        title: "Project Type",
-                        systemImage: "square.grid.2x2",
-                        isSelected: selectedGroupingOption == .projectType
-                    )
-                }
-            } label: {
-                ScopeListToolbarLabel(
-                    title: "Group",
-                    systemImage: selectedGroupingOption.systemImage,
-                    tint: selectedGroupingOption == .none ? .secondary : .accentColor
-                )
-            }
-            .accessibilityLabel(groupingLabel)
-            .accessibilityHint("Choose whether scopes stay in project type sections.")
-
             Menu {
                 ForEach(ScopeSortOption.allCases) { option in
                     Button {
@@ -1284,10 +1116,6 @@ private struct ScopeListControlGroup: View {
         }
         .padding(.trailing, 8)
         .fixedSize(horizontal: true, vertical: false)
-    }
-
-    private var groupingLabel: String {
-        "Grouping, current \(selectedGroupingOption.label)"
     }
 
     private var selectedSortLabel: String {

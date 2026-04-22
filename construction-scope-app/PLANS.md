@@ -27,8 +27,8 @@ Keep milestones small, testable, and reviewable.
 - Sidebar sections list
 - Detail editors for:
   - Project Info
-  - Enclosure
-  - Windows & Glass
+  - Screen Enclosure
+  - Sunroom
   - Attachments
   - Production Notes
 - Apply UI_SYSTEM.md rules: cards, materials, semantic type, progressive disclosure
@@ -39,6 +39,12 @@ Keep milestones small, testable, and reviewable.
 - Preserve hidden screen-dependent values while editing when screen-supporting types are temporarily unselected.
 - Normalize/prune inactive hidden Enclosure-dependent values for PDF export so hidden selections do not appear in output or linger after export generation.
 - Keep the change scoped to Enclosure model, Enclosure editor UI, schema, PDF/proposal export data paths, and status docs.
+
+### Milestone 2.1.1 – Screen Enclosure / Sunroom Terminology
+- Rename visible `Enclosure` section labels to `Screen Enclosure` and `Windows & Glass` labels to `Sunroom`.
+- Remove `Vinyl Window Enclosure` and `Glass Sunroom` from current Enclosure Type choices while retaining decode compatibility for older saved values.
+- Add optional `screenEnclosureNotes` to `Enclosure` storage and surface it as a dedicated `Screen Enclosure Notes` field in the Screen Enclosure editor.
+- Update affected PDF/proposal labels without broad internal type/model renames.
 
 ## Milestone 2.2 – Remaining Section Editors
 - Implement the remaining schema-backed editors for:
@@ -704,6 +710,11 @@ Keep milestones small, testable, and reviewable.
     - Separate grouping from sorting so project-type sections can remain enabled while a sort is applied
     - Add a lightweight grouping control with `None` and `Project Type`
     - Preserve sorting within each visible group when project-type grouping is enabled
+  - Milestone 7.4.7 – Project Type Multi-Select + Flat Scope List
+    - Convert Project Information `Project Type` from the legacy single enum picker to a multi-select array with legacy single-value decode fallback.
+    - Remove project-type grouping from the visible Scopes list controls and keep scopes effectively ungrouped.
+    - Remove the project-type metadata label from scope cards so cards no longer imply one selected project type.
+    - Keep Sort as the only visible expanded Scopes header control and preserve existing sort behavior.
 
 ## Milestone 7.1 – Interaction Animation Polish
 - Add motion to key UI state changes so content changes are visually legible

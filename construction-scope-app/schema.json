@@ -162,19 +162,10 @@
           "type": "date",
           "required": false
         },
-        "projectType": {
-          "type": "enum",
-          "values": [
-            "not_set",
-            "patio_cover",
-            "screen_room",
-            "sunroom",
-            "deck",
-            "pergola",
-            "concrete",
-            "other"
-          ],
-          "required": true
+        "projectTypes": {
+          "type": "array",
+          "items": "enum:patio_cover|screen_room|sunroom|deck|pergola|concrete|other",
+          "required": false
         },
         "notes": {
           "type": "string",
@@ -200,6 +191,10 @@
         "existingStructure": {
           "type": "array",
           "items": "enum:existing_patio_cover|none|deck|concrete_slab|other",
+          "required": false
+        },
+        "existingStructureNotes": {
+          "type": "string",
           "required": false
         },
         "obstaclesNotes": {
@@ -586,8 +581,6 @@
             "type": "enum",
             "values": [
               "screen_enclosure",
-              "vinyl_window_enclosure",
-              "glass_sunroom",
               "mixed",
               "other"
             ]
@@ -598,8 +591,6 @@
           "type": "enum",
           "values": [
             "screen_enclosure",
-            "vinyl_window_enclosure",
-            "glass_sunroom",
             "mixed",
             "other"
           ],
@@ -646,6 +637,10 @@
           "required": false
         },
         "screenFrameColorCustom": {
+          "type": "string",
+          "required": false
+        },
+        "screenEnclosureNotes": {
           "type": "string",
           "required": false
         },

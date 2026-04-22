@@ -781,6 +781,12 @@ Keep milestones small, testable, and reviewable.
   - Replace live-edit `nilIfBlank` setters for general-purpose text fields with an editing-safe optionalization helper that only converts whitespace-only text to `nil`
   - Preserve intentionally constrained fields, including phone, email, ZIP, numeric measurements, product/job codes, and numeric/tokenized inputs
   - Validate notes fields, multiline editors, ordinary single-line fields, constrained fields, save/reopen, and PDF/export output
+- Milestone 7.6.6 – Persistent Text Field Labels
+  - Audit placeholder-only SwiftUI `TextField` usage in production form sections
+  - Add a shared labeled text-field pattern that keeps the field purpose visible after entry
+  - Apply it surgically to stacked measurement, value, write-in, attachment, contact, schedule, and repeated form fields where entered values become ambiguous
+  - Preserve standalone note-style `TextEditor` cards without duplicate labels when the card title already communicates the field purpose
+  - Avoid persistence, JobTread, PDF/export, pricing/proposal, and workflow logic changes
 
 ## Milestone 7.7 – Section-Scoped Measurements
 - Replace the standalone Dimensions sidebar section with reusable Measurements blocks embedded in the sections where those values are used.

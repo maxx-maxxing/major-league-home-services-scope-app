@@ -328,6 +328,49 @@ struct RequiredLabel: View {
     }
 }
 
+struct LabeledTextField: View {
+    let title: String
+    let prompt: String
+    @Binding var text: String
+    let helperText: String?
+    let isRequired: Bool
+
+    init(
+        _ title: String,
+        text: Binding<String>,
+        prompt: String? = nil,
+        helperText: String? = nil,
+        isRequired: Bool = false
+    ) {
+        self.title = title
+        self.prompt = prompt ?? title
+        self._text = text
+        self.helperText = helperText
+        self.isRequired = isRequired
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            if isRequired {
+                RequiredLabel(text: title)
+            } else {
+                Text(title)
+                    .font(.body)
+            }
+
+            TextField(prompt, text: $text)
+                .liquidGlassInput()
+
+            if let helperText {
+                Text(helperText)
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+        }
+    }
+}
+
 private struct LiquidGlassInputModifier: ViewModifier {
     @Environment(\.colorScheme) private var colorScheme
 

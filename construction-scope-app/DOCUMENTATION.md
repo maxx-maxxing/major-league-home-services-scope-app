@@ -60,6 +60,7 @@
 - Milestone 7.6.2.1: Implemented (internal debug entry point Release gating)
 - Milestone 7.6.3: In progress (persistence schema discipline, with checklist store-compatibility repair applied)
 - Milestone 7.6.5: Implemented (general text entry whitespace repair)
+- Milestone 7.6.6: Implemented (persistent text field labels)
 
 ## Decisions
 - Milestone 2.1.1 Screen Enclosure / Sunroom terminology:
@@ -101,6 +102,24 @@
   - Validation:
     - attempted `xcodebuild -project ConstructionScopeApp.xcodeproj -scheme ConstructionScopeApp -destination 'generic/platform=iOS' -derivedDataPath /tmp/ConstructionScopeAppTextEntryDerivedData CODE_SIGNING_ALLOWED=NO build`
     - build reached the Swift driver with no source diagnostics surfaced for the text-entry changes
+    - build still failed at asset catalog compilation because this environment cannot access simulator runtime services: `No available simulator runtimes for platform iphonesimulator`
+
+- Milestone 7.6.6 Persistent text field labels:
+  - Root limitation:
+    - placeholder-only fields lost their meaning after entry, making stacked values such as `234` ambiguous once labels like Width, Height, Projection, or Count disappeared
+  - Implemented change:
+    - added shared `LabeledTextField` in [CardComponents.swift](/Users/maxx/Documents/major-league-home-services-scope-app/construction-scope-app/Components/CardComponents.swift) for persistent body-style labels, existing liquid-glass input styling, optional helper text, and required-label support
+    - updated production form fields in [SectionEditors.swift](/Users/maxx/Documents/major-league-home-services-scope-app/construction-scope-app/Views/SectionEditors.swift), including project/contact fields, Existing Conditions write-ins, Structural System dimensions/details, Screen Enclosure knee-wall/door fields, Sunroom frame/layout values, Electrical/Drainage write-ins, Attachment post/trim values, Documents attachment names, Finishes, Permits, Production metadata, and repeatable Measurements rows
+    - updated photo captions in [PhotoAttachmentSupport.swift](/Users/maxx/Documents/major-league-home-services-scope-app/construction-scope-app/Views/PhotoAttachmentSupport.swift) and preserved edit-safe multi-word caption typing with `nilIfWhitespaceOnly`
+    - added persistent labels to scope-name overlays in [RootNavigationView.swift](/Users/maxx/Documents/major-league-home-services-scope-app/construction-scope-app/Views/RootNavigationView.swift) while keeping focus modifiers directly on the underlying `TextField`
+  - Intentionally left alone:
+    - JobTread customer search remains a search field because the sheet context and search prompt already communicate its purpose
+    - note-style `TextEditor` cards with clear card titles remain uncluttered unless they already had inline note labels
+    - read-only linked customer fields already had persistent labels and were not changed
+  - Validation:
+    - `git diff --check` passed
+    - attempted `xcodebuild -project ConstructionScopeApp.xcodeproj -scheme ConstructionScopeApp -destination 'generic/platform=iOS' -derivedDataPath /tmp/ConstructionScopeAppPersistentLabelsDerivedData CODE_SIGNING_ALLOWED=NO build`
+    - build reached the Swift driver with no source diagnostics surfaced for the label changes
     - build still failed at asset catalog compilation because this environment cannot access simulator runtime services: `No available simulator runtimes for platform iphonesimulator`
 
 - Milestone 2.3.2 Structural System branching workflow alignment:

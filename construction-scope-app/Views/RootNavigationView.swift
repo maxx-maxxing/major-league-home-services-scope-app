@@ -1219,15 +1219,19 @@ private struct SidebarRenameOverlay: View {
                         .foregroundStyle(.secondary)
                 }
 
-                TextField("Name", text: $text)
-                    .liquidGlassInput()
-                    .focused($nameFieldFocused)
-                    .submitLabel(.done)
-                    .onSubmit {
-                        if !saveDisabled {
-                            handleSave()
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("Scope Name")
+                        .font(.body)
+                    TextField("Name", text: $text)
+                        .liquidGlassInput()
+                        .focused($nameFieldFocused)
+                        .submitLabel(.done)
+                        .onSubmit {
+                            if !saveDisabled {
+                                handleSave()
+                            }
                         }
-                    }
+                }
 
                 HStack(spacing: 12) {
                     Button("Cancel", action: onCancel)
@@ -1332,15 +1336,19 @@ private struct ScopeRenameOverlay: View {
                             .foregroundStyle(.secondary)
                     }
 
-                    TextField("Scope Name", text: $text)
-                        .liquidGlassInput()
-                        .focused($nameFieldFocused)
-                        .submitLabel(.done)
-                        .onSubmit {
-                            if !saveDisabled {
-                                onSave()
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text("Scope Name")
+                            .font(.body)
+                        TextField("Scope Name", text: $text)
+                            .liquidGlassInput()
+                            .focused($nameFieldFocused)
+                            .submitLabel(.done)
+                            .onSubmit {
+                                if !saveDisabled {
+                                    onSave()
+                                }
                             }
-                        }
+                    }
 
                     HStack(spacing: 12) {
                         Button("Cancel", action: onCancel)

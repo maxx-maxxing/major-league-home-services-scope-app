@@ -38,8 +38,7 @@ struct ScopePhotosSheet: View {
                                         PhotoPreviewImage(path: photo.imagePath)
                                             .frame(maxWidth: .infinity)
 
-                                        TextField("Caption", text: captionBinding(for: photo.id))
-                                            .liquidGlassInput()
+                                        LabeledTextField("Caption", text: captionBinding(for: photo.id))
 
                                         Text("Added \(photo.createdAt.formatted(date: .abbreviated, time: .shortened))")
                                             .font(.footnote)
@@ -125,7 +124,7 @@ struct ScopePhotosSheet: View {
             set: { newValue in
                 updatePhotos { photos in
                     guard let index = photos.firstIndex(where: { $0.id == photoID }) else { return }
-                    photos[index].caption = blankToNil(newValue)
+                    photos[index].caption = newValue.nilIfWhitespaceOnly
                 }
             }
         )

@@ -24,12 +24,7 @@ struct ProjectInfoEditorView: View {
         VStack(spacing: 16) {
             CardGroup(title: "Scope") {
                 VStack(alignment: .leading, spacing: 12) {
-                    VStack(alignment: .leading, spacing: 6) {
-                        Text("Scope Title")
-                            .font(.body)
-                        TextField("Enter scope title", text: scopeTitleBinding)
-                            .liquidGlassInput()
-                    }
+                    LabeledTextField("Scope Title", text: scopeTitleBinding, prompt: "Enter scope title")
 
                     Text("This local title is shown in the scope list and editor headers.")
                         .font(.footnote)
@@ -112,48 +107,18 @@ struct ProjectInfoEditorView: View {
                             ReadOnlyProjectField(title: "ZIP", value: scope.projectInfo.zip, placeholder: "Not provided")
                         }
                     } else {
-                        VStack(alignment: .leading, spacing: 6) {
-                            RequiredLabel(text: "Customer Name")
-                            TextField("Enter customer name", text: requiredStringBinding(\.clientName))
-                                .liquidGlassInput()
-                        }
-
-                        VStack(alignment: .leading, spacing: 6) {
-                            RequiredLabel(text: "Address")
-                            TextField("Street address", text: requiredStringBinding(\.address))
-                                .liquidGlassInput()
-                        }
-
-                        VStack(alignment: .leading, spacing: 6) {
-                            Text("Unit Number")
-                                .font(.body)
-                            TextField("Apartment, suite, etc.", text: optionalStringBinding(\.unitNumber))
-                                .liquidGlassInput()
-                        }
+                        LabeledTextField("Customer Name", text: requiredStringBinding(\.clientName), prompt: "Enter customer name", isRequired: true)
+                        LabeledTextField("Address", text: requiredStringBinding(\.address), prompt: "Street address", isRequired: true)
+                        LabeledTextField("Unit Number", text: optionalStringBinding(\.unitNumber), prompt: "Apartment, suite, etc.")
 
                         HStack(spacing: 12) {
-                            VStack(alignment: .leading, spacing: 6) {
-                                Text("City")
-                                    .font(.body)
-                                TextField("City", text: optionalStringBinding(\.city))
-                                    .liquidGlassInput()
-                            }
+                            LabeledTextField("City", text: optionalStringBinding(\.city))
 
-                            VStack(alignment: .leading, spacing: 6) {
-                                Text("State")
-                                    .font(.body)
-                                TextField("State", text: optionalStringBinding(\.state))
-                                    .liquidGlassInput()
-                                    .textInputAutocapitalization(.characters)
-                            }
+                            LabeledTextField("State", text: optionalStringBinding(\.state))
+                                .textInputAutocapitalization(.characters)
 
-                            VStack(alignment: .leading, spacing: 6) {
-                                Text("ZIP")
-                                    .font(.body)
-                                TextField("ZIP", text: constrainedOptionalStringBinding(\.zip))
-                                    .liquidGlassInput()
-                                    .keyboardType(.numberPad)
-                            }
+                            LabeledTextField("ZIP", text: constrainedOptionalStringBinding(\.zip))
+                                .keyboardType(.numberPad)
                         }
                     }
                 }
@@ -168,36 +133,15 @@ struct ProjectInfoEditorView: View {
                             .frame(maxWidth: .infinity, alignment: .leading)
                     }
 
-                    VStack(alignment: .leading, spacing: 6) {
-                        Text("Phone")
-                            .font(.body)
-                        TextField("Phone", text: constrainedOptionalStringBinding(\.phone))
-                            .liquidGlassInput()
-                            .keyboardType(.phonePad)
-                    }
+                    LabeledTextField("Phone", text: constrainedOptionalStringBinding(\.phone))
+                        .keyboardType(.phonePad)
 
-                    VStack(alignment: .leading, spacing: 6) {
-                        Text("Email")
-                            .font(.body)
-                        TextField("Email", text: constrainedOptionalStringBinding(\.email))
-                            .liquidGlassInput()
-                            .keyboardType(.emailAddress)
-                            .textInputAutocapitalization(.never)
-                    }
+                    LabeledTextField("Email", text: constrainedOptionalStringBinding(\.email))
+                        .keyboardType(.emailAddress)
+                        .textInputAutocapitalization(.never)
 
-                    VStack(alignment: .leading, spacing: 6) {
-                        Text("Salesperson")
-                            .font(.body)
-                        TextField("Salesperson", text: optionalStringBinding(\.salesperson))
-                            .liquidGlassInput()
-                    }
-
-                    VStack(alignment: .leading, spacing: 6) {
-                        Text("Estimator")
-                            .font(.body)
-                        TextField("Estimator", text: optionalStringBinding(\.estimator))
-                            .liquidGlassInput()
-                    }
+                    LabeledTextField("Salesperson", text: optionalStringBinding(\.salesperson))
+                    LabeledTextField("Estimator", text: optionalStringBinding(\.estimator))
                 }
             }
 
@@ -433,12 +377,7 @@ struct ExistingConditionsEditorView: View {
 
                             OptionalBoolPicker(title: "Post Trim", selection: postTrimBinding)
 
-                            VStack(alignment: .leading, spacing: 6) {
-                                Text("Trim Thickness")
-                                    .font(.body)
-                                TextField("Enter trim thickness", text: trimThicknessBinding)
-                                    .liquidGlassInput()
-                            }
+                            LabeledTextField("Trim Thickness", text: trimThicknessBinding, prompt: "Enter trim thickness")
                         }
                         .padding(.leading, 16)
                         .formRevealTransition()
@@ -462,14 +401,13 @@ struct ExistingConditionsEditorView: View {
                             }
 
                             if isExteriorHouseWallOtherSelected {
-                                VStack(alignment: .leading, spacing: 6) {
-                                    RequiredLabel(text: "Exterior House Wall -> Other")
-                                    TextField("Describe Exterior House Wall -> Other", text: exteriorHouseWallOtherBinding)
-                                        .liquidGlassInput()
-                                    Text("Required when Exterior House Wall -> Other is selected.")
-                                        .font(.footnote)
-                                        .foregroundStyle(.secondary)
-                                }
+                                LabeledTextField(
+                                    "Exterior House Wall -> Other",
+                                    text: exteriorHouseWallOtherBinding,
+                                    prompt: "Describe Exterior House Wall -> Other",
+                                    helperText: "Required when Exterior House Wall -> Other is selected.",
+                                    isRequired: true
+                                )
                                 .formRevealTransition()
                             }
                         }
@@ -1182,8 +1120,7 @@ struct StructuralSystemEditorView: View {
                     .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
 
                     if showsSystemOtherField {
-                        TextField("Other Structural System", text: systemTypeOtherBinding)
-                            .liquidGlassInput()
+                        LabeledTextField("Other Structural System", text: systemTypeOtherBinding)
                             .formRevealTransition()
                     }
                 }
@@ -1221,13 +1158,11 @@ struct StructuralSystemEditorView: View {
                             .foregroundStyle(.secondary)
                             .frame(maxWidth: .infinity, alignment: .leading)
 
-                        TextField("Number of Posts", text: patioCoverNumberOfPostsBinding)
-                            .liquidGlassInput()
-
-                        Text("Client guidance: 20 feet or less usually uses 2 posts; 20+ feet typically uses 3 or more.")
-                            .font(.footnote)
-                            .foregroundStyle(.secondary)
-                            .frame(maxWidth: .infinity, alignment: .leading)
+                        LabeledTextField(
+                            "Number of Posts",
+                            text: patioCoverNumberOfPostsBinding,
+                            helperText: "Client guidance: 20 feet or less usually uses 2 posts; 20+ feet typically uses 3 or more."
+                        )
 
                         FieldHeader("Roof Type")
                         Picker("Roof Type", selection: patioCoverRoofTypeBinding) {
@@ -1298,8 +1233,7 @@ struct StructuralSystemEditorView: View {
                         .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
 
                         if showsCedarPostSizeOtherField {
-                            TextField("Other Post Size", text: cedarPostSizeOtherBinding)
-                                .liquidGlassInput()
+                            LabeledTextField("Other Post Size", text: cedarPostSizeOtherBinding)
                                 .formRevealTransition()
                         }
 
@@ -1314,8 +1248,7 @@ struct StructuralSystemEditorView: View {
                         .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
 
                         if showsCedarBeamSizeOtherField {
-                            TextField("Other Beam Size", text: cedarBeamSizeOtherBinding)
-                                .liquidGlassInput()
+                            LabeledTextField("Other Beam Size", text: cedarBeamSizeOtherBinding)
                                 .formRevealTransition()
                         }
 
@@ -1330,8 +1263,7 @@ struct StructuralSystemEditorView: View {
                         .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
 
                         if showsCedarRafterSizeOtherField {
-                            TextField("Other Rafter Size", text: cedarRafterSizeOtherBinding)
-                                .liquidGlassInput()
+                            LabeledTextField("Other Rafter Size", text: cedarRafterSizeOtherBinding)
                                 .formRevealTransition()
                         }
 
@@ -1365,8 +1297,7 @@ struct StructuralSystemEditorView: View {
                         .pickerStyle(.menu)
                         .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
 
-                        TextField("Product Code", text: cedarProductCodeBinding)
-                            .liquidGlassInput()
+                        LabeledTextField("Product Code", text: cedarProductCodeBinding)
                     }
                 }
                 .formRevealTransition()
@@ -1882,8 +1813,7 @@ struct EnclosureEditorView: View {
                         .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
 
                         if showsCustomScreenFrameColorField {
-                            TextField("Custom or other screen frame color", text: screenFrameColorCustomBinding)
-                                .liquidGlassInput()
+                            LabeledTextField("Screen Frame Color", text: screenFrameColorCustomBinding, prompt: "Custom or other screen frame color")
                                 .formRevealTransition()
                         }
                     }
@@ -1921,18 +1851,15 @@ struct EnclosureEditorView: View {
                                     .formRevealTransition()
                                 }
 
-                                TextField("Panel color", text: kneeWallPanelColorBinding)
-                                    .liquidGlassInput()
+                                LabeledTextField("Panel Color", text: kneeWallPanelColorBinding, prompt: "Panel color")
                                     .formRevealTransition()
 
-                                TextField("Linear footage", text: kneeWallLinearFootageBinding)
-                                    .liquidGlassInput()
+                                LabeledTextField("Linear Footage", text: kneeWallLinearFootageBinding, prompt: "Linear footage")
                                     .formRevealTransition()
                             }
 
                             if showsFramedKneeWallFields {
-                                TextField("Height", text: kneeWallHeightBinding)
-                                    .liquidGlassInput()
+                                LabeledTextField("Knee Wall Height", text: kneeWallHeightBinding, prompt: "Height")
                                     .formRevealTransition()
 
                                 FieldHeader("Interior Finish/Color")
@@ -2026,12 +1953,10 @@ struct EnclosureEditorView: View {
                         }
 
                         if showsCabanaDimensions {
-                            TextField("Width", text: doorWidthBinding)
-                                .liquidGlassInput()
+                            LabeledTextField("Door Width", text: doorWidthBinding, prompt: "Width")
                                 .formRevealTransition()
 
-                            TextField("Height", text: doorHeightBinding)
-                                .liquidGlassInput()
+                            LabeledTextField("Door Height", text: doorHeightBinding, prompt: "Height")
                                 .formRevealTransition()
                         }
 
@@ -2047,12 +1972,10 @@ struct EnclosureEditorView: View {
                             .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
                             .formRevealTransition()
 
-                            TextField("Color", text: doorColorBinding)
-                                .liquidGlassInput()
+                            LabeledTextField("Door Color", text: doorColorBinding, prompt: "Color")
                                 .formRevealTransition()
 
-                            TextField("Dimensions", text: doorDimensionsBinding)
-                                .liquidGlassInput()
+                            LabeledTextField("Door Dimensions", text: doorDimensionsBinding, prompt: "Dimensions")
                                 .formRevealTransition()
                         }
 
@@ -2651,18 +2574,15 @@ struct WindowsAndGlassEditorView: View {
                         .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
 
                         if showsCustomWindowFrameColorField {
-                            TextField("Custom or other frame color", text: frameColorCustomBinding)
-                                .liquidGlassInput()
+                            LabeledTextField("Frame Color", text: frameColorCustomBinding, prompt: "Custom or other frame color")
                                 .formRevealTransition()
                         }
 
-                        TextField("Window Height", text: windowHeightBinding)
-                            .liquidGlassInput()
+                        LabeledTextField("Window Height", text: windowHeightBinding)
                             .keyboardType(.decimalPad)
                             .frame(minHeight: 44)
 
-                        TextField("Number of Bays", text: numBaysBinding)
-                            .liquidGlassInput()
+                        LabeledTextField("Number of Bays", text: numBaysBinding)
                             .keyboardType(.decimalPad)
                             .frame(minHeight: 44)
 
@@ -2869,8 +2789,7 @@ struct ElectricalEditorView: View {
 
                     OptionalBoolPicker(title: "Fan Install", selection: fanInstallBinding)
 
-                    TextField("Switch locations", text: switchLocationsBinding)
-                        .liquidGlassInput()
+                    LabeledTextField("Switch Locations", text: switchLocationsBinding, prompt: "Switch locations")
                 }
             }
 
@@ -2985,8 +2904,7 @@ struct DrainageEditorView: View {
                 VStack(spacing: 12) {
                     OptionalBoolPicker(title: "Include Gutters", selection: guttersBinding)
 
-                    TextField("Downspout locations", text: downspoutLocationsBinding)
-                        .liquidGlassInput()
+                    LabeledTextField("Downspout Locations", text: downspoutLocationsBinding, prompt: "Downspout locations")
 
                     OptionalBoolPicker(title: "Drain Tie-In", selection: drainTieInBinding)
                 }
@@ -3071,8 +2989,7 @@ struct AttachmentConditionsEditorView: View {
                     .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
 
                     if scope.attachment?.houseWallMaterial == .other {
-                        TextField("Describe wall material", text: houseWallOtherBinding)
-                            .liquidGlassInput()
+                        LabeledTextField("Wall Material", text: houseWallOtherBinding, prompt: "Describe wall material")
                             .formRevealTransition()
                     }
 
@@ -3111,16 +3028,13 @@ struct AttachmentConditionsEditorView: View {
                     .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
 
                     if scope.attachment?.postColumnMaterial == .other {
-                        TextField("Describe post/column material", text: postMaterialOtherBinding)
-                            .liquidGlassInput()
+                        LabeledTextField("Post / Column Material", text: postMaterialOtherBinding, prompt: "Describe post/column material")
                             .formRevealTransition()
                     }
 
-                    TextField("Post size", text: postSizeBinding)
-                        .liquidGlassInput()
+                    LabeledTextField("Post Size", text: postSizeBinding, prompt: "Post size")
 
-                    TextField("Post spacing", text: postSpacingBinding)
-                        .liquidGlassInput()
+                    LabeledTextField("Post Spacing", text: postSpacingBinding, prompt: "Post spacing")
 
                     Toggle("Trim Present", isOn: trimPresentBinding)
                         .frame(minHeight: 44)
@@ -3138,8 +3052,7 @@ struct AttachmentConditionsEditorView: View {
                         .formRevealTransition()
 
                         if scope.attachment?.trimMaterial == .other {
-                            TextField("Describe trim material", text: trimMaterialOtherBinding)
-                                .liquidGlassInput()
+                            LabeledTextField("Trim Material", text: trimMaterialOtherBinding, prompt: "Describe trim material")
                                 .formRevealTransition()
                         }
 
@@ -3155,8 +3068,7 @@ struct AttachmentConditionsEditorView: View {
                         .formRevealTransition()
 
                         if showsCustomTrimThicknessField {
-                            TextField("Custom or other trim thickness", text: trimThicknessCustomBinding)
-                                .liquidGlassInput()
+                            LabeledTextField("Trim Thickness", text: trimThicknessCustomBinding, prompt: "Custom or other trim thickness")
                                 .keyboardType(.decimalPad)
                                 .frame(minHeight: 44)
                                 .formRevealTransition()
@@ -3510,8 +3422,7 @@ struct DocumentsEditorView: View {
                 .frame(minHeight: 44)
             }
 
-            TextField("Attachment Name", text: additionalAttachmentNameBinding(for: row.id))
-                .liquidGlassInput()
+            LabeledTextField("Attachment Name", text: additionalAttachmentNameBinding(for: row.id))
 
             documentSlotBlock(
                 title: "File",
@@ -3930,11 +3841,9 @@ struct FinishesEditorView: View {
         VStack(spacing: 16) {
             CardGroup(title: "Trim + Color") {
                 VStack(spacing: 12) {
-                    TextField("Trim type", text: trimTypeBinding)
-                        .liquidGlassInput()
+                    LabeledTextField("Trim Type", text: trimTypeBinding, prompt: "Trim type")
 
-                    TextField("Paint or powder color", text: paintOrPowderColorBinding)
-                        .liquidGlassInput()
+                    LabeledTextField("Paint or Powder Color", text: paintOrPowderColorBinding, prompt: "Paint or powder color")
 
                     OptionalBoolPicker(title: "Siding Replacement Required", selection: sidingReplacementRequiredBinding)
                 }
@@ -4012,8 +3921,7 @@ struct PermitsHOAEditorView: View {
                     OptionalBoolPicker(title: "HOA Approval Required", selection: hoaApprovalRequiredBinding)
                     OptionalBoolPicker(title: "Engineering Required", selection: engineeringRequiredBinding)
 
-                    TextField("Jurisdiction", text: jurisdictionBinding)
-                        .liquidGlassInput()
+                    LabeledTextField("Jurisdiction", text: jurisdictionBinding)
                 }
             }
 
@@ -4091,8 +3999,7 @@ struct ProductionNotesEditorView: View {
                     }
                     .pickerStyle(.segmented)
 
-                    TextField("Job number", text: jobNumberBinding)
-                        .liquidGlassInput()
+                    LabeledTextField("Job Number", text: jobNumberBinding, prompt: "Job number")
                 }
             }
 
@@ -4117,12 +4024,10 @@ struct ProductionNotesEditorView: View {
                             .formRevealTransition()
                         }
 
-                        TextField("Crew lead", text: crewLeadBinding)
-                            .liquidGlassInput()
+                        LabeledTextField("Crew Lead", text: crewLeadBinding, prompt: "Crew lead")
                             .formRevealTransition()
 
-                        TextField("Duration estimate", text: durationEstimateBinding)
-                            .liquidGlassInput()
+                        LabeledTextField("Duration Estimate", text: durationEstimateBinding, prompt: "Duration estimate")
                             .formRevealTransition()
 
                         Picker("Material Order", selection: materialOrderStatusBinding) {
@@ -4660,8 +4565,7 @@ private struct MeasurementTextField: View {
     @Binding var text: String
 
     var body: some View {
-        TextField(title, text: $text)
-            .liquidGlassInput()
+        LabeledTextField(title, text: $text)
             .keyboardType(.decimalPad)
     }
 }
@@ -4785,18 +4689,16 @@ private struct MeasurementsBlockEditor: View {
             }
 
             if item.type == MeasurementTypeOption.otherValue {
-                TextField("Custom measurement type", text: customTypeBinding(for: item.id))
-                    .liquidGlassInput()
+                LabeledTextField("Custom Measurement Type", text: customTypeBinding(for: item.id), prompt: "Custom measurement type")
                     .formRevealTransition()
             }
 
-            TextField("Measurement Value", text: valueBinding(for: item.id))
-                .liquidGlassInput()
+            LabeledTextField(
+                "Measurement Value",
+                text: valueBinding(for: item.id),
+                helperText: "Use ' for feet and \" for inches."
+            )
                 .textInputAutocapitalization(.never)
-
-            Text("Use ' for feet and \" for inches.")
-                .font(.footnote)
-                .foregroundStyle(.secondary)
 
             NotesField(
                 title: "Measurement Notes",

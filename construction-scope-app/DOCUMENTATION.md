@@ -19,6 +19,7 @@
 - Milestone 3.4.4: Implemented (deterministic sketch restore durability)
 - Milestone 4: Implemented (flattened PDF preview + export)
 - Milestone 4.7: In progress (PDF export reliability hardening)
+- Milestone 4.8: Implemented (PDF export relevance filtering)
 - Milestone 5: Not started
 - Milestone 5.1.1: Implemented (linked JobTread model foundation)
 - Milestone 5.2.1: Implemented (customer lookup entry flow)
@@ -63,6 +64,41 @@
 - Milestone 7.6.6: Implemented (persistent text field labels)
 
 ## Decisions
+- Milestone 4.8 PDF export relevance filtering:
+  - Task scope:
+    - reduce exported PDFs from broad raw scope dumps to concise, relevant production/proposal artifacts
+    - keep filtering decisions out of low-level CoreGraphics drawing and pagination where possible
+    - preserve the current preview/share flow, flattened `UIGraphicsPDFRenderer` output, image appendices, and existing export normalization for hidden branch state
+  - Current export path audited:
+    - `ScopePDFPreviewSheet` calls `ScopePDFExporter.render(scope:)` for preview
+    - toolbar/share export calls `ScopePDFExporter.generate(scope:)`, which prunes selected dependent branch state, renders the PDF, writes it to a temporary file, and opens the share sheet
+    - over-inclusion came from the page/section planning layer in [PDFPreviewStubView.swift](/Users/maxx/Documents/major-league-home-services-scope-app/construction-scope-app/PDFEngine/PDFPreviewStubView.swift), where fixed five-page builders read directly from `JobScope` and filled ordinary empty/default rows with `Not set`, `None`, or `Not applicable`
+  - Implemented architecture:
+    - added a lightweight PDF composition/preprocessing boundary inside `ScopePDFExporter` before pagination and drawing
+    - added a small composed header model so header metadata no longer renders missing/default placeholders
+    - page builders now return optional pre-filtered `PDFPageContent`
+    - section helpers omit sections that have no meaningful rows or image
+    - row helpers only emit selected, filled, date, numeric, enum, boolean, attached, or otherwise meaningful values
+    - low-level pagination and CoreGraphics drawing continue to render already-decided rows/sections without owning relevance logic
+  - Inclusion rules now applied:
+    - Project Information includes only entered identity/contact/address/project rows; default project type is omitted
+    - Dimensions, Existing Conditions, Attachment Conditions, Structural System, Screen Enclosure, Sunroom, Electrical, Drainage, Finishes, Permits / HOA, Production, and Documents / Attachments sections render only when they contain meaningful rows
+    - optional booleans render only when explicitly set, including meaningful `No` values
+    - dependent rows such as trim material/thickness, knee-wall details, custom colors, and structural branch details render only when triggered and meaningful
+    - measurements still require their owning Measurements block to be enabled and now omit type-only empty rows unless a measurement value or notes exist
+    - customer signature renders only when a signed date or signature image exists; missing signatures no longer add `Not captured`
+    - scope photos, checklist photos, and site diagram appendices remain image-backed and only render when assets exist
+  - Deferred:
+    - no pricing totals or final proposal pricing output
+    - no migration of PDF output onto the full proposal foundation yet
+    - no PDF visual redesign beyond removing stale fixed `Page N:` content titles
+    - no JobTread, persistence, pricing-domain, or Documents import behavior changes
+  - Validation:
+    - `git diff --check` passed
+    - attempted `xcodebuild -project ConstructionScopeApp.xcodeproj -scheme ConstructionScopeApp -destination 'generic/platform=iOS' -derivedDataPath /tmp/ConstructionScopeAppPDFFilteringDerivedData CODE_SIGNING_ALLOWED=NO build`
+    - build reached the Swift driver with no source diagnostics surfaced for the PDF filtering changes
+    - build still failed at asset catalog compilation because this environment cannot access simulator runtime services: `No available simulator runtimes for platform iphonesimulator`
+
 - Milestone 2.1.1 Screen Enclosure / Sunroom terminology:
   - renamed visible navigation labels from `Enclosure` to `Screen Enclosure` and from `Windows & Glass` to `Sunroom`
   - removed `Vinyl Window Enclosure` and `Glass Sunroom` from current Enclosure Type choices by filtering selectable types while keeping those enum cases decodable for older saved payloads

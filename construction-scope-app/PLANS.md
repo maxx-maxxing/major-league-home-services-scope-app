@@ -171,6 +171,14 @@ Keep milestones small, testable, and reviewable.
   - Constrain signature/photo appendix image rendering so attachments do not dominate page composition unexpectedly
   - Add targeted export diagnostics for planned page count, rendered sections, and appendix inclusion/skips
   - Re-validate preview/export behavior on simulator and physical iPad release-style builds
+- Milestone 4.8 – PDF Export Relevance Filtering
+  - Audit the current preview/export/share path for raw full-scope rendering and over-included placeholder rows
+  - Add a PDF export composition/preprocessing layer before pagination and CoreGraphics drawing
+  - Define section relevance rules so inactive, empty, or default-only sections are omitted
+  - Define row relevance rules so only selected, filled, affirmative, triggered, or attached content renders
+  - Keep low-level PDF drawing focused on presentational layout of already-filtered pages
+  - Preserve flattened PDF generation, current share flow, image appendices, and existing export normalization for hidden dependent branch values
+  - Defer pricing rendering, broad proposal-foundation migration, and visual PDF redesign to later proposal/PDF phases
 
 ## Milestone 5 – JobTread Integration
 - Milestone 5.1 – Integration Readiness Freeze

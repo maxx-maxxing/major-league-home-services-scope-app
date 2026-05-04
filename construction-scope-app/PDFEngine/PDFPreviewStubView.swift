@@ -160,7 +160,8 @@ enum ScopePDFExporter {
         let missing = missingRequiredFields(for: scope)
         let filename = makeFilename(for: scope)
         let layout = PDFPageLayout(pageRect: pageRect)
-        let preparedPages = try plannedPages(for: scope)
+        let composition = try exportComposition(for: scope)
+        let preparedPages = composition.pages
         let renderedPages = try paginatePages(preparedPages, layout: layout, scopeID: scope.id.uuidString)
         let format = UIGraphicsPDFRendererFormat()
         let renderer = UIGraphicsPDFRenderer(bounds: pageRect, format: format)
@@ -180,7 +181,7 @@ enum ScopePDFExporter {
                 context.beginPage()
                 let cg = context.cgContext
                 fillPageBackground(in: cg, rect: layout.pageRect)
-                drawHeader(in: cg, rect: layout.pageRect, scope: scope)
+                drawHeader(in: cg, rect: layout.pageRect, header: composition.header)
                 drawPageContent(in: cg, page: page, layout: layout)
                 drawFooter(in: cg, rect: layout.pageRect, pageNumber: index + 1, totalPages: renderedPages.count)
             }
@@ -444,18 +445,25 @@ enum ScopePDFExporter {
         context.restoreGState()
     }
 
-    private static func drawHeader(in context: CGContext, rect: CGRect, scope: JobScope) {
-        let title = scope.resolvedDocumentTitle
-        let customerName = scope.resolvedExportCustomerName ?? "Not set"
-        let address = scope.projectInfo.formattedAddressLine ?? "No address"
-        let type = scope.projectInfo.projectTypeDisplaySummary
-        let jobNumber = scope.jobNumber ?? "N/A"
+    private static func drawHeader(in context: CGContext, rect: CGRect, header: PDFHeaderContent) {
+        drawAdaptiveText(header.title, font: headerTitleFont, in: CGRect(x: 40, y: 34, width: rect.width - 80, height: 22), context: context, color: primaryTextColor, minimumScaleFactor: 0.72, logContext: "header-title")
 
-        drawAdaptiveText(title, font: headerTitleFont, in: CGRect(x: 40, y: 34, width: rect.width - 80, height: 22), context: context, color: primaryTextColor, minimumScaleFactor: 0.72, logContext: "header-title")
-        drawAdaptiveText("Customer: \(customerName)", font: .systemFont(ofSize: 11), in: CGRect(x: 40, y: 58, width: rect.width - 80, height: 16), context: context, color: secondaryTextColor, minimumScaleFactor: 0.76, logContext: "header-customer")
-        drawAdaptiveText(address, font: .systemFont(ofSize: 11), in: CGRect(x: 40, y: 72, width: rect.width - 80, height: 16), context: context, color: secondaryTextColor, minimumScaleFactor: 0.76, logContext: "header-address")
-        drawAdaptiveText("Project Type: \(type)", font: .systemFont(ofSize: 10), in: CGRect(x: 40, y: 88, width: 260, height: 14), context: context, color: secondaryTextColor, minimumScaleFactor: 0.8, logContext: "header-project-type")
-        drawAdaptiveText("Job #: \(jobNumber)", font: .systemFont(ofSize: 10), in: CGRect(x: rect.width - 180, y: 88, width: 140, height: 14), context: context, alignment: .right, color: secondaryTextColor, minimumScaleFactor: 0.8, logContext: "header-job-number")
+        let subtitleLines = [
+            header.customerName.map { "Customer: \($0)" },
+            header.address
+        ].compactMap { $0 }
+
+        for (index, line) in subtitleLines.enumerated() {
+            drawAdaptiveText(line, font: .systemFont(ofSize: 11), in: CGRect(x: 40, y: 58 + CGFloat(index * 14), width: rect.width - 80, height: 16), context: context, color: secondaryTextColor, minimumScaleFactor: 0.76, logContext: "header-subtitle-\(index)")
+        }
+
+        if let projectType = header.projectType {
+            drawAdaptiveText("Project Type: \(projectType)", font: .systemFont(ofSize: 10), in: CGRect(x: 40, y: 88, width: 260, height: 14), context: context, color: secondaryTextColor, minimumScaleFactor: 0.8, logContext: "header-project-type")
+        }
+
+        if let jobNumber = header.jobNumber {
+            drawAdaptiveText("Job #: \(jobNumber)", font: .systemFont(ofSize: 10), in: CGRect(x: rect.width - 180, y: 88, width: 140, height: 14), context: context, alignment: .right, color: secondaryTextColor, minimumScaleFactor: 0.8, logContext: "header-job-number")
+        }
 
         context.setStrokeColor(separatorColor.cgColor)
         context.setLineWidth(1)
@@ -501,223 +509,283 @@ enum ScopePDFExporter {
         max(layout.minimumRowHeight, heightForText(value, font: bodyFont, width: layout.valueColumnWidth) + layout.rowBottomSpacing)
     }
 
-    private static func pageOne(_ scope: JobScope) -> PDFPageContent {
-        let project = scope.projectInfo
+    private static func page(
+        title: String,
+        sections: [PDFSection?],
+        kind: PDFPageKind = .core
+    ) -> PDFPageContent? {
+        let sections = sections.compactMap { $0 }
+        guard !sections.isEmpty else { return nil }
+        return PDFPageContent(title: title, sections: sections, kind: kind)
+    }
 
-        return PDFPageContent(
-            title: "Page 1: Job Header + Project Info",
-            sections: [
-                PDFSection(title: "Project Information", rows: [
-                    .init(label: "Scope Title", value: scope.resolvedScopeTitle ?? "Not set"),
-                    .init(label: "Customer", value: scope.resolvedExportCustomerName ?? "Not set"),
-                    .init(label: "Address", value: project.address.nilIfBlank ?? "Not set"),
-                    .init(label: "Unit Number", value: project.unitNumber?.nilIfBlank ?? "Not set"),
-                    .init(label: "City / State / ZIP", value: combinedValue(project.city, project.state, project.zip)),
-                    .init(label: "Phone", value: project.phone?.nilIfBlank ?? "Not set"),
-                    .init(label: "Email", value: project.email?.nilIfBlank ?? "Not set"),
-                    .init(label: "Salesperson", value: project.salesperson?.nilIfBlank ?? "Not set"),
-                    .init(label: "Estimator", value: project.estimator?.nilIfBlank ?? "Not set"),
-                    .init(label: "Site Visit", value: formattedDate(project.siteVisitDate)),
-                    .init(label: "Project Type", value: project.projectTypeDisplaySummary),
-                    .init(label: "Notes", value: project.notes?.nilIfBlank ?? "None")
-                ])
-            ],
-            kind: .core
+    private static func section(
+        title: String,
+        rows: [PDFRow?] = [],
+        additionalRows: [PDFRow] = [],
+        image: UIImage? = nil,
+        imageRole: PDFImageRole = .standard
+    ) -> PDFSection? {
+        let resolvedRows = rows.compactMap { $0 } + additionalRows
+        guard !resolvedRows.isEmpty || image != nil else { return nil }
+        return PDFSection(title: title, rows: resolvedRows, image: image, imageRole: imageRole)
+    }
+
+    private static func row(_ label: String, _ value: String?) -> PDFRow? {
+        guard let value = meaningfulPDFText(value) else { return nil }
+        return PDFRow(label: label, value: value)
+    }
+
+    private static func enumRow<Value: SchemaEnumDisplayable>(_ label: String, _ value: Value?) -> PDFRow? {
+        row(label, value?.displayName)
+    }
+
+    private static func boolRow(_ label: String, _ value: Bool?) -> PDFRow? {
+        guard let value else { return nil }
+        return PDFRow(label: label, value: value ? "Yes" : "No")
+    }
+
+    private static func numberRow(_ label: String, _ value: Double?, suffix: String = "") -> PDFRow? {
+        guard value != nil else { return nil }
+        return row(label, formatNumber(value, suffix: suffix))
+    }
+
+    private static func dateRow(_ label: String, _ value: Date?) -> PDFRow? {
+        guard let value else { return nil }
+        return PDFRow(label: label, value: value.formatted(date: .abbreviated, time: .omitted))
+    }
+
+    private static func meaningfulPDFText(_ value: String?) -> String? {
+        guard let value = value?.nilIfBlank else { return nil }
+        let defaultValues: Set<String> = [
+            "Not set",
+            "None",
+            "Not applicable",
+            "No additional details",
+            "No checklist photos attached"
+        ]
+        return defaultValues.contains(value) ? nil : value
+    }
+
+    private static func exportComposition(for scope: JobScope) throws -> PDFExportComposition {
+        PDFExportComposition(
+            header: headerContent(for: scope),
+            pages: try plannedPages(for: scope)
         )
     }
 
-    private static func pageTwo(_ scope: JobScope) -> PDFPageContent {
+    private static func headerContent(for scope: JobScope) -> PDFHeaderContent {
+        PDFHeaderContent(
+            title: scope.resolvedDocumentTitle,
+            customerName: meaningfulPDFText(scope.resolvedExportCustomerName),
+            address: meaningfulPDFText(scope.projectInfo.formattedAddressLine),
+            projectType: scope.projectInfo.activeProjectTypes.isEmpty ? nil : meaningfulPDFText(scope.projectInfo.projectTypeDisplaySummary),
+            jobNumber: meaningfulPDFText(scope.jobNumber)
+        )
+    }
+
+    private static func pageOne(_ scope: JobScope) -> PDFPageContent? {
+        let project = scope.projectInfo
+
+        return page(
+            title: "Job Header + Project Info",
+            sections: [
+                section(title: "Project Information", rows: [
+                    row("Scope Title", scope.resolvedScopeTitle),
+                    row("Customer", scope.resolvedExportCustomerName),
+                    row("Job Number", scope.jobNumber),
+                    row("Address", project.formattedAddressLine),
+                    row("City / State / ZIP", combinedValue(project.city, project.state, project.zip)),
+                    row("Phone", project.phone),
+                    row("Email", project.email),
+                    row("Salesperson", project.salesperson),
+                    row("Estimator", project.estimator),
+                    dateRow("Site Visit", project.siteVisitDate),
+                    row("Project Type", project.activeProjectTypes.isEmpty ? nil : project.projectTypeDisplaySummary),
+                    row("Notes", project.notes)
+                ]),
+                section(title: "Dimensions", rows: dimensionRows(scope.dimensions))
+            ]
+        )
+    }
+
+    private static func pageTwo(_ scope: JobScope) -> PDFPageContent? {
         let existing = scope.existingConditions?.normalizedForExport()
         let attachment = scope.attachment
 
-        return PDFPageContent(
-            title: "Page 2: Existing Conditions + Attachment Conditions",
+        return page(
+            title: "Existing Conditions + Attachment Conditions",
             sections: [
-                PDFSection(title: "Existing Conditions", rows: [
-                    .init(label: "House Stories", value: existing?.houseStories?.displayName ?? "Not set"),
-                    .init(label: "Exterior Finish", value: existing?.exteriorFinish?.displaySummary ?? "Not set"),
-                    .init(label: "Posts/Columns Material", value: existing?.exteriorFinish?.postsColumnsMaterialDisplaySummary ?? "Not set"),
-                    .init(label: "Post Trim", value: boolString(existing?.exteriorFinish?.postTrim)),
-                    .init(label: "Trim Thickness", value: existing?.exteriorFinish?.trimThickness?.nilIfBlank ?? "Not set"),
-                    .init(label: "Exterior House Wall Material", value: existing?.exteriorFinish?.exteriorHouseWallMaterialDisplaySummary ?? "Not set"),
-                    .init(label: "Exterior House Wall -> Other", value: existing?.exteriorFinish?.exteriorHouseWallOther?.nilIfBlank ?? "Not set"),
-                    .init(label: "Existing Structure", value: existing?.existingStructureDisplaySummary ?? "Not set"),
-                    .init(label: "Existing Structure Notes", value: existing?.existingStructureNotes?.nilIfBlank ?? "None"),
-                    .init(label: "Obstacles", value: existing?.obstaclesNotes?.nilIfBlank ?? "None"),
-                    .init(label: "Utilities", value: existing?.utilitiesNotes?.nilIfBlank ?? "None"),
-                    .init(label: "HOA Notes", value: existing?.hoaNotes?.nilIfBlank ?? "None"),
-                    .init(label: "Photo Checklist", value: photoChecklistSummary(scopeID: scope.id))
+                section(title: "Existing Conditions", rows: [
+                    enumRow("House Stories", existing?.houseStories),
+                    row("Exterior Finish", existing?.exteriorFinish?.displaySummary),
+                    row("Posts/Columns Material", existing?.exteriorFinish?.postsColumnsMaterialDisplaySummary),
+                    boolRow("Post Trim", existing?.exteriorFinish?.postTrim),
+                    row("Trim Thickness", existing?.exteriorFinish?.trimThickness),
+                    row("Exterior House Wall Material", existing?.exteriorFinish?.exteriorHouseWallMaterialDisplaySummary),
+                    row("Exterior House Wall -> Other", existing?.exteriorFinish?.exteriorHouseWallOther),
+                    row("Existing Structure", existing?.existingStructureDisplaySummary),
+                    row("Existing Structure Notes", existing?.existingStructureNotes),
+                    row("Obstacles", existing?.obstaclesNotes),
+                    row("Utilities", existing?.utilitiesNotes),
+                    row("HOA Notes", existing?.hoaNotes),
+                    row("Photo Checklist", photoChecklistSummary(scopeID: scope.id))
                 ]),
-                PDFSection(title: "Attachment Conditions", rows: [
-                    .init(label: "House Material", value: resolvedHouseWallMaterial(attachment)),
-                    .init(label: "Mounting Type", value: attachment?.houseMountingType?.displayName ?? "Not set"),
-                    .init(label: "Mount Condition", value: attachment?.mountCondition?.displayName ?? "Not set"),
-                    .init(label: "Post Material", value: resolvedPostMaterial(attachment)),
-                    .init(label: "Post Size / Spacing", value: combinedValue(attachment?.postSize, attachment?.postSpacing)),
-                    .init(label: "Trim Present", value: boolString(attachment?.trimPresent)),
-                    .init(label: "Trim Material", value: resolvedTrimMaterial(attachment)),
-                    .init(label: "Trim Thickness", value: resolvedTrimThickness(attachment)),
-                    .init(label: "Fastener Plan", value: attachment?.fastenerPlan?.map(\.displayName).joined(separator: ", ") ?? "Not set"),
-                    .init(label: "Notes", value: attachment?.notes?.nilIfBlank ?? "None")
-                ] + measurementRows(attachment?.measurements))
-            ],
-            kind: .core
+                section(title: "Attachment Conditions", rows: [
+                    row("House Material", resolvedHouseWallMaterial(attachment)),
+                    enumRow("Mounting Type", attachment?.houseMountingType),
+                    enumRow("Mount Condition", attachment?.mountCondition),
+                    row("Post Material", resolvedPostMaterial(attachment)),
+                    row("Post Size / Spacing", combinedValue(attachment?.postSize, attachment?.postSpacing)),
+                    boolRow("Trim Present", attachment?.trimPresent),
+                    row("Trim Material", resolvedTrimMaterial(attachment)),
+                    row("Trim Thickness", resolvedTrimThickness(attachment)),
+                    row("Fastener Plan", attachment?.fastenerPlan?.map(\.displayName).joined(separator: ", ")),
+                    row("Notes", attachment?.notes)
+                ], additionalRows: measurementRows(attachment?.measurements))
+            ]
         )
     }
 
-    private static func pageThree(_ scope: JobScope) -> PDFPageContent {
+    private static func pageThree(_ scope: JobScope) -> PDFPageContent? {
         let structural = scope.structuralSystem?.normalizedForExport()
         let enclosure = scope.enclosure?.normalizedForExport()
 
-        return PDFPageContent(
-            title: "Page 3: Structural + Roof System + Screen Enclosure",
+        return page(
+            title: "Structural + Screen Enclosure",
             sections: [
-                PDFSection(title: "Structural System", rows: structuralRows(structural)),
-                PDFSection(title: "Screen Enclosure", rows: [
-                    .init(label: "Screen Enclosure Type", value: enclosure?.enclosureTypeDisplaySummary ?? "Not set"),
-                    .init(label: "Screen Type", value: enclosure?.screenWallType?.displayName ?? "Not set"),
-                    .init(label: "Tint", value: enclosure?.screenTint?.displayName ?? "Not set"),
-                    .init(label: "Frame Size", value: enclosure?.screenFrameSize?.displayName ?? "Not set"),
-                    .init(label: "Frame Color", value: resolvedScreenFrameColor(enclosure?.screenFrameColor, custom: enclosure?.screenFrameColorCustom)),
-                    .init(label: "Screen Enclosure Notes", value: enclosure?.screenEnclosureNotes?.nilIfBlank ?? "None"),
-                    .init(label: "Knee Wall", value: enclosure?.kneeWall?.option?.displayName ?? "Not set"),
-                    .init(label: "Knee Wall Details", value: kneeWallSummary(enclosure?.kneeWall)),
-                    .init(label: "Door Type", value: enclosure?.doors?.doorType?.displayName ?? "Not set"),
-                    .init(label: "Door Style", value: enclosure?.doors?.style?.displayName ?? "Not set"),
-                    .init(label: "Operable Side", value: enclosure?.doors?.operableSide?.displayName ?? "Not set"),
-                    .init(label: "Hinge Side", value: enclosure?.doors?.hingeSide?.displayName ?? "Not set"),
-                    .init(label: "Door Dimensions", value: combinedValue(enclosure?.doors?.width?.nilIfBlank, enclosure?.doors?.height?.nilIfBlank)),
-                    .init(label: "Sliding Door Color", value: enclosure?.doors?.color?.nilIfBlank ?? "Not set"),
-                    .init(label: "Sliding Door Dimensions", value: enclosure?.doors?.dimensions?.nilIfBlank ?? "Not set"),
-                    .init(label: "Door Notes", value: enclosure?.doors?.notes?.nilIfBlank ?? "None")
-                ] + measurementRows(enclosure?.screenMeasurements))
-            ],
-            kind: .core
+                section(title: "Structural System", additionalRows: structuralRows(structural)),
+                section(title: "Screen Enclosure", rows: [
+                    row("Screen Enclosure Type", enclosure?.enclosureTypeDisplaySummary),
+                    enumRow("Screen Type", enclosure?.screenWallType),
+                    enumRow("Tint", enclosure?.screenTint),
+                    enumRow("Frame Size", enclosure?.screenFrameSize),
+                    row("Frame Color", resolvedScreenFrameColor(enclosure?.screenFrameColor, custom: enclosure?.screenFrameColorCustom)),
+                    row("Screen Enclosure Notes", enclosure?.screenEnclosureNotes),
+                    enumRow("Knee Wall", enclosure?.kneeWall?.option),
+                    row("Knee Wall Details", kneeWallSummary(enclosure?.kneeWall)),
+                    enumRow("Door Type", enclosure?.doors?.doorType),
+                    enumRow("Door Style", enclosure?.doors?.style),
+                    enumRow("Operable Side", enclosure?.doors?.operableSide),
+                    enumRow("Hinge Side", enclosure?.doors?.hingeSide),
+                    row("Door Dimensions", combinedValue(enclosure?.doors?.width, enclosure?.doors?.height)),
+                    row("Sliding Door Color", enclosure?.doors?.color),
+                    row("Sliding Door Dimensions", enclosure?.doors?.dimensions),
+                    row("Door Notes", enclosure?.doors?.notes)
+                ], additionalRows: measurementRows(enclosure?.screenMeasurements))
+            ]
         )
     }
 
-    private static func pageFour(_ scope: JobScope) -> PDFPageContent {
+    private static func pageFour(_ scope: JobScope) -> PDFPageContent? {
         let enclosure = scope.enclosure?.normalizedForExport()
         let window = enclosure?.windowSystem
         let electrical = scope.electrical
         let drainage = scope.drainage
 
-        return PDFPageContent(
-            title: "Page 4: Sunroom + Knee Wall + Electrical + Drainage",
+        return page(
+            title: "Sunroom + Electrical + Drainage",
             sections: [
-                PDFSection(title: "Sunroom", rows: [
-                    .init(label: "Window Type", value: window?.windowType?.displayName ?? "Not set"),
-                    .init(label: "Frame System", value: window?.frameSystem?.displayName ?? "Not set"),
-                    .init(label: "Glass Type", value: window?.glassType?.displayName ?? "Not set"),
-                    .init(label: "Safety", value: window?.glassSafety?.displayName ?? "Not set"),
-                    .init(label: "Grid", value: window?.gridOption?.displayName ?? "Not set"),
-                    .init(label: "Operation", value: window?.operation?.displayName ?? "Not set"),
-                    .init(label: "Frame Color", value: resolvedStandardColor(window?.color, custom: window?.colorCustom)),
-                    .init(label: "Height / Bays", value: combinedValue(formatOptionalPDFNumber(window?.windowHeight, suffix: "ft"), formatOptionalPDFNumber(window?.numBays, suffix: "bays"))),
-                    .init(label: "Configuration", value: window?.configuration?.displayName ?? "Not set"),
-                    .init(label: "Notes", value: window?.notes?.nilIfBlank ?? "None")
-                ] + measurementRows(enclosure?.sunroomMeasurements)),
-                PDFSection(title: "Electrical", rows: [
-                    .init(label: "Outlets", value: formatNumber(electrical?.outletCount, suffix: "")),
-                    .init(label: "Lighting", value: electrical?.lighting?.displayName ?? "Not set"),
-                    .init(label: "Fan Install", value: boolString(electrical?.fanInstall)),
-                    .init(label: "Switch Locations", value: electrical?.switchLocations?.nilIfBlank ?? "Not set"),
-                    .init(label: "Dedicated Circuits", value: electrical?.dedicatedCircuits?.map(\.displayName).joined(separator: ", ") ?? "Not set"),
-                    .init(label: "Notes", value: electrical?.notes?.nilIfBlank ?? "None")
-                ] + measurementRows(electrical?.measurements)),
-                PDFSection(title: "Drainage", rows: [
-                    .init(label: "Gutters", value: boolString(drainage?.gutters)),
-                    .init(label: "Downspouts", value: drainage?.downspoutLocations?.nilIfBlank ?? "Not set"),
-                    .init(label: "Drain Tie-In", value: boolString(drainage?.drainTieIn)),
-                    .init(label: "Drain Notes", value: drainage?.slopeNotes?.nilIfBlank ?? "None")
-                ] + measurementRows(drainage?.measurements))
-            ],
-            kind: .core
+                section(title: "Sunroom", rows: [
+                    enumRow("Window Type", window?.windowType),
+                    enumRow("Frame System", window?.frameSystem),
+                    enumRow("Glass Type", window?.glassType),
+                    enumRow("Safety", window?.glassSafety),
+                    enumRow("Grid", window?.gridOption),
+                    enumRow("Operation", window?.operation),
+                    row("Frame Color", resolvedStandardColor(window?.color, custom: window?.colorCustom)),
+                    row("Height / Bays", combinedValue(formatOptionalPDFNumber(window?.windowHeight, suffix: "ft"), formatOptionalPDFNumber(window?.numBays, suffix: "bays"))),
+                    enumRow("Configuration", window?.configuration),
+                    row("Notes", window?.notes)
+                ], additionalRows: measurementRows(enclosure?.sunroomMeasurements)),
+                section(title: "Electrical", rows: [
+                    numberRow("Outlets", electrical?.outletCount),
+                    enumRow("Lighting", electrical?.lighting),
+                    boolRow("Fan Install", electrical?.fanInstall),
+                    row("Switch Locations", electrical?.switchLocations),
+                    row("Dedicated Circuits", electrical?.dedicatedCircuits?.map(\.displayName).joined(separator: ", ")),
+                    row("Notes", electrical?.notes)
+                ], additionalRows: measurementRows(electrical?.measurements)),
+                section(title: "Drainage", rows: [
+                    boolRow("Gutters", drainage?.gutters),
+                    row("Downspouts", drainage?.downspoutLocations),
+                    boolRow("Drain Tie-In", drainage?.drainTieIn),
+                    row("Drain Notes", drainage?.slopeNotes)
+                ], additionalRows: measurementRows(drainage?.measurements))
+            ]
         )
     }
 
-    private static func pageFive(_ scope: JobScope) throws -> PDFPageContent {
+    private static func pageFive(_ scope: JobScope) throws -> PDFPageContent? {
         let finishes = scope.finishes
         let permits = scope.permitsHOA
         let production = scope.production
 
-        var signatureRows: [PDFRow] = [
-            .init(label: "Signed Date", value: scope.customerApproval?.signedDate?.formatted(date: .abbreviated, time: .omitted) ?? "Not set")
+        var signatureRows: [PDFRow?] = [
+            dateRow("Signed Date", scope.customerApproval?.signedDate)
         ]
+        var signatureImage: UIImage?
 
         if let path = scope.customerApproval?.signaturePNGPath {
-            let image = try loadImage(at: path, scopeID: scope.id.uuidString, reasonContext: "signature image")
-            signatureRows.append(.init(label: "Signature", value: "Embedded"))
-
-            return PDFPageContent(
-                title: "Page 5: Permits/HOA + Production Notes + Customer Signature",
-                sections: [
-                    PDFSection(title: "Finishes", rows: [
-                        .init(label: "Trim Type", value: finishes?.trimType?.nilIfBlank ?? "Not set"),
-                        .init(label: "Paint / Powder", value: finishes?.paintOrPowderColor?.nilIfBlank ?? "Not set"),
-                        .init(label: "Siding Replacement", value: boolString(finishes?.sidingReplacementRequired)),
-                        .init(label: "Caulking / Sealing", value: finishes?.caulkingSealingNotes?.nilIfBlank ?? "None")
-                    ] + measurementRows(finishes?.measurements)),
-                    PDFSection(title: "Permits / HOA", rows: [
-                        .init(label: "Permit Required", value: boolString(permits?.permitRequired)),
-                        .init(label: "HOA Required", value: boolString(permits?.hoaApprovalRequired)),
-                        .init(label: "Engineering Required", value: boolString(permits?.engineeringRequired)),
-                        .init(label: "Jurisdiction", value: permits?.jurisdiction?.nilIfBlank ?? "Not set"),
-                        .init(label: "Status Notes", value: permits?.statusNotes?.nilIfBlank ?? "None")
-                    ]),
-                    PDFSection(title: "Production", rows: [
-                        .init(label: "Crew Lead", value: production?.crewLead?.nilIfBlank ?? "Not set"),
-                        .init(label: "Start Date", value: production?.startDate?.formatted(date: .abbreviated, time: .omitted) ?? "Not set"),
-                        .init(label: "Duration", value: production?.durationEstimate?.nilIfBlank ?? "Not set"),
-                        .init(label: "Material Status", value: production?.materialOrderStatus?.displayName ?? "Not set"),
-                        .init(label: "Permit Status", value: production?.permitStatus?.displayName ?? "Not set"),
-                        .init(label: "Notes", value: scope.customerApproval?.optionsConfirmedText?.nilIfBlank ?? "None")
-                    ]),
-                    PDFSection(title: "Customer Signature", rows: signatureRows, image: image, imageRole: .signature)
-                ],
-                kind: .core
-            )
+            signatureImage = try loadImage(at: path, scopeID: scope.id.uuidString, reasonContext: "signature image")
+            signatureRows.append(PDFRow(label: "Signature", value: "Embedded"))
         }
 
-        signatureRows.append(.init(label: "Signature", value: "Not captured"))
-        return PDFPageContent(
-            title: "Page 5: Permits/HOA + Production Notes + Customer Signature",
+        return page(
+            title: "Finishes + Permits + Production",
             sections: [
-                PDFSection(title: "Finishes", rows: [
-                    .init(label: "Trim Type", value: finishes?.trimType?.nilIfBlank ?? "Not set"),
-                    .init(label: "Paint / Powder", value: finishes?.paintOrPowderColor?.nilIfBlank ?? "Not set"),
-                    .init(label: "Siding Replacement", value: boolString(finishes?.sidingReplacementRequired)),
-                    .init(label: "Caulking / Sealing", value: finishes?.caulkingSealingNotes?.nilIfBlank ?? "None")
-                ] + measurementRows(finishes?.measurements)),
-                PDFSection(title: "Permits / HOA", rows: [
-                    .init(label: "Permit Required", value: boolString(permits?.permitRequired)),
-                    .init(label: "HOA Required", value: boolString(permits?.hoaApprovalRequired)),
-                    .init(label: "Engineering Required", value: boolString(permits?.engineeringRequired)),
-                    .init(label: "Jurisdiction", value: permits?.jurisdiction?.nilIfBlank ?? "Not set"),
-                    .init(label: "Status Notes", value: permits?.statusNotes?.nilIfBlank ?? "None")
+                section(title: "Finishes", rows: [
+                    row("Trim Type", finishes?.trimType),
+                    row("Paint / Powder", finishes?.paintOrPowderColor),
+                    boolRow("Siding Replacement", finishes?.sidingReplacementRequired),
+                    row("Caulking / Sealing", finishes?.caulkingSealingNotes)
+                ], additionalRows: measurementRows(finishes?.measurements)),
+                section(title: "Permits / HOA", rows: [
+                    boolRow("Permit Required", permits?.permitRequired),
+                    boolRow("HOA Required", permits?.hoaApprovalRequired),
+                    boolRow("Engineering Required", permits?.engineeringRequired),
+                    row("Jurisdiction", permits?.jurisdiction),
+                    row("Status Notes", permits?.statusNotes)
                 ]),
-                PDFSection(title: "Production", rows: [
-                    .init(label: "Crew Lead", value: production?.crewLead?.nilIfBlank ?? "Not set"),
-                    .init(label: "Start Date", value: production?.startDate?.formatted(date: .abbreviated, time: .omitted) ?? "Not set"),
-                    .init(label: "Duration", value: production?.durationEstimate?.nilIfBlank ?? "Not set"),
-                    .init(label: "Material Status", value: production?.materialOrderStatus?.displayName ?? "Not set"),
-                    .init(label: "Permit Status", value: production?.permitStatus?.displayName ?? "Not set"),
-                    .init(label: "Notes", value: scope.customerApproval?.optionsConfirmedText?.nilIfBlank ?? "None")
+                section(title: "Production", rows: [
+                    row("Crew Lead", production?.crewLead),
+                    dateRow("Start Date", production?.startDate),
+                    row("Duration", production?.durationEstimate),
+                    enumRow("Material Status", production?.materialOrderStatus),
+                    enumRow("Permit Status", production?.permitStatus),
+                    row("Notes", scope.customerApproval?.optionsConfirmedText)
                 ]),
-                PDFSection(title: "Customer Signature", rows: signatureRows)
-            ],
-            kind: .core
+                documentsSection(scope.documents),
+                section(title: "Customer Signature", rows: signatureRows, image: signatureImage, imageRole: .signature)
+            ]
         )
     }
 
     private static func plannedPages(for scope: JobScope) throws -> [PDFPageContent] {
-        [
+        let corePages = [
             pageOne(scope),
             pageTwo(scope),
             pageThree(scope),
             pageFour(scope),
             try pageFive(scope)
-        ] + (try appendixPages(scope))
+        ].compactMap { $0 }
+
+        let pages = corePages + (try appendixPages(scope))
+        if !pages.isEmpty {
+            return pages
+        }
+
+        return [
+            PDFPageContent(
+                title: "Scope Summary",
+                sections: [
+                    PDFSection(title: "Project Information", rows: [
+                        PDFRow(label: "Status", value: "No relevant scope details have been entered yet.")
+                    ])
+                ],
+                kind: .core
+            )
+        ]
     }
 
     private static func pruneInactiveEnclosureValuesForExport(_ scope: JobScope) {
@@ -732,28 +800,46 @@ enum ScopePDFExporter {
         scope.existingConditions = scope.existingConditions?.normalizedForExport()
     }
 
-    private static func structuralRows(_ structural: StructuralSystem?) -> [PDFRow] {
-        guard let structural else {
-            return [
-                .init(label: "Structural System", value: "Not set"),
-                .init(label: "Notes", value: "None")
-            ]
+    private static func dimensionRows(_ dimensions: Dimensions?) -> [PDFRow?] {
+        [
+            numberRow("Width", dimensions?.width, suffix: "ft"),
+            numberRow("Projection", dimensions?.projection, suffix: "ft"),
+            numberRow("Fascia Height", dimensions?.fasciaHeight, suffix: "ft"),
+            numberRow("Beam Height", dimensions?.beamHeight, suffix: "ft"),
+            enumRow("Roof Style", dimensions?.roofStyle),
+            enumRow("Attachment Type", dimensions?.attachmentType),
+            row("Elevation Notes", dimensions?.elevationNotes)
+        ]
+    }
+
+    private static func documentsSection(_ documents: DocumentsSection?) -> PDFSection? {
+        let additionalRows = (documents?.additionalAttachments ?? []).compactMap { attachment -> PDFRow? in
+            let displayName = attachment.name?.nilIfBlank ?? attachment.attachment?.originalFilename.nilIfBlank
+            return row("Additional Attachment", displayName)
         }
+
+        return section(title: "Documents / Attachments", rows: [
+            row("Irrigation", documents?.irrigation?.originalFilename),
+            row("Property Survey", documents?.propertySurvey?.originalFilename)
+        ], additionalRows: additionalRows)
+    }
+
+    private static func structuralRows(_ structural: StructuralSystem?) -> [PDFRow] {
+        guard let structural else { return [] }
 
         var rows: [PDFRow] = [
-            .init(label: "Structural System", value: structural.resolvedSelectionDisplayName ?? "Not set")
-        ]
-
-        if let pergolaType = structural.pergolaType?.displayName {
-            rows.append(.init(label: "Pergola Type", value: pergolaType))
-        }
+            row("Structural System", structural.resolvedSelectionDisplayName),
+            row("Pergola Type", structural.pergolaType?.displayName)
+        ].compactMap { $0 }
 
         switch structural.systemType {
         case .some(.insulatedAluminumPatioCover):
-            rows.append(.init(label: "Width", value: structural.insulatedAluminumPatioCover?.width?.nilIfBlank ?? "Not set"))
-            rows.append(.init(label: "Projection", value: structural.insulatedAluminumPatioCover?.projection?.nilIfBlank ?? "Not set"))
-            rows.append(.init(label: "Number of Posts", value: structural.insulatedAluminumPatioCover?.numberOfPosts?.nilIfBlank ?? "Not set"))
-            rows.append(.init(label: "Roof Type", value: structural.insulatedAluminumPatioCover?.roofType?.displayName ?? "Not set"))
+            rows.append(contentsOf: [
+                row("Width", structural.insulatedAluminumPatioCover?.width),
+                row("Projection", structural.insulatedAluminumPatioCover?.projection),
+                row("Number of Posts", structural.insulatedAluminumPatioCover?.numberOfPosts),
+                enumRow("Roof Type", structural.insulatedAluminumPatioCover?.roofType)
+            ].compactMap { $0 })
         case .some(.pergola):
             switch structural.pergolaType {
             case .some(.motorizedLouveredPergola):
@@ -761,19 +847,23 @@ enum ScopePDFExporter {
             case .some(.manuallyRetractableLouveredPergola):
                 rows.append(contentsOf: pergolaDimensionRows(structural.manuallyRetractableLouveredPergola))
             case .some(.cedarPergola):
-                rows.append(.init(label: "Post Size", value: structural.cedarPergola?.resolvedPostSize ?? "Not set"))
-                rows.append(.init(label: "Beam Size", value: structural.cedarPergola?.resolvedBeamSize ?? "Not set"))
-                rows.append(.init(label: "Rafter Size", value: structural.cedarPergola?.resolvedRafterSize ?? "Not set"))
-                rows.append(.init(label: "Lattice", value: structural.cedarPergola?.lattice?.displayName ?? "Not set"))
-                rows.append(.init(label: "Hardware", value: structural.cedarPergola?.hardware?.displayName ?? "Not set"))
-                rows.append(.init(label: "Finish", value: structural.cedarPergola?.finish?.displayName ?? "Not set"))
-                rows.append(.init(label: "Product Code", value: structural.cedarPergola?.productCode?.nilIfBlank ?? "Not set"))
+                rows.append(contentsOf: [
+                    row("Post Size", structural.cedarPergola?.resolvedPostSize),
+                    row("Beam Size", structural.cedarPergola?.resolvedBeamSize),
+                    row("Rafter Size", structural.cedarPergola?.resolvedRafterSize),
+                    enumRow("Lattice", structural.cedarPergola?.lattice),
+                    enumRow("Hardware", structural.cedarPergola?.hardware),
+                    enumRow("Finish", structural.cedarPergola?.finish),
+                    row("Product Code", structural.cedarPergola?.productCode)
+                ].compactMap { $0 })
             case .some(.alumawoodPergola):
-                rows.append(.init(label: "Mount Type", value: structural.alumawoodPergola?.mountType?.displayName ?? "Not set"))
-                rows.append(.init(label: "Layout", value: structural.alumawoodPergola?.layoutSummary ?? "Not set"))
-                rows.append(.init(label: "Attachment Type", value: structural.alumawoodPergola?.attachmentType?.displayName ?? "Not set"))
-                rows.append(.init(label: "Color", value: structural.alumawoodPergola?.color?.displayName ?? "Not set"))
-                rows.append(.init(label: "Privacy Wall", value: boolString(structural.alumawoodPergola?.privacyWall)))
+                rows.append(contentsOf: [
+                    enumRow("Mount Type", structural.alumawoodPergola?.mountType),
+                    row("Layout", structural.alumawoodPergola?.layoutSummary),
+                    enumRow("Attachment Type", structural.alumawoodPergola?.attachmentType),
+                    enumRow("Color", structural.alumawoodPergola?.color),
+                    boolRow("Privacy Wall", structural.alumawoodPergola?.privacyWall)
+                ].compactMap { $0 })
             case .none:
                 break
             }
@@ -782,34 +872,51 @@ enum ScopePDFExporter {
         }
 
         if structural.systemType == nil, let legacySummary = structural.legacyFlatSummary {
-            rows.append(.init(label: "Legacy Structural Summary", value: legacySummary))
+            if let row = row("Legacy Structural Summary", legacySummary) {
+                rows.append(row)
+            }
         }
 
         if let pergolaNotes = structural.resolvedPergolaNotes {
-            rows.append(.init(label: "Pergola Notes", value: pergolaNotes))
+            if let row = row("Pergola Notes", pergolaNotes) {
+                rows.append(row)
+            }
         }
 
-        rows.append(.init(label: "Notes", value: structural.notes?.nilIfBlank ?? "None"))
+        if let notesRow = row("Notes", structural.notes) {
+            rows.append(notesRow)
+        }
         rows.append(contentsOf: measurementRows(structural.measurements))
         return rows
     }
 
     private static func measurementRows(_ block: MeasurementsBlock?) -> [PDFRow] {
-        block?.activeItems.map { item in
+        block?.activeItems.compactMap { item in
             let type = item.resolvedType ?? "Measurement"
-            let value = item.value?.nilIfBlank ?? "Not set"
+            let value = item.value?.nilIfBlank
             let notes = item.notes?.nilIfBlank
-            let output = notes.map { "\(value)\nNotes: \($0)" } ?? value
+            guard value != nil || notes != nil else { return nil }
+            let output: String
+            switch (value, notes) {
+            case let (value?, notes?):
+                output = "\(value)\nNotes: \(notes)"
+            case let (value?, nil):
+                output = value
+            case let (nil, notes?):
+                output = "Notes: \(notes)"
+            case (nil, nil):
+                return nil
+            }
             return PDFRow(label: "Measurement - \(type)", value: output)
         } ?? []
     }
 
     private static func pergolaDimensionRows(_ details: PergolaDimensionDetails?) -> [PDFRow] {
         [
-            .init(label: "Width", value: details?.width?.nilIfBlank ?? "Not set"),
-            .init(label: "Length", value: details?.length?.nilIfBlank ?? "Not set"),
-            .init(label: "Height", value: details?.height?.nilIfBlank ?? "Not set")
-        ]
+            row("Width", details?.width),
+            row("Length", details?.length),
+            row("Height", details?.height)
+        ].compactMap { $0 }
     }
 
     private static func appendixPages(_ scope: JobScope) throws -> [PDFPageContent] {
@@ -818,14 +925,22 @@ enum ScopePDFExporter {
         if let photos = scope.photos, !photos.isEmpty {
             for (index, photo) in photos.enumerated() {
                 let image = try loadImage(at: photo.imagePath, scopeID: scope.id.uuidString, reasonContext: "photo appendix \(index + 1)")
+                let rows = [
+                    PDFRow(label: "Captured", value: photo.createdAt.formatted(date: .abbreviated, time: .shortened)),
+                    row("Caption", photo.caption)
+                ].compactMap { $0 }
 
                 pages.append(
                     PDFPageContent(
                         title: "Appendix: Photo \(index + 1)",
-                        sections: [PDFSection(title: photo.caption?.nilIfBlank ?? "Scope Photo \(index + 1)", rows: [
-                            .init(label: "Captured", value: photo.createdAt.formatted(date: .abbreviated, time: .shortened)),
-                            .init(label: "Caption", value: photo.caption?.nilIfBlank ?? "None")
-                        ], image: image, imageRole: .appendix)],
+                        sections: [
+                            PDFSection(
+                                title: photo.caption?.nilIfBlank ?? "Scope Photo \(index + 1)",
+                                rows: rows,
+                                image: image,
+                                imageRole: .appendix
+                            )
+                        ],
                         kind: .photoAppendix
                     )
                 )
@@ -1086,11 +1201,6 @@ enum ScopePDFExporter {
         return ceil(rect.height)
     }
 
-    private static func boolString(_ value: Bool?) -> String {
-        guard let value else { return "Not set" }
-        return value ? "Yes" : "No"
-    }
-
     private static func formatNumber(_ value: Double?, suffix: String) -> String {
         guard let value else { return "Not set" }
         let rendered: String
@@ -1105,10 +1215,6 @@ enum ScopePDFExporter {
     private static func formatOptionalPDFNumber(_ value: Double?, suffix: String) -> String? {
         guard let value else { return nil }
         return formatNumber(value, suffix: suffix)
-    }
-
-    private static func formattedDate(_ value: Date?) -> String {
-        value?.formatted(date: .abbreviated, time: .omitted) ?? "Not set"
     }
 
     private static func combinedValue(_ values: String?...) -> String {
@@ -1246,6 +1352,19 @@ private struct PDFPageContent {
     let title: String
     let sections: [PDFSection]
     let kind: PDFPageKind
+}
+
+private struct PDFExportComposition {
+    let header: PDFHeaderContent
+    let pages: [PDFPageContent]
+}
+
+private struct PDFHeaderContent {
+    let title: String
+    let customerName: String?
+    let address: String?
+    let projectType: String?
+    let jobNumber: String?
 }
 
 private struct PDFRenderedPage {

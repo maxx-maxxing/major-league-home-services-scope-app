@@ -1,74 +1,109 @@
 Read codex_context.md before making changes.
 
-Project:
-Production iPad SwiftUI app: Construction Scope App.
+Current working focus:
+PDF export relevance filtering and export composition cleanup.
 
-Current phase:
-Field-beta stabilization and workflow hardening. Prioritize reliable real-world data entry, persistence, and PDF/export behavior over broad refactors.
+Highest-priority requirement:
+When a scope is exported as a PDF, the PDF must include only information that is actually relevant to that specific scope. It should not dump every possible section/field. The export should feel intentional, concise, and professional.
 
-Core rules:
-- SwiftUI + async/await
-- Keep business logic out of Views
-- Make surgical, incremental edits
-- Do not rewrite large files unnecessarily
-- Preserve working integrations and workflows unless the task explicitly requires change
-- Offline-first
-- Autosave
-- Flattened PDF export
-- JobTread is the source of truth for customers
-- Avoid risky persistence-shape changes unless absolutely necessary
+Important constraint:
+Do not destabilize the current working JobTread customer search/select, linked-customer hydration, verified read-only ownership behavior, Documents / Attachments section, pricing engine, returned pricing normalization/validation path, or persistence continuity fixes unless the task explicitly requires it.
 
-Stable areas that must not be broken:
-- JobTread customer search/select and linked hydration
-- Scope Title text-entry fix
-- Multi-word text-entry fixes across general human text fields
-- Project Type multi-select behavior and scope card display
-- Existing Conditions nested selection behavior
-- Existing Conditions checklist photo workflow and file-backed persistence
-- Structural System branching workflow
-- Section-scoped Measurements workflow
-- Current PDF export/render/share pipeline
-- Debug inspector
-- Pricing/proposal foundation
+Current app phase:
+Release-hardening and beta continuity work have reached a reasonable stopping point for the current field beta. The next active phase is to improve PDF export behavior so the app exports only active/meaningful scope content instead of rendering everything.
 
-Established UX/data patterns:
-- User-facing text fields preserve raw editable text during typing
-- Normalize only at save/display/output boundaries
-- Branch-driven sections use progressive disclosure
-- Hidden inactive values may be preserved during editing
-- Hidden inactive values must be excluded/pruned from export/output
-- The app should feel like a first-party Apple productivity app: calm, obvious, low ambiguity
+What is already true:
+- SwiftUI iPad construction scope app exists
+- Core section-based workflow exists
+- Offline-first behavior remains important
+- JobTread connectivity has been verified
+- The app has additive model support for:
+  - scopeTitle
+  - jobTreadCustomer
+  - jobTreadJob
+  - jobTreadSync
+- Scope naming has been separated from customer identity
+- JobTread customer search/select creation path exists
+- Live partial-name JobTread customer search works
+- Selecting a JobTread customer creates a linked scope
+- Linked-customer hydration works for verified fields
+- Street-address normalization works in tested cases
+- Unit number extraction from JobTread uses the correct fallback behavior when needed
+- Verified JobTread-sourced customer/location fields are treated as read-only in the app
+- Refresh/re-hydration from JobTread is the intended pattern for upstream customer/location changes
+- A Documents / Attachments section exists with:
+  - fixed Irrigation attachment slot
+  - fixed Property Survey attachment slot
+  - repeatable Additional Attachments
+  - Files / Photo Library / Camera support
+- Attachment source UX has been cleaned up so actions are context-aware and visually distinct
+- Signature and Site Diagram persistence have been strengthened enough to survive the latest continuity tests
+- A pricing/proposal foundation layer exists
+- A debug-only inspector exists for local development
+- Proposal composition, pricing rule registry, config foundation, returned pricing normalization, subtotal execution, aggregate scaffolding, and selected typed lookup families exist in the pricing domain layer
 
-Current active task:
-Improve text-field clarity so values remain understandable after users type into fields.
+Known limitations / current truths:
+- The app is still primarily local-storage based today
+- Same-device continuity is the current beta target; reinstall/new-device continuity is not currently guaranteed
+- Cross-device sync and multi-user shared company data remain future backend/cloud architecture work
+- Phone/email hydration from JobTread is still not verified from the available docs/schema and should not be assumed
+- Do not assume arbitrary uploaded PDFs can be parsed by JobTread to populate structured fields automatically
+- Not every app field will necessarily map 1:1 to a native JobTread field
+- Final polished PDF output behavior is still under active iteration
+- Current PDF export behavior is too broad and tends to include everything instead of only relevant scope content
 
-Required behavior:
-- Most text-entry fields should no longer rely on placeholder text alone to communicate meaning
-- Once a field has a value, the UI must still clearly indicate what that value represents
-- Prefer persistent visible labels for fields where placeholder-only behavior currently creates ambiguity
-- This is especially important for stacked fields such as:
-  - widths
-  - heights
-  - projections
-  - counts
-  - measurement values
-  - write-in fields
-  - other repeated form fields where multiple similar inputs appear together
+Current architectural direction:
+- JobTread is the source of truth for customer records
+- The app should not create duplicate customers
+- The app should not edit JobTread-owned customer master data locally unless a future phase explicitly verifies and adopts that behavior
+- Linked JobTread customer/location fields should remain read-only in the app
+- If JobTread customer/location data changes upstream, the app should support refreshing those fields into the linked local scope
+- The scope app should become the source of truth for:
+  - scope selections
+  - proposal composition
+  - estimate-relevant structured output
+  - customer-facing proposal generation
+- The app should derive both:
+  - polished proposal/PDF output
+  - future structured JobTread sync payloads
+from one shared structured pricing/proposal/export layer
+- Pricing logic should live in a structured domain/config layer, not in SwiftUI views or the final PDF renderer
+- PDF export should not render directly from the raw full scope model whenever relevance filtering is needed
+- The PDF renderer should be as presentational/dumb as possible and consume a pre-filtered export composition model
 
-Implementation guidance:
-- Audit text-entry fields across the app
-- Convert placeholder-only fields into persistently labeled fields where appropriate
-- Prefer a shared labeled-field pattern rather than inconsistent one-off fixes
-- Keep the UI clean and uncluttered
-- Do not duplicate labels unnecessarily where the surrounding card/section title already makes the field’s meaning obvious
-- Good default rule:
-  - stacked/shared fields inside a card should each have their own visible label
-  - single obvious standalone note fields do not need redundant duplicate labels if the card title already communicates the meaning clearly
-- Preserve existing helper text below fields where it adds value
+Immediate implementation direction:
+- Audit the current PDF export path
+- Identify where the export is currently pulling/rendering too much content
+- Add or strengthen an export composition/preprocessing layer that:
+  - determines which sections are relevant
+  - determines which rows/fields are meaningful
+  - omits inactive, empty, default, or irrelevant content
+- Keep export inclusion logic outside the low-level PDF drawing/rendering layer where possible
+- Preserve currently relevant content in the PDF while removing noise
+
+Most relevant near-term domains to build:
+- PDF export composition model
+- section inclusion rules
+- field/row inclusion rules
+- export filtering for inactive sections
+- export filtering for empty/default values
+- export handling for signatures, diagrams, attachments, and photos
+- future proposal-quality PDF refinement
+
+Current priorities:
+1. Make PDF export include only relevant scope information
+2. Omit inactive, empty, default, or irrelevant sections/rows
+3. Keep PDF export logic maintainable by filtering before rendering
+4. Preserve currently working relevant export content
+5. Avoid introducing export regressions while cleaning up PDF behavior
+6. Keep this phase focused on export composition/filtering, not unrelated feature work
 
 Editing rules:
 - Follow READ → PLAN → EDIT
+- Make surgical edits
+- Do not rewrite large files unnecessarily
+- Preserve working service and model boundaries
 - Explain what files changed and why
-- Keep diffs scoped
-- Do not refactor unrelated app areas
-- This phase is production-hardening first, not feature-first
+- Prefer incremental, production-safe changes over broad refactors
+- Keep business logic out of low-level rendering code where possible
+- This phase is export-composition first, not broad UI refactoring

@@ -179,6 +179,26 @@ Keep milestones small, testable, and reviewable.
   - Keep low-level PDF drawing focused on presentational layout of already-filtered pages
   - Preserve flattened PDF generation, current share flow, image appendices, and existing export normalization for hidden dependent branch values
   - Defer pricing rendering, broad proposal-foundation migration, and visual PDF redesign to later proposal/PDF phases
+- Milestone 4.8.1 – Compact PDF Photo Thumbnails
+  - Replace text-only Existing Conditions photo checklist summaries in the core PDF with compact category thumbnail groups
+  - Render general scope photos as a compact `Scope Photos` thumbnail group instead of one full appendix page per photo
+  - Keep category labels visible and render up to three small rounded thumbnails directly under each relevant photo category
+  - Add a small `+N more` indicator when a category has more than three attached images
+  - Keep the low-level PDF renderer presentational by passing prefiltered thumbnail payloads from export composition
+  - Avoid large photo appendix dumps so attached photos improve field usefulness without overwhelming the PDF
+  - Preserve current relevance filtering for empty/default/inactive scope sections and avoid unrelated JobTread, persistence, pricing, or Documents changes
+- Milestone 4.8.2 – Compact PDF Section Flow
+  - Replace fixed core page buckets with a height-driven core section flow before pagination
+  - Allow the next relevant section to begin immediately after the prior section when space remains
+  - Keep page breaks driven by measured rows, thumbnails, and images rather than the old five-page outline
+  - Preserve Milestone 4.8 relevance filtering and Milestone 4.8.1 compact thumbnail behavior
+  - Keep appendices, including the site diagram, separate when they need dedicated drawing space
+  - Avoid broad PDF visual redesign or unrelated app, JobTread, persistence, pricing, or Documents changes
+- Milestone 4.8.3 – PDF Heading Hierarchy Polish
+  - Remove redundant page-level continuation headings such as `Scope Details (Cont. 1)`
+  - Preserve section-level continuation labels such as `Sunroom (Cont.)` when one section spans pages
+  - Slightly strengthen section title typography while keeping it below the document title and page heading
+  - Keep heading changes surgical and preserve relevance filtering, compact pagination, thumbnails, appendices, and flattened rendering
 
 ## Milestone 5 – JobTread Integration
 - Milestone 5.1 – Integration Readiness Freeze

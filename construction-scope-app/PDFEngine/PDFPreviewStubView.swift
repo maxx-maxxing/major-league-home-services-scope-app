@@ -124,9 +124,10 @@ enum ScopePDFExporter {
     private static let secondaryTextColor = UIColor.darkGray
     private static let separatorColor = UIColor(white: 0.82, alpha: 1)
     private static let bodyFont = UIFont.systemFont(ofSize: 10)
-    private static let sectionTitleFont = UIFont.boldSystemFont(ofSize: 12)
+    private static let sectionTitleFont = UIFont.systemFont(ofSize: 13, weight: .semibold)
     private static let pageTitleFont = UIFont.boldSystemFont(ofSize: 16)
     private static let headerTitleFont = UIFont.boldSystemFont(ofSize: 18)
+    private static let compactThumbnailLimit = 3
 
     enum ExportError: LocalizedError {
         case renderFailed
@@ -213,16 +214,14 @@ enum ScopePDFExporter {
         var output: [PDFRenderedPage] = []
         var currentPage = PDFRenderedPage(title: page.title, kind: page.kind, sections: [])
         var remainingHeight = layout.bodyRect.height
-        var continuationIndex = 0
 
         func beginNewPage(reason: String, sectionTitle: String) {
             if !currentPage.sections.isEmpty {
                 output.append(currentPage)
                 logger.info("page break scope=\(scopeID, privacy: .public) pageTitle=\(page.title, privacy: .public) section=\(sectionTitle, privacy: .public) reason=\(reason, privacy: .public) emittedSections=\(currentPage.sections.count) nextRenderedPage=\(output.count + 1)")
             }
-            continuationIndex += 1
             currentPage = PDFRenderedPage(
-                title: continuationTitle(for: page.title, continuationIndex: continuationIndex),
+                title: page.title,
                 kind: page.kind,
                 sections: []
             )
@@ -231,12 +230,19 @@ enum ScopePDFExporter {
 
         for section in page.sections {
             var pendingRows = section.rows
+            var pendingThumbnails = section.thumbnails
             var pendingImage = section.image
             var sectionContinuation = 0
 
-            while !pendingRows.isEmpty || pendingImage != nil {
+            while !pendingRows.isEmpty || pendingThumbnails != nil || pendingImage != nil {
                 let requiredTitleHeight = layout.sectionTitleHeight + layout.sectionTitleBottomSpacing
-                let minimumBodyHeight = minimumContentHeight(for: pendingRows.first, hasImage: pendingImage != nil, imageRole: section.imageRole, layout: layout)
+                let minimumBodyHeight = minimumContentHeight(
+                    for: pendingRows.first,
+                    thumbnails: pendingThumbnails,
+                    hasImage: pendingImage != nil,
+                    imageRole: section.imageRole,
+                    layout: layout
+                )
 
                 if remainingHeight < requiredTitleHeight + minimumBodyHeight {
                     if currentPage.sections.isEmpty {
@@ -248,7 +254,7 @@ enum ScopePDFExporter {
                 }
 
                 let renderedSectionTitle = sectionContinuation == 0 ? section.title : "\(section.title) (Cont.)"
-                var renderedSection = PDFRenderedSection(title: renderedSectionTitle, rows: [], image: nil)
+                var renderedSection = PDFRenderedSection(title: renderedSectionTitle, rows: [], thumbnails: nil, image: nil)
                 remainingHeight -= requiredTitleHeight
                 var placedContent = false
 
@@ -269,6 +275,20 @@ enum ScopePDFExporter {
                         pendingRows.insert(remainder, at: 0)
                         logger.info("row split scope=\(scopeID, privacy: .public) pageTitle=\(page.title, privacy: .public) section=\(section.title, privacy: .public) label=\(row.label, privacy: .public)")
                         break
+                    }
+                }
+
+                if let thumbnails = pendingThumbnails {
+                    if let renderedThumbnails = fitThumbnails(thumbnails, availableHeight: remainingHeight, layout: layout) {
+                        renderedSection.thumbnails = renderedThumbnails
+                        remainingHeight -= renderedThumbnails.totalHeight
+                        pendingThumbnails = nil
+                        placedContent = true
+                    } else if placedContent || !currentPage.sections.isEmpty {
+                        logger.info("page break scope=\(scopeID, privacy: .public) pageTitle=\(page.title, privacy: .public) section=\(section.title, privacy: .public) reason=thumbnails-overflow emittedSections=\(currentPage.sections.count + 1) nextRenderedPage=\(output.count + 1)")
+                    } else {
+                        logger.error("skipped thumbnail placement scope=\(scopeID, privacy: .public) pageTitle=\(page.title, privacy: .public) section=\(section.title, privacy: .public) reason=no-usable-space")
+                        throw ExportError.contentRenderFailed("The PDF could not render the thumbnails in section '\(section.title)' on '\(page.title)'.")
                     }
                 }
 
@@ -293,14 +313,17 @@ enum ScopePDFExporter {
                     remainingHeight += requiredTitleHeight
                 }
 
-                if !pendingRows.isEmpty || pendingImage != nil {
+                if !pendingRows.isEmpty || pendingThumbnails != nil || pendingImage != nil {
                     if currentPage.sections.isEmpty {
                         logger.error("failed to place section content scope=\(scopeID, privacy: .public) pageTitle=\(page.title, privacy: .public) section=\(section.title, privacy: .public)")
                         throw ExportError.contentRenderFailed("The PDF could not render all content for section '\(section.title)' on '\(page.title)'.")
                     }
 
                     sectionContinuation += 1
-                    beginNewPage(reason: pendingImage != nil ? "continued-image" : "continued-rows", sectionTitle: section.title)
+                    let reason = pendingImage != nil
+                        ? "continued-image"
+                        : (pendingThumbnails != nil ? "continued-thumbnails" : "continued-rows")
+                    beginNewPage(reason: reason, sectionTitle: section.title)
                 }
             }
         }
@@ -312,9 +335,19 @@ enum ScopePDFExporter {
         return output
     }
 
-    private static func minimumContentHeight(for row: PDFRow?, hasImage: Bool, imageRole: PDFImageRole, layout: PDFPageLayout) -> CGFloat {
+    private static func minimumContentHeight(
+        for row: PDFRow?,
+        thumbnails: PDFThumbnailGrid?,
+        hasImage: Bool,
+        imageRole: PDFImageRole,
+        layout: PDFPageLayout
+    ) -> CGFloat {
         if row != nil {
             return layout.minimumRowHeight
+        }
+
+        if let thumbnails {
+            return thumbnailGridLayout(for: thumbnails, layout: layout).totalHeight
         }
 
         if hasImage {
@@ -322,10 +355,6 @@ enum ScopePDFExporter {
         }
 
         return layout.minimumRowHeight
-    }
-
-    private static func continuationTitle(for title: String, continuationIndex: Int) -> String {
-        continuationIndex == 0 ? title : "\(title) (Cont. \(continuationIndex))"
     }
 
     private static func fitRow(_ row: PDFRow, availableHeight: CGFloat, layout: PDFPageLayout) -> PDFRowPlacement? {
@@ -406,6 +435,39 @@ enum ScopePDFExporter {
         }
 
         return upperBound
+    }
+
+    private static func fitThumbnails(_ thumbnails: PDFThumbnailGrid, availableHeight: CGFloat, layout: PDFPageLayout) -> PDFRenderedThumbnailGrid? {
+        guard !thumbnails.images.isEmpty else { return nil }
+        let gridLayout = thumbnailGridLayout(for: thumbnails, layout: layout)
+        guard availableHeight >= gridLayout.totalHeight else { return nil }
+        return PDFRenderedThumbnailGrid(
+            images: thumbnails.images,
+            hiddenCount: thumbnails.hiddenCount,
+            layout: gridLayout
+        )
+    }
+
+    private static func thumbnailGridLayout(for thumbnails: PDFThumbnailGrid, layout: PDFPageLayout) -> PDFThumbnailGridLayout {
+        let markerCount = thumbnails.hiddenCount > 0 ? 1 : 0
+        let itemCount = max(1, thumbnails.images.count + markerCount)
+        let availableColumns = max(
+            1,
+            Int((layout.bodyRect.width + layout.thumbnailGap) / (layout.thumbnailSize.width + layout.thumbnailGap))
+        )
+        let columns = min(4, itemCount, availableColumns)
+        let rowCount = Int(ceil(Double(itemCount) / Double(columns)))
+        let contentHeight = CGFloat(rowCount) * layout.thumbnailSize.height
+            + CGFloat(max(0, rowCount - 1)) * layout.thumbnailGap
+
+        return PDFThumbnailGridLayout(
+            columns: columns,
+            rowCount: rowCount,
+            itemSize: layout.thumbnailSize,
+            gap: layout.thumbnailGap,
+            contentHeight: contentHeight,
+            totalHeight: layout.thumbnailTopSpacing + contentHeight + layout.thumbnailBottomSpacing
+        )
     }
 
     private static func fitImage(_ image: UIImage, role: PDFImageRole, availableHeight: CGFloat, layout: PDFPageLayout) -> PDFRenderedImage? {
@@ -494,6 +556,11 @@ enum ScopePDFExporter {
                 y += row.height
             }
 
+            if let thumbnails = section.thumbnails {
+                drawThumbnailGrid(thumbnails, in: context, layout: layout, y: y)
+                y += thumbnails.totalHeight
+            }
+
             if let image = section.image {
                 y += layout.imageTopSpacing
                 let imageRect = image.role.drawRect(for: image.size, layout: layout, y: y)
@@ -503,6 +570,84 @@ enum ScopePDFExporter {
 
             y += layout.sectionBottomSpacing
         }
+    }
+
+    private static func drawThumbnailGrid(_ thumbnails: PDFRenderedThumbnailGrid, in context: CGContext, layout: PDFPageLayout, y: CGFloat) {
+        let itemSize = thumbnails.layout.itemSize
+        let gap = thumbnails.layout.gap
+        let columns = max(1, thumbnails.layout.columns)
+        let startX = layout.bodyRect.minX + 8
+        let startY = y + layout.thumbnailTopSpacing
+        let thumbnailBorderColor = UIColor(white: 0.82, alpha: 1)
+        let moreFillColor = UIColor(white: 0.94, alpha: 1)
+
+        for (index, image) in thumbnails.images.enumerated() {
+            let rect = thumbnailRect(
+                index: index,
+                columns: columns,
+                itemSize: itemSize,
+                gap: gap,
+                startX: startX,
+                startY: startY
+            )
+            let roundedRect = UIBezierPath(roundedRect: rect, cornerRadius: layout.thumbnailCornerRadius)
+
+            context.saveGState()
+            roundedRect.addClip()
+            drawAspectFill(image, in: rect)
+            context.restoreGState()
+
+            thumbnailBorderColor.setStroke()
+            roundedRect.lineWidth = 0.8
+            roundedRect.stroke()
+        }
+
+        if thumbnails.hiddenCount > 0 {
+            let markerIndex = thumbnails.images.count
+            let rect = thumbnailRect(
+                index: markerIndex,
+                columns: columns,
+                itemSize: itemSize,
+                gap: gap,
+                startX: startX,
+                startY: startY
+            )
+            let roundedRect = UIBezierPath(roundedRect: rect, cornerRadius: layout.thumbnailCornerRadius)
+
+            moreFillColor.setFill()
+            roundedRect.fill()
+            thumbnailBorderColor.setStroke()
+            roundedRect.lineWidth = 0.8
+            roundedRect.stroke()
+
+            drawText(
+                "+\(thumbnails.hiddenCount) more",
+                font: .systemFont(ofSize: 9, weight: .medium),
+                in: rect.insetBy(dx: 5, dy: 18),
+                context: context,
+                alignment: .center,
+                color: secondaryTextColor
+            )
+        }
+    }
+
+    private static func thumbnailRect(
+        index: Int,
+        columns: Int,
+        itemSize: CGSize,
+        gap: CGFloat,
+        startX: CGFloat,
+        startY: CGFloat
+    ) -> CGRect {
+        let row = index / max(1, columns)
+        let column = index % max(1, columns)
+
+        return CGRect(
+            x: startX + CGFloat(column) * (itemSize.width + gap),
+            y: startY + CGFloat(row) * (itemSize.height + gap),
+            width: itemSize.width,
+            height: itemSize.height
+        )
     }
 
     private static func rowHeight(for value: String, layout: PDFPageLayout) -> CGFloat {
@@ -523,12 +668,13 @@ enum ScopePDFExporter {
         title: String,
         rows: [PDFRow?] = [],
         additionalRows: [PDFRow] = [],
+        thumbnails: PDFThumbnailGrid? = nil,
         image: UIImage? = nil,
         imageRole: PDFImageRole = .standard
     ) -> PDFSection? {
         let resolvedRows = rows.compactMap { $0 } + additionalRows
-        guard !resolvedRows.isEmpty || image != nil else { return nil }
-        return PDFSection(title: title, rows: resolvedRows, image: image, imageRole: imageRole)
+        guard !resolvedRows.isEmpty || thumbnails != nil || image != nil else { return nil }
+        return PDFSection(title: title, rows: resolvedRows, thumbnails: thumbnails, image: image, imageRole: imageRole)
     }
 
     private static func row(_ label: String, _ value: String?) -> PDFRow? {
@@ -612,38 +758,42 @@ enum ScopePDFExporter {
     private static func pageTwo(_ scope: JobScope) -> PDFPageContent? {
         let existing = scope.existingConditions?.normalizedForExport()
         let attachment = scope.attachment
+        var sections: [PDFSection?] = [
+            section(title: "Existing Conditions", rows: [
+                enumRow("House Stories", existing?.houseStories),
+                row("Exterior Finish", existing?.exteriorFinish?.displaySummary),
+                row("Posts/Columns Material", existing?.exteriorFinish?.postsColumnsMaterialDisplaySummary),
+                boolRow("Post Trim", existing?.exteriorFinish?.postTrim),
+                row("Trim Thickness", existing?.exteriorFinish?.trimThickness),
+                row("Exterior House Wall Material", existing?.exteriorFinish?.exteriorHouseWallMaterialDisplaySummary),
+                row("Exterior House Wall -> Other", existing?.exteriorFinish?.exteriorHouseWallOther),
+                row("Existing Structure", existing?.existingStructureDisplaySummary),
+                row("Existing Structure Notes", existing?.existingStructureNotes),
+                row("Obstacles", existing?.obstaclesNotes),
+                row("Utilities", existing?.utilitiesNotes),
+                row("HOA Notes", existing?.hoaNotes)
+            ])
+        ]
+
+        sections.append(contentsOf: checklistPhotoThumbnailSections(scopeID: scope.id).map { Optional($0) })
+        sections.append(
+            section(title: "Attachment Conditions", rows: [
+                row("House Material", resolvedHouseWallMaterial(attachment)),
+                enumRow("Mounting Type", attachment?.houseMountingType),
+                enumRow("Mount Condition", attachment?.mountCondition),
+                row("Post Material", resolvedPostMaterial(attachment)),
+                row("Post Size / Spacing", combinedValue(attachment?.postSize, attachment?.postSpacing)),
+                boolRow("Trim Present", attachment?.trimPresent),
+                row("Trim Material", resolvedTrimMaterial(attachment)),
+                row("Trim Thickness", resolvedTrimThickness(attachment)),
+                row("Fastener Plan", attachment?.fastenerPlan?.map(\.displayName).joined(separator: ", ")),
+                row("Notes", attachment?.notes)
+            ], additionalRows: measurementRows(attachment?.measurements))
+        )
 
         return page(
             title: "Existing Conditions + Attachment Conditions",
-            sections: [
-                section(title: "Existing Conditions", rows: [
-                    enumRow("House Stories", existing?.houseStories),
-                    row("Exterior Finish", existing?.exteriorFinish?.displaySummary),
-                    row("Posts/Columns Material", existing?.exteriorFinish?.postsColumnsMaterialDisplaySummary),
-                    boolRow("Post Trim", existing?.exteriorFinish?.postTrim),
-                    row("Trim Thickness", existing?.exteriorFinish?.trimThickness),
-                    row("Exterior House Wall Material", existing?.exteriorFinish?.exteriorHouseWallMaterialDisplaySummary),
-                    row("Exterior House Wall -> Other", existing?.exteriorFinish?.exteriorHouseWallOther),
-                    row("Existing Structure", existing?.existingStructureDisplaySummary),
-                    row("Existing Structure Notes", existing?.existingStructureNotes),
-                    row("Obstacles", existing?.obstaclesNotes),
-                    row("Utilities", existing?.utilitiesNotes),
-                    row("HOA Notes", existing?.hoaNotes),
-                    row("Photo Checklist", photoChecklistSummary(scopeID: scope.id))
-                ]),
-                section(title: "Attachment Conditions", rows: [
-                    row("House Material", resolvedHouseWallMaterial(attachment)),
-                    enumRow("Mounting Type", attachment?.houseMountingType),
-                    enumRow("Mount Condition", attachment?.mountCondition),
-                    row("Post Material", resolvedPostMaterial(attachment)),
-                    row("Post Size / Spacing", combinedValue(attachment?.postSize, attachment?.postSpacing)),
-                    boolRow("Trim Present", attachment?.trimPresent),
-                    row("Trim Material", resolvedTrimMaterial(attachment)),
-                    row("Trim Thickness", resolvedTrimThickness(attachment)),
-                    row("Fastener Plan", attachment?.fastenerPlan?.map(\.displayName).joined(separator: ", ")),
-                    row("Notes", attachment?.notes)
-                ], additionalRows: measurementRows(attachment?.measurements))
-            ]
+            sections: sections
         )
     }
 
@@ -756,18 +906,35 @@ enum ScopePDFExporter {
                     row("Notes", scope.customerApproval?.optionsConfirmedText)
                 ]),
                 documentsSection(scope.documents),
+                scopePhotoThumbnailSection(scope.photos, scopeID: scope.id),
                 section(title: "Customer Signature", rows: signatureRows, image: signatureImage, imageRole: .signature)
             ]
         )
     }
 
-    private static func plannedPages(for scope: JobScope) throws -> [PDFPageContent] {
-        let corePages = [
+    private static func coreFlowPage(for scope: JobScope) throws -> PDFPageContent? {
+        // Preserve the existing filtered section builders, but drop their old fixed page boundaries.
+        let coreSectionGroups = [
             pageOne(scope),
             pageTwo(scope),
             pageThree(scope),
             pageFour(scope),
             try pageFive(scope)
+        ].compactMap { $0 }
+
+        let coreSections = coreSectionGroups.flatMap { $0.sections }
+        guard !coreSections.isEmpty else { return nil }
+
+        return PDFPageContent(
+            title: "Scope Details",
+            sections: coreSections,
+            kind: .core
+        )
+    }
+
+    private static func plannedPages(for scope: JobScope) throws -> [PDFPageContent] {
+        let corePages = [
+            try coreFlowPage(for: scope)
         ].compactMap { $0 }
 
         let pages = corePages + (try appendixPages(scope))
@@ -822,6 +989,58 @@ enum ScopePDFExporter {
             row("Irrigation", documents?.irrigation?.originalFilename),
             row("Property Survey", documents?.propertySurvey?.originalFilename)
         ], additionalRows: additionalRows)
+    }
+
+    private static func checklistPhotoThumbnailSections(scopeID: UUID) -> [PDFSection] {
+        ChecklistPhotoAssetStore.categorizedPhotos(scopeID: scopeID).compactMap { category, photos in
+            guard let thumbnails = thumbnailGrid(
+                paths: photos.map(\.filePath),
+                totalCount: photos.count,
+                scopeID: scopeID.uuidString,
+                reasonContext: "existing conditions \(category.displayName) thumbnails"
+            ) else {
+                return nil
+            }
+
+            return section(title: category.displayName, thumbnails: thumbnails)
+        }
+    }
+
+    private static func scopePhotoThumbnailSection(_ photos: [PhotoAttachment]?, scopeID: UUID) -> PDFSection? {
+        guard let photos, !photos.isEmpty else { return nil }
+        guard let thumbnails = thumbnailGrid(
+            paths: photos.map(\.imagePath),
+            totalCount: photos.count,
+            scopeID: scopeID.uuidString,
+            reasonContext: "scope photo thumbnails"
+        ) else {
+            return nil
+        }
+
+        return section(title: "Scope Photos", thumbnails: thumbnails)
+    }
+
+    private static func thumbnailGrid(
+        paths: [String],
+        totalCount: Int,
+        scopeID: String,
+        reasonContext: String
+    ) -> PDFThumbnailGrid? {
+        let visiblePaths = paths.prefix(compactThumbnailLimit)
+        let images = visiblePaths.compactMap { path -> UIImage? in
+            guard let image = UIImage(contentsOfFile: path), image.size.width > 0, image.size.height > 0 else {
+                logger.notice("skipped thumbnail scope=\(scopeID, privacy: .public) context=\(reasonContext, privacy: .public) reason=missing-or-invalid path=\(path, privacy: .private)")
+                return nil
+            }
+
+            return image
+        }
+
+        guard !images.isEmpty else { return nil }
+        return PDFThumbnailGrid(
+            images: images,
+            hiddenCount: max(0, totalCount - compactThumbnailLimit)
+        )
     }
 
     private static func structuralRows(_ structural: StructuralSystem?) -> [PDFRow] {
@@ -920,32 +1139,7 @@ enum ScopePDFExporter {
     }
 
     private static func appendixPages(_ scope: JobScope) throws -> [PDFPageContent] {
-        var pages = try checklistPhotoAppendixPages(scope)
-
-        if let photos = scope.photos, !photos.isEmpty {
-            for (index, photo) in photos.enumerated() {
-                let image = try loadImage(at: photo.imagePath, scopeID: scope.id.uuidString, reasonContext: "photo appendix \(index + 1)")
-                let rows = [
-                    PDFRow(label: "Captured", value: photo.createdAt.formatted(date: .abbreviated, time: .shortened)),
-                    row("Caption", photo.caption)
-                ].compactMap { $0 }
-
-                pages.append(
-                    PDFPageContent(
-                        title: "Appendix: Photo \(index + 1)",
-                        sections: [
-                            PDFSection(
-                                title: photo.caption?.nilIfBlank ?? "Scope Photo \(index + 1)",
-                                rows: rows,
-                                image: image,
-                                imageRole: .appendix
-                            )
-                        ],
-                        kind: .photoAppendix
-                    )
-                )
-            }
-        }
+        var pages: [PDFPageContent] = []
 
         if let diagram = scope.sketches?.first(where: { $0.title == "Site Diagram" }) {
             let image = try loadImage(at: diagram.previewPNGPath, scopeID: scope.id.uuidString, reasonContext: "site diagram appendix")
@@ -961,108 +1155,6 @@ enum ScopePDFExporter {
         }
 
         return pages
-    }
-
-    private static func checklistPhotoAppendixPages(_ scope: JobScope) throws -> [PDFPageContent] {
-        let categorizedPhotos = ChecklistPhotoAssetStore.categorizedPhotos(scopeID: scope.id)
-        guard !categorizedPhotos.isEmpty else {
-            return []
-        }
-
-        let sections = try categorizedPhotos.flatMap { category, photos in
-            try checklistPhotoSections(
-                category: category,
-                photos: photos,
-                scopeID: scope.id.uuidString
-            )
-        }
-
-        guard !sections.isEmpty else { return [] }
-
-        return sections.chunked(into: 2).enumerated().map { index, pageSections in
-            PDFPageContent(
-                title: index == 0
-                    ? "Appendix: Existing Conditions Photos"
-                    : "Appendix: Existing Conditions Photos \(index + 1)",
-                sections: pageSections,
-                kind: .photoAppendix
-            )
-        }
-    }
-
-    private static func checklistPhotoSections(
-        category: PhotoChecklistCategory,
-        photos: [DocumentAttachmentFile],
-        scopeID: String
-    ) throws -> [PDFSection] {
-        let chunks = photos.chunked(into: 4)
-
-        return try chunks.enumerated().map { chunkIndex, chunk in
-            let images = try chunk.enumerated().map { imageIndex, photo in
-                try loadImage(
-                    at: photo.filePath,
-                    scopeID: scopeID,
-                    reasonContext: "existing conditions \(category.displayName) photo \(chunkIndex * 4 + imageIndex + 1)"
-                )
-            }
-
-            let visibleRange = (chunkIndex * 4 + 1)...(chunkIndex * 4 + chunk.count)
-            let title = chunks.count == 1
-                ? category.displayName
-                : "\(category.displayName) (\(visibleRange.lowerBound)-\(visibleRange.upperBound) of \(photos.count))"
-
-            return PDFSection(
-                title: title,
-                rows: [
-                    .init(label: "Total Photos", value: "\(photos.count)"),
-                    .init(label: "Shown", value: "\(chunk.count) on this page")
-                ],
-                image: buildChecklistCompositeImage(images),
-                imageRole: .appendix
-            )
-        }
-    }
-
-    private static func buildChecklistCompositeImage(_ images: [UIImage]) -> UIImage {
-        let columnCount = min(2, max(1, images.count))
-        let rowCount = Int(ceil(Double(images.count) / Double(columnCount)))
-        let canvasSize = CGSize(width: 900, height: rowCount == 1 ? 320 : 520)
-        let renderer = UIGraphicsImageRenderer(size: canvasSize)
-        let backgroundColor = UIColor(white: 0.97, alpha: 1)
-        let borderColor = UIColor(white: 0.86, alpha: 1)
-        let gap: CGFloat = 18
-        let padding: CGFloat = 24
-        let contentWidth = canvasSize.width - (padding * 2)
-        let contentHeight = canvasSize.height - (padding * 2)
-        let cellWidth = (contentWidth - CGFloat(columnCount - 1) * gap) / CGFloat(columnCount)
-        let cellHeight = (contentHeight - CGFloat(max(0, rowCount - 1)) * gap) / CGFloat(max(rowCount, 1))
-
-        return renderer.image { context in
-            let cg = context.cgContext
-            backgroundColor.setFill()
-            cg.fill(CGRect(origin: .zero, size: canvasSize))
-
-            for (index, image) in images.enumerated() {
-                let row = index / columnCount
-                let column = index % columnCount
-                let rect = CGRect(
-                    x: padding + CGFloat(column) * (cellWidth + gap),
-                    y: padding + CGFloat(row) * (cellHeight + gap),
-                    width: cellWidth,
-                    height: cellHeight
-                )
-
-                let roundedRect = UIBezierPath(roundedRect: rect, cornerRadius: 18)
-                cg.saveGState()
-                roundedRect.addClip()
-                drawAspectFill(image, in: rect)
-                cg.restoreGState()
-
-                borderColor.setStroke()
-                roundedRect.lineWidth = 1
-                roundedRect.stroke()
-            }
-        }
     }
 
     private static func loadImage(at path: String, scopeID: String, reasonContext: String) throws -> UIImage {
@@ -1299,10 +1391,6 @@ enum ScopePDFExporter {
         return parts.isEmpty ? "No additional details" : parts.joined(separator: ", ")
     }
 
-    private static func photoChecklistSummary(scopeID: UUID) -> String {
-        ChecklistPhotoAssetStore.summary(scopeID: scopeID) ?? "No checklist photos attached"
-    }
-
     private static func drawAspectFill(_ image: UIImage, in rect: CGRect) {
         guard image.size.width > 0, image.size.height > 0 else { return }
 
@@ -1329,13 +1417,18 @@ private struct PDFPageLayout {
     let labelColumnWidth: CGFloat
     let valueColumnX: CGFloat
     let valueColumnWidth: CGFloat
-    let sectionTitleHeight: CGFloat = 16
-    let sectionTitleBottomSpacing: CGFloat = 2
+    let sectionTitleHeight: CGFloat = 17
+    let sectionTitleBottomSpacing: CGFloat = 3
     let sectionBottomSpacing: CGFloat = 10
     let rowBottomSpacing: CGFloat = 4
     let imageTopSpacing: CGFloat = 4
     let imageBottomSpacing: CGFloat = 10
     let minimumRowHeight: CGFloat = 14
+    let thumbnailTopSpacing: CGFloat = 4
+    let thumbnailBottomSpacing: CGFloat = 8
+    let thumbnailGap: CGFloat = 8
+    let thumbnailSize = CGSize(width: 72, height: 54)
+    let thumbnailCornerRadius: CGFloat = 7
 
     init(pageRect: CGRect) {
         self.pageRect = pageRect
@@ -1376,6 +1469,7 @@ private struct PDFRenderedPage {
 private struct PDFRenderedSection {
     let title: String
     var rows: [PDFRenderedRow]
+    var thumbnails: PDFRenderedThumbnailGrid?
     var image: PDFRenderedImage?
 }
 
@@ -1389,6 +1483,30 @@ private struct PDFRenderedImage {
     let image: UIImage
     let role: PDFImageRole
     let size: CGSize
+    let totalHeight: CGFloat
+}
+
+private struct PDFThumbnailGrid {
+    let images: [UIImage]
+    let hiddenCount: Int
+}
+
+private struct PDFRenderedThumbnailGrid {
+    let images: [UIImage]
+    let hiddenCount: Int
+    let layout: PDFThumbnailGridLayout
+
+    var totalHeight: CGFloat {
+        layout.totalHeight
+    }
+}
+
+private struct PDFThumbnailGridLayout {
+    let columns: Int
+    let rowCount: Int
+    let itemSize: CGSize
+    let gap: CGFloat
+    let contentHeight: CGFloat
     let totalHeight: CGFloat
 }
 
@@ -1493,25 +1611,9 @@ private struct PDFRow {
 private struct PDFSection {
     let title: String
     let rows: [PDFRow]
+    var thumbnails: PDFThumbnailGrid? = nil
     var image: UIImage? = nil
     var imageRole: PDFImageRole = .standard
-}
-
-private extension Array {
-    func chunked(into size: Int) -> [[Element]] {
-        guard size > 0, !isEmpty else { return isEmpty ? [] : [self] }
-
-        var result: [[Element]] = []
-        var index = startIndex
-
-        while index < endIndex {
-            let end = self.index(index, offsetBy: size, limitedBy: endIndex) ?? endIndex
-            result.append(Array(self[index..<end]))
-            index = end
-        }
-
-        return result
-    }
 }
 
 private struct PDFDocumentView: UIViewRepresentable {

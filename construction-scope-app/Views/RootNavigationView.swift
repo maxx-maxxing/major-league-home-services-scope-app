@@ -23,6 +23,30 @@ enum ScopeSection: String, CaseIterable, Identifiable {
 
     var id: String { rawValue }
 
+    var reviewStateKey: String {
+        switch self {
+        case .projectInfo: return "project_info"
+        case .existingConditions: return "existing_conditions"
+        case .structuralSystem: return "structural_system"
+        case .enclosure: return "screen_enclosure"
+        case .windowsAndGlass: return "sunroom"
+        case .electrical: return "electrical"
+        case .drainage: return "drainage"
+        case .attachmentConditions: return "attachment_conditions"
+        case .documents: return "documents"
+        case .finishes: return "finishes"
+        case .permitsHOA: return "permits_hoa"
+        case .productionNotes: return "production_notes"
+        case .signatureAndExport: return "signature_and_export"
+        }
+    }
+
+    static func section(reviewStateKey: String) -> ScopeSection? {
+        allCases.first { section in
+            section.reviewStateKey == reviewStateKey || section.rawValue == reviewStateKey
+        }
+    }
+
     var symbol: String {
         switch self {
         case .projectInfo: return "person.text.rectangle"
@@ -164,6 +188,7 @@ struct RootNavigationView: View {
     @State private var sidebarRenameOrigin = CGPoint(x: 28, y: 28)
     @State private var showingScopeCreationSheet = false
     @StateObject private var autosave = DebouncedAutosave()
+    @StateObject private var sectionReviewStore = SectionReviewStore()
 
     private let customerDetailFetcher: JobTreadCustomerDetailFetching = JobTreadClient()
 
@@ -200,6 +225,7 @@ struct RootNavigationView: View {
                         createScopeFromCustomer: createScopeFromCustomer,
                         onOpenScope: recordScopeOpened,
                         autosave: autosave,
+                        sectionReviewStore: sectionReviewStore,
                         renameScope: renameScope,
                         deleteScope: deleteScope
                     )
@@ -215,6 +241,7 @@ struct RootNavigationView: View {
                             onSelectScope: handleScopeSelection,
                             requestRename: { beginSidebarRename(for: $0, mode: .existingScope) },
                             deleteScope: deleteScope,
+                            sectionReviewStore: sectionReviewStore,
                             folderPulseToken: sidebarFolderPulseToken,
                             newScopeTapPoint: $sidebarRenameOrigin
                         )
@@ -225,6 +252,7 @@ struct RootNavigationView: View {
                                     scope: scope,
                                     section: selectedSection,
                                     autosave: autosave,
+                                    sectionReviewStore: sectionReviewStore,
                                     sketchAction: {
                                         withAnimation(.snappy(duration: 0.26, extraBounce: 0)) {
                                             selectedSection = .signatureAndExport
@@ -508,6 +536,7 @@ private struct ScopeSidebarView: View {
     let onSelectScope: (JobScope) -> Void
     let requestRename: (JobScope) -> Void
     let deleteScope: (JobScope) -> Void
+    @ObservedObject var sectionReviewStore: SectionReviewStore
     let folderPulseToken: Int
     @Binding var newScopeTapPoint: CGPoint
 
@@ -631,7 +660,7 @@ private struct ScopeSidebarView: View {
                         .buttonStyle(.plain)
                         .listRowBackground(Color.clear)
                         .accessibilityLabel(section.rawValue)
-                        .accessibilityValue(selectedSection == section ? "Selected" : "")
+                        .accessibilityValue(sidebarSectionAccessibilityValue(for: section))
                     }
                 }
             }
@@ -667,6 +696,7 @@ private struct ScopeSidebarView: View {
     @ViewBuilder
     private func sidebarSectionLabel(for section: ScopeSection) -> some View {
         let isSelected = selectedSection == section
+        let isComplete = isSectionComplete(section)
 
         // Keep selection pooled into the sidebar row itself so it reads like
         // integrated system chrome rather than a floating sticker.
@@ -680,6 +710,8 @@ private struct ScopeSidebarView: View {
                 .foregroundStyle(isSelected ? AnyShapeStyle(.primary) : AnyShapeStyle(.secondary))
 
             Spacer(minLength: 0)
+
+            SectionReviewNavigationIndicator(isComplete: isComplete)
         }
         .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
         .padding(.horizontal, 8)
@@ -705,6 +737,20 @@ private struct ScopeSidebarView: View {
             }
         }
         .animation(.easeInOut(duration: 0.18), value: selectedSection)
+    }
+
+    private func isSectionComplete(_ section: ScopeSection) -> Bool {
+        guard let selectedScope else { return false }
+        return sectionReviewStore.isComplete(section, in: selectedScope)
+    }
+
+    private func sidebarSectionAccessibilityValue(for section: ScopeSection) -> String {
+        [
+            selectedSection == section ? "Selected" : nil,
+            isSectionComplete(section) ? "Completed" : "Needs Review"
+        ]
+        .compactMap { $0 }
+        .joined(separator: ", ")
     }
 
     private var deleteAlertPresented: Binding<Bool> {
@@ -899,6 +945,7 @@ private struct PhoneScopesListView: View {
     let createScopeFromCustomer: (JobTreadCustomerLookupResult) -> JobScope
     let onOpenScope: (JobScope) -> Void
     @ObservedObject var autosave: DebouncedAutosave
+    @ObservedObject var sectionReviewStore: SectionReviewStore
     let renameScope: (JobScope, String) -> Void
     let deleteScope: (JobScope) -> Void
 
@@ -1016,7 +1063,7 @@ private struct PhoneScopesListView: View {
     @ViewBuilder
     private func phoneScopeRow(for scope: JobScope) -> some View {
         NavigationLink {
-            PhoneSectionListView(scope: scope, autosave: autosave)
+            PhoneSectionListView(scope: scope, autosave: autosave, sectionReviewStore: sectionReviewStore)
         } label: {
             HStack {
                 VStack(alignment: .leading, spacing: 4) {
@@ -1381,18 +1428,34 @@ private struct ScopeRenameOverlay: View {
 private struct PhoneSectionListView: View {
     let scope: JobScope
     @ObservedObject var autosave: DebouncedAutosave
+    @ObservedObject var sectionReviewStore: SectionReviewStore
 
     var body: some View {
         List {
             Section {
                 ForEach(ScopeSection.allCases) { section in
                     NavigationLink {
-                        SectionEditorView(scope: scope, section: section, autosave: autosave, sketchAction: nil)
+                        SectionEditorView(
+                            scope: scope,
+                            section: section,
+                            autosave: autosave,
+                            sectionReviewStore: sectionReviewStore,
+                            sketchAction: nil
+                        )
                     } label: {
-                        Label(section.rawValue, systemImage: section.symbol)
-                            .font(.body)
-                            .frame(minHeight: 44)
+                        HStack(spacing: 10) {
+                            Label(section.rawValue, systemImage: section.symbol)
+                                .font(.body)
+
+                            Spacer(minLength: 8)
+
+                            SectionReviewNavigationIndicator(
+                                isComplete: sectionReviewStore.isComplete(section, in: scope)
+                            )
+                        }
+                        .frame(minHeight: 44)
                     }
+                    .accessibilityValue(sectionReviewStore.isComplete(section, in: scope) ? "Completed" : "Needs Review")
                 }
             }
         }
@@ -1403,12 +1466,299 @@ private struct PhoneSectionListView: View {
     }
 }
 
+private struct SectionReviewNavigationIndicator: View {
+    let isComplete: Bool
+
+    var body: some View {
+        Group {
+            if isComplete {
+                Image(systemName: "checkmark.circle.fill")
+                    .foregroundStyle(.green)
+                    .accessibilityLabel("Completed")
+            } else {
+                Image(systemName: "circle")
+                    .foregroundStyle(.tertiary)
+                    .accessibilityLabel("Needs Review")
+            }
+        }
+        .font(.subheadline.weight(.semibold))
+        .symbolRenderingMode(.hierarchical)
+    }
+}
+
+private struct SectionReviewControl: View {
+    let isComplete: Bool
+    let completedAt: Date?
+    let markComplete: () -> Void
+
+    var body: some View {
+        ViewThatFits(in: .horizontal) {
+            HStack(alignment: .center, spacing: 12) {
+                statusCluster
+
+                Spacer(minLength: 12)
+
+                actionButton
+            }
+
+            VStack(alignment: .leading, spacing: 10) {
+                statusCluster
+                actionButton
+            }
+        }
+        .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(isComplete ? "Section completed" : "Section needs review")
+    }
+
+    private var statusCluster: some View {
+        HStack(alignment: .center, spacing: 8) {
+            Label(statusTitle, systemImage: statusSymbol)
+                .font(.subheadline.weight(.semibold))
+                .symbolRenderingMode(.hierarchical)
+                .foregroundStyle(isComplete ? Color.green : Color.secondary)
+                .contentTransition(.opacity)
+
+            if isComplete, let completedAt {
+                Text(completedAt.formatted(date: .abbreviated, time: .omitted))
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                    .contentTransition(.opacity)
+            }
+        }
+    }
+
+    private var statusTitle: String {
+        isComplete ? "Completed" : "Needs Review"
+    }
+
+    private var statusSymbol: String {
+        isComplete ? "checkmark.circle.fill" : "circle"
+    }
+
+    @ViewBuilder
+    private var actionButton: some View {
+        if isComplete {
+            Button {
+                markComplete()
+            } label: {
+                Label("Reconfirm", systemImage: "checkmark.circle")
+                    .frame(minHeight: 44)
+            }
+            .buttonStyle(.bordered)
+            .buttonBorderShape(.capsule)
+            .tint(.green)
+            .accessibilityHint("Marks this section complete again.")
+        } else {
+            Button {
+                markComplete()
+            } label: {
+                Label("Mark Complete", systemImage: "checkmark.circle")
+                    .frame(minHeight: 44)
+            }
+            .buttonStyle(.borderedProminent)
+            .buttonBorderShape(.capsule)
+            .accessibilityHint("Marks this section complete for now.")
+        }
+    }
+}
+
+private struct ScopeSectionContentFingerprint: Equatable {
+    let payload: Data
+
+    init(scope: JobScope, section: ScopeSection) {
+        payload = Self.payload(for: scope, section: section)
+    }
+
+    private static func payload(for scope: JobScope, section: ScopeSection) -> Data {
+        switch section {
+        case .projectInfo:
+            return encode(
+                ProjectInfoSectionContent(
+                    scopeTitle: scope.scopeTitle,
+                    jobTreadCustomer: scope.jobTreadCustomer,
+                    projectInfo: scope.projectInfo
+                )
+            )
+        case .existingConditions:
+            return encode(
+                ExistingConditionsSectionContent(
+                    existingConditions: scope.existingConditions,
+                    checklistPhotos: checklistPhotoFingerprints(scopeID: scope.id)
+                )
+            )
+        case .structuralSystem:
+            return encode(scope.structuralSystem)
+        case .enclosure:
+            return encode(ScreenEnclosureSectionContent(enclosure: scope.enclosure))
+        case .windowsAndGlass:
+            return encode(SunroomSectionContent(enclosure: scope.enclosure))
+        case .electrical:
+            return encode(scope.electrical)
+        case .drainage:
+            return encode(scope.drainage)
+        case .attachmentConditions:
+            return encode(scope.attachment)
+        case .documents:
+            return encode(scope.documents)
+        case .finishes:
+            return encode(scope.finishes)
+        case .permitsHOA:
+            return encode(scope.permitsHOA)
+        case .productionNotes:
+            return encode(
+                ProductionNotesSectionContent(
+                    status: scope.status,
+                    jobNumber: scope.jobNumber,
+                    production: scope.production,
+                    optionsConfirmedText: scope.customerApproval?.optionsConfirmedText
+                )
+            )
+        case .signatureAndExport:
+            return encode(
+                SignatureSectionContent(
+                    signedDate: scope.customerApproval?.signedDate,
+                    customerSignature: fileFingerprint(path: scope.customerApproval?.signaturePNGPath),
+                    sketches: sketchFingerprints(scope.sketches)
+                )
+            )
+        }
+    }
+
+    private static func encode<Value: Encodable>(_ value: Value) -> Data {
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.sortedKeys]
+
+        do {
+            return try encoder.encode(value)
+        } catch {
+            assertionFailure("Failed to encode section content fingerprint: \(error)")
+            return Data(String(describing: Value.self).utf8)
+        }
+    }
+
+    private static func checklistPhotoFingerprints(scopeID: UUID) -> [CategorizedSectionFileFingerprints] {
+        PhotoChecklistCategory.allCases.map { category in
+            CategorizedSectionFileFingerprints(
+                categoryKey: category.rawValue,
+                files: ChecklistPhotoAssetStore.photos(scopeID: scopeID, category: category)
+                    .map { SectionFileFingerprint(path: $0.filePath) }
+            )
+        }
+    }
+
+    private static func sketchFingerprints(_ sketches: [SketchAttachment]?) -> [SketchSectionFingerprint]? {
+        sketches?.map { sketch in
+            SketchSectionFingerprint(
+                id: sketch.id,
+                title: sketch.title,
+                drawing: SectionFileFingerprint(path: sketch.drawingDataPath),
+                preview: SectionFileFingerprint(path: sketch.previewPNGPath),
+                createdAt: sketch.createdAt
+            )
+        }
+    }
+
+    private static func fileFingerprint(path: String?) -> SectionFileFingerprint? {
+        guard let path else { return nil }
+        return SectionFileFingerprint(path: path)
+    }
+}
+
+private struct ProjectInfoSectionContent: Codable {
+    var scopeTitle: String?
+    var jobTreadCustomer: JobTreadCustomerRef?
+    var projectInfo: ProjectInfo
+}
+
+private struct ExistingConditionsSectionContent: Codable {
+    var existingConditions: ExistingConditions?
+    var checklistPhotos: [CategorizedSectionFileFingerprints]
+}
+
+private struct ScreenEnclosureSectionContent: Codable {
+    var enclosureTypes: [EnclosureType]?
+    var screenWallType: ScreenWallType?
+    var screenTint: ScreenTintOption?
+    var screenFrameSize: ScreenFrameSizeOption?
+    var screenFrameColor: EnclosureScreenFrameColorOption?
+    var screenFrameColorCustom: String?
+    var screenEnclosureNotes: String?
+    var screenMeasurements: MeasurementsBlock?
+    var kneeWall: KneeWall?
+    var doors: DoorOptions?
+
+    init(enclosure: Enclosure?) {
+        self.enclosureTypes = enclosure?.enclosureTypes
+        self.screenWallType = enclosure?.screenWallType
+        self.screenTint = enclosure?.screenTint
+        self.screenFrameSize = enclosure?.screenFrameSize
+        self.screenFrameColor = enclosure?.screenFrameColor
+        self.screenFrameColorCustom = enclosure?.screenFrameColorCustom
+        self.screenEnclosureNotes = enclosure?.screenEnclosureNotes
+        self.screenMeasurements = enclosure?.screenMeasurements
+        self.kneeWall = enclosure?.kneeWall
+        self.doors = enclosure?.doors
+    }
+}
+
+private struct SunroomSectionContent: Codable {
+    var windowSystem: WindowSystem?
+    var sunroomMeasurements: MeasurementsBlock?
+
+    init(enclosure: Enclosure?) {
+        self.windowSystem = enclosure?.windowSystem
+        self.sunroomMeasurements = enclosure?.sunroomMeasurements
+    }
+}
+
+private struct CategorizedSectionFileFingerprints: Codable {
+    var categoryKey: String
+    var files: [SectionFileFingerprint]
+}
+
+private struct SectionFileFingerprint: Codable {
+    var path: String
+    var modifiedAt: Date?
+    var fileSize: UInt64?
+
+    init(path: String) {
+        self.path = path
+
+        let attributes = try? FileManager.default.attributesOfItem(atPath: path)
+        self.modifiedAt = attributes?[.modificationDate] as? Date
+        self.fileSize = (attributes?[.size] as? NSNumber)?.uint64Value
+    }
+}
+
+private struct ProductionNotesSectionContent: Codable {
+    var status: JobStatus
+    var jobNumber: String?
+    var production: ProductionOrderMeta?
+    var optionsConfirmedText: String?
+}
+
+private struct SignatureSectionContent: Codable {
+    var signedDate: Date?
+    var customerSignature: SectionFileFingerprint?
+    var sketches: [SketchSectionFingerprint]?
+}
+
+private struct SketchSectionFingerprint: Codable {
+    var id: UUID
+    var title: String?
+    var drawing: SectionFileFingerprint
+    var preview: SectionFileFingerprint
+    var createdAt: Date
+}
+
 struct SectionEditorView: View {
     @Environment(\.modelContext) private var modelContext
 
     let scope: JobScope
     let section: ScopeSection
     @ObservedObject var autosave: DebouncedAutosave
+    @ObservedObject var sectionReviewStore: SectionReviewStore
     let sketchAction: (() -> Void)?
     @State private var showingPreview = false
     @State private var showingPhotos = false
@@ -1425,39 +1775,54 @@ struct SectionEditorView: View {
 
     private let customerDetailFetcher: JobTreadCustomerDetailFetching = JobTreadClient()
 
+    private var isCurrentSectionComplete: Bool {
+        sectionReviewStore.isComplete(section, in: scope)
+    }
+
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
                 GlassChromePanel(cornerRadius: 24) {
-                    HStack(alignment: .top, spacing: 12) {
-                        VStack(alignment: .leading, spacing: 6) {
-                            Text("Current Scope")
-                                .font(.footnote.weight(.semibold))
-                                .foregroundStyle(.secondary)
-                                .textCase(.uppercase)
+                    VStack(alignment: .leading, spacing: 14) {
+                        HStack(alignment: .top, spacing: 12) {
+                            VStack(alignment: .leading, spacing: 6) {
+                                Text("Current Scope")
+                                    .font(.footnote.weight(.semibold))
+                                    .foregroundStyle(.secondary)
+                                    .textCase(.uppercase)
 
-                            Text(scope.displayName)
-                                .font(.title3)
-                                .foregroundStyle(.primary)
-                                .contentTransition(.opacity)
+                                Text(scope.displayName)
+                                    .font(.title3)
+                                    .foregroundStyle(.primary)
+                                    .contentTransition(.opacity)
 
-                            if scope.showsSeparateCustomerIdentity,
-                               let customerName = scope.resolvedCustomerDisplayName {
-                                Text("Customer: \(customerName)")
+                                if scope.showsSeparateCustomerIdentity,
+                                   let customerName = scope.resolvedCustomerDisplayName {
+                                    Text("Customer: \(customerName)")
+                                        .font(.subheadline)
+                                        .foregroundStyle(.secondary)
+                                        .contentTransition(.opacity)
+                                }
+
+                                Text(section.rawValue)
                                     .font(.subheadline)
                                     .foregroundStyle(.secondary)
                                     .contentTransition(.opacity)
                             }
 
-                            Text(section.rawValue)
-                                .font(.subheadline)
-                                .foregroundStyle(.secondary)
-                                .contentTransition(.opacity)
+                            Spacer(minLength: 12)
+
+                            StatusPill(status: scope.status)
                         }
 
-                        Spacer(minLength: 12)
+                        Divider()
+                            .opacity(0.45)
 
-                        StatusPill(status: scope.status)
+                        SectionReviewControl(
+                            isComplete: isCurrentSectionComplete,
+                            completedAt: sectionReviewStore.completedAt(for: section, in: scope),
+                            markComplete: markCurrentSectionComplete
+                        )
                     }
                 }
                 .padding(.bottom, 4)
@@ -1506,6 +1871,10 @@ struct SectionEditorView: View {
         .animation(.snappy(duration: 0.24, extraBounce: 0), value: scope.displayName)
         .animation(.snappy(duration: 0.24, extraBounce: 0), value: scope.status)
         .animation(.snappy(duration: 0.24, extraBounce: 0), value: section)
+        .animation(.snappy(duration: 0.22, extraBounce: 0), value: isCurrentSectionComplete)
+        .onChange(of: sectionContentFingerprints) { oldValue, newValue in
+            invalidateChangedCompletedSections(oldValue: oldValue, newValue: newValue)
+        }
         .navigationTitle(section.rawValue)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
@@ -1578,6 +1947,27 @@ struct SectionEditorView: View {
             }
         } message: {
             Text(errorMessage ?? "An unknown export error occurred.")
+        }
+    }
+
+    private var sectionContentFingerprints: [ScopeSection: ScopeSectionContentFingerprint] {
+        Dictionary(
+            uniqueKeysWithValues: ScopeSection.allCases.map { section in
+                (section, ScopeSectionContentFingerprint(scope: scope, section: section))
+            }
+        )
+    }
+
+    private func markCurrentSectionComplete() {
+        sectionReviewStore.markComplete(section, in: scope)
+    }
+
+    private func invalidateChangedCompletedSections(
+        oldValue: [ScopeSection: ScopeSectionContentFingerprint],
+        newValue: [ScopeSection: ScopeSectionContentFingerprint]
+    ) {
+        for section in ScopeSection.allCases where oldValue[section] != newValue[section] {
+            sectionReviewStore.invalidate(section, in: scope)
         }
     }
 

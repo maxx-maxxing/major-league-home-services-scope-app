@@ -97,6 +97,14 @@ Keep milestones small, testable, and reviewable.
 - Normalize/prune inactive hidden structural branch values for proposal/PDF/export output so only the active branch is emitted.
 - Keep the change scoped to `schema.json`, Structural System model/view code, proposal/PDF export composition, and status docs without refactoring unrelated sections.
 
+### Milestone 2.4 – Section Review / Completion Workflow
+- Add lightweight per-section review state so field users can mark a section complete for now without requiring any fields.
+- Persist review state outside validation/export behavior and preserve free editing at all times.
+- Show section review state inside the active section and in section navigation where space allows.
+- Automatically return a completed section to `Needs Review` when its section content changes.
+- Keep the implementation scoped to workflow-state persistence, section editor chrome, section navigation indicators, and status docs without changing JobTread, pricing, PDF export, or hard validation behavior.
+- Defer section-specific review checklists, export gating, required-field enforcement, and any proposal/PDF dependency on review state.
+
 ## Milestone 3 – Pencil Support
 - Ensure TextEditor note fields support Scribble
 - PencilKit signature capture page

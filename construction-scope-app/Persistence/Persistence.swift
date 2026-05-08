@@ -101,3 +101,128 @@ final class DebouncedAutosave: ObservableObject {
         }
     }
 }
+
+@MainActor
+final class SectionReviewStore: ObservableObject {
+    @Published private var completedSectionsByScope: [UUID: [ScopeSection: Date]] = [:]
+
+    private let fileManager: FileManager
+    private let fileURL: URL
+
+    init(fileManager: FileManager = .default) {
+        self.fileManager = fileManager
+        self.fileURL = Self.defaultFileURL(fileManager: fileManager)
+        load()
+    }
+
+    func isComplete(_ section: ScopeSection, in scope: JobScope) -> Bool {
+        completedAt(for: section, in: scope) != nil
+    }
+
+    func completedAt(for section: ScopeSection, in scope: JobScope) -> Date? {
+        completedSectionsByScope[scope.id]?[section]
+    }
+
+    func markComplete(_ section: ScopeSection, in scope: JobScope) {
+        var scopeSections = completedSectionsByScope[scope.id] ?? [:]
+        scopeSections[section] = .now
+        completedSectionsByScope[scope.id] = scopeSections
+        persist()
+    }
+
+    func invalidate(_ section: ScopeSection, in scope: JobScope) {
+        guard var scopeSections = completedSectionsByScope[scope.id],
+              scopeSections[section] != nil else {
+            return
+        }
+
+        scopeSections[section] = nil
+        completedSectionsByScope[scope.id] = scopeSections.isEmpty ? nil : scopeSections
+        persist()
+    }
+
+    private func load() {
+        guard fileManager.fileExists(atPath: fileURL.path) else { return }
+
+        do {
+            let data = try Data(contentsOf: fileURL)
+            let payload = try JSONDecoder().decode(SectionReviewPayload.self, from: data)
+            completedSectionsByScope = payload.inMemoryState
+        } catch {
+            assertionFailure("Failed to load section review state: \(error)")
+            completedSectionsByScope = [:]
+        }
+    }
+
+    private func persist() {
+        do {
+            let directory = fileURL.deletingLastPathComponent()
+            try fileManager.createDirectory(at: directory, withIntermediateDirectories: true)
+
+            let encoder = JSONEncoder()
+            encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+            let payload = SectionReviewPayload(completedSectionsByScope: completedSectionsByScope)
+            let data = try encoder.encode(payload)
+            try data.write(to: fileURL, options: .atomic)
+        } catch {
+            assertionFailure("Failed to persist section review state: \(error)")
+        }
+    }
+
+    private static func defaultFileURL(fileManager: FileManager) -> URL {
+        let supportDirectory = fileManager.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+        return supportDirectory
+            .appendingPathComponent("WorkflowState", isDirectory: true)
+            .appendingPathComponent("SectionReviewState.json", isDirectory: false)
+    }
+}
+
+private struct SectionReviewPayload: Codable {
+    var scopes: [ScopeReviewRecord]
+
+    init(scopes: [ScopeReviewRecord] = []) {
+        self.scopes = scopes
+    }
+
+    init(completedSectionsByScope: [UUID: [ScopeSection: Date]]) {
+        scopes = completedSectionsByScope.compactMap { scopeID, completedSections in
+            let sectionRecords = ScopeSection.allCases.compactMap { section -> CompletedSectionRecord? in
+                guard let completedAt = completedSections[section] else { return nil }
+                return CompletedSectionRecord(sectionKey: section.reviewStateKey, completedAt: completedAt)
+            }
+
+            guard !sectionRecords.isEmpty else { return nil }
+            return ScopeReviewRecord(scopeID: scopeID, completedSections: sectionRecords)
+        }
+        .sorted { $0.scopeID.uuidString < $1.scopeID.uuidString }
+    }
+
+    var inMemoryState: [UUID: [ScopeSection: Date]] {
+        var result: [UUID: [ScopeSection: Date]] = [:]
+
+        for scope in scopes {
+            var completedSections: [ScopeSection: Date] = [:]
+
+            for record in scope.completedSections {
+                guard let section = ScopeSection.section(reviewStateKey: record.sectionKey) else { continue }
+                completedSections[section] = record.completedAt
+            }
+
+            if !completedSections.isEmpty {
+                result[scope.scopeID] = completedSections
+            }
+        }
+
+        return result
+    }
+}
+
+private struct ScopeReviewRecord: Codable {
+    var scopeID: UUID
+    var completedSections: [CompletedSectionRecord]
+}
+
+private struct CompletedSectionRecord: Codable {
+    var sectionKey: String
+    var completedAt: Date
+}

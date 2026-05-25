@@ -40,6 +40,7 @@
 - Milestone 5.2.21: Implemented (linked customer ownership UX clarification)
 - Milestone 5.2.22: Verified (account phone/email probe)
 - Milestone 5.2.23: Implemented (linked customer ownership stabilization)
+- Milestone 5.2.24: Implemented (linked customer phone/email hydration)
 - Milestone 5.2.27: Planned (proposal-generation + structured JobTread sync architecture audit)
 - Milestone 5.2.28: Implemented (editable pricing / proposal foundation)
 - Milestone 5.2.29: Implemented (internal proposal foundation inspector)
@@ -1520,6 +1521,41 @@
     - blank local scope creation remains unchanged
     - no phone/email hydration was added
     - no outbound sync work was started
+- Milestone 5.2.24 linked customer phone/email hydration:
+  - Source-path audit:
+    - live JobTread schema confirms `account` exposes `primaryContact`, `contacts`, `primaryLocation`, `locations`, and `customFieldValues`
+    - live JobTread schema does not expose direct `account.phone` or `account.email`
+    - live JobTread schema confirms `contact` exposes `customFieldValues`, but does not expose direct `contact.phone` or `contact.email`
+    - `customField.type` includes `emailAddress` and `phoneNumber`
+    - business settings screenshot confirms the configured custom fields are single-value email/phone fields on both customer accounts (`Account Email`, `Account Phone`) and customer contacts (`Email`, `Phone`)
+  - Runtime verification with known linked customer/account IDs:
+    - `22MiQcAS5B8Q` (`Arjun Dasgupta`) has no primary/related contacts, but account-level custom fields include:
+      - `Account Email` (`emailAddress`)
+      - `Account Phone` (`phoneNumber`)
+    - `22PBFuL3N4UD` (`Arterberry Cooke`) has account-level custom fields plus primary/related contact custom fields with matching `emailAddress` / `phoneNumber` values
+  - Implemented source priority:
+    - account `customFieldValues` typed as `emailAddress` / `phoneNumber`
+    - `primaryContact.customFieldValues` typed as `emailAddress` / `phoneNumber`
+    - related `contacts.nodes.customFieldValues` typed as `emailAddress` / `phoneNumber`
+  - Implemented behavior:
+    - expanded the existing post-selection customer-detail query in [JobTreadClient.swift](/Users/maxx/Documents/major-league-home-services-scope-app/construction-scope-app/Services/JobTreadClient.swift) without changing the live customer search query
+    - mapped resolved phone/email through `JobTreadCustomerDetail`
+    - hydrated linked-scope `projectInfo.phone` / `projectInfo.email` and cached `jobTreadCustomer.phone` / `jobTreadCustomer.email` in [SchemaModels.swift](/Users/maxx/Documents/major-league-home-services-scope-app/construction-scope-app/Models/SchemaModels.swift)
+    - moved linked-scope phone/email display into the read-only `Customer (JobTread)` block in [SectionEditors.swift](/Users/maxx/Documents/major-league-home-services-scope-app/construction-scope-app/Views/SectionEditors.swift)
+    - left local/blank scopes with editable phone/email fields
+    - included phone/email in the PDF header contact line when present in [PDFPreviewStubView.swift](/Users/maxx/Documents/major-league-home-services-scope-app/construction-scope-app/PDFEngine/PDFPreviewStubView.swift)
+  - Preserved:
+    - current partial-name customer search
+    - current linked-scope creation flow
+    - current primary/fallback location hydration and street-address cleanup behavior
+    - local scope-owned fields such as scope title, project team, notes, project type, and section data
+  - Deferred:
+    - no outbound edits to JobTread account/contact data
+    - no sync-submission or JobTread job creation work
+    - no broad customer/contact schema redesign beyond using the existing local phone/email compatibility fields
+  - Validation:
+    - `git diff --check` passed
+    - `xcodebuild -project ConstructionScopeApp.xcodeproj -scheme ConstructionScopeApp -destination 'generic/platform=iOS' -derivedDataPath /tmp/ConstructionScopeAppJobTreadContactDerivedData CODE_SIGNING_ALLOWED=NO build` succeeded
 
 ## Validation Notes
 - 2026-03-23:

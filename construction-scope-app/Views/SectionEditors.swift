@@ -40,7 +40,7 @@ struct ProjectInfoEditorView: View {
                                 Text(linkedCustomerName)
                                     .font(.body.weight(.medium))
 
-                                Text("Verified JobTread-owned customer fields below are read-only and refresh from JobTread. Phone and email remain local editable fields for now.")
+                                Text("Verified JobTread-owned customer fields below are read-only and refresh from JobTread.")
                                     .font(.footnote)
                                     .foregroundStyle(.secondary)
 
@@ -106,6 +106,11 @@ struct ProjectInfoEditorView: View {
                             ReadOnlyProjectField(title: "State", value: scope.projectInfo.state, placeholder: "Not provided")
                             ReadOnlyProjectField(title: "ZIP", value: scope.projectInfo.zip, placeholder: "Not provided")
                         }
+
+                        HStack(spacing: 12) {
+                            ReadOnlyProjectField(title: "Phone", value: scope.projectInfo.phone, placeholder: "Not provided")
+                            ReadOnlyProjectField(title: "Email", value: scope.projectInfo.email, placeholder: "Not provided")
+                        }
                     } else {
                         LabeledTextField("Customer Name", text: requiredStringBinding(\.clientName), prompt: "Enter customer name", isRequired: true)
                         LabeledTextField("Address", text: requiredStringBinding(\.address), prompt: "Street address", isRequired: true)
@@ -124,21 +129,16 @@ struct ProjectInfoEditorView: View {
                 }
             }
 
-            CardGroup(title: hasLinkedCustomer ? "Contact (Local)" : "Contact") {
+            CardGroup(title: hasLinkedCustomer ? "Project Team" : "Contact") {
                 VStack(spacing: 12) {
-                    if hasLinkedCustomer {
-                        Text("Phone and email stay editable locally until their JobTread ownership path is verified.")
-                            .font(.footnote)
-                            .foregroundStyle(.secondary)
-                            .frame(maxWidth: .infinity, alignment: .leading)
+                    if !hasLinkedCustomer {
+                        LabeledTextField("Phone", text: constrainedOptionalStringBinding(\.phone))
+                            .keyboardType(.phonePad)
+
+                        LabeledTextField("Email", text: constrainedOptionalStringBinding(\.email))
+                            .keyboardType(.emailAddress)
+                            .textInputAutocapitalization(.never)
                     }
-
-                    LabeledTextField("Phone", text: constrainedOptionalStringBinding(\.phone))
-                        .keyboardType(.phonePad)
-
-                    LabeledTextField("Email", text: constrainedOptionalStringBinding(\.email))
-                        .keyboardType(.emailAddress)
-                        .textInputAutocapitalization(.never)
 
                     LabeledTextField("Salesperson", text: optionalStringBinding(\.salesperson))
                     LabeledTextField("Estimator", text: optionalStringBinding(\.estimator))

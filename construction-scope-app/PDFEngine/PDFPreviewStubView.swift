@@ -510,9 +510,15 @@ enum ScopePDFExporter {
     private static func drawHeader(in context: CGContext, rect: CGRect, header: PDFHeaderContent) {
         drawAdaptiveText(header.title, font: headerTitleFont, in: CGRect(x: 40, y: 34, width: rect.width - 80, height: 22), context: context, color: primaryTextColor, minimumScaleFactor: 0.72, logContext: "header-title")
 
+        let contactLine = [
+            header.phone.map { "Phone: \($0)" },
+            header.email.map { "Email: \($0)" }
+        ].compactMap { $0 }.joined(separator: " / ").nilIfBlank
+
         let subtitleLines = [
             header.customerName.map { "Customer: \($0)" },
-            header.address
+            header.address,
+            contactLine
         ].compactMap { $0 }
 
         for (index, line) in subtitleLines.enumerated() {
@@ -520,17 +526,17 @@ enum ScopePDFExporter {
         }
 
         if let projectType = header.projectType {
-            drawAdaptiveText("Project Type: \(projectType)", font: .systemFont(ofSize: 10), in: CGRect(x: 40, y: 88, width: 260, height: 14), context: context, color: secondaryTextColor, minimumScaleFactor: 0.8, logContext: "header-project-type")
+            drawAdaptiveText("Project Type: \(projectType)", font: .systemFont(ofSize: 10), in: CGRect(x: 40, y: 104, width: 260, height: 14), context: context, color: secondaryTextColor, minimumScaleFactor: 0.8, logContext: "header-project-type")
         }
 
         if let jobNumber = header.jobNumber {
-            drawAdaptiveText("Job #: \(jobNumber)", font: .systemFont(ofSize: 10), in: CGRect(x: rect.width - 180, y: 88, width: 140, height: 14), context: context, alignment: .right, color: secondaryTextColor, minimumScaleFactor: 0.8, logContext: "header-job-number")
+            drawAdaptiveText("Job #: \(jobNumber)", font: .systemFont(ofSize: 10), in: CGRect(x: rect.width - 180, y: 104, width: 140, height: 14), context: context, alignment: .right, color: secondaryTextColor, minimumScaleFactor: 0.8, logContext: "header-job-number")
         }
 
         context.setStrokeColor(separatorColor.cgColor)
         context.setLineWidth(1)
-        context.move(to: CGPoint(x: 40, y: 108))
-        context.addLine(to: CGPoint(x: rect.width - 40, y: 108))
+        context.move(to: CGPoint(x: 40, y: 124))
+        context.addLine(to: CGPoint(x: rect.width - 40, y: 124))
         context.strokePath()
     }
 
@@ -725,6 +731,8 @@ enum ScopePDFExporter {
             title: scope.resolvedDocumentTitle,
             customerName: meaningfulPDFText(scope.resolvedExportCustomerName),
             address: meaningfulPDFText(scope.projectInfo.formattedAddressLine),
+            phone: meaningfulPDFText(scope.projectInfo.phone),
+            email: meaningfulPDFText(scope.projectInfo.email),
             projectType: scope.projectInfo.activeProjectTypes.isEmpty ? nil : meaningfulPDFText(scope.projectInfo.projectTypeDisplaySummary),
             jobNumber: meaningfulPDFText(scope.jobNumber)
         )
@@ -1432,8 +1440,8 @@ private struct PDFPageLayout {
 
     init(pageRect: CGRect) {
         self.pageRect = pageRect
-        self.pageTitleRect = CGRect(x: 40, y: 122, width: pageRect.width - 80, height: 20)
-        self.bodyRect = CGRect(x: 40, y: 148, width: pageRect.width - 80, height: 580)
+        self.pageTitleRect = CGRect(x: 40, y: 138, width: pageRect.width - 80, height: 20)
+        self.bodyRect = CGRect(x: 40, y: 164, width: pageRect.width - 80, height: 564)
         self.labelColumnX = 48
         self.labelColumnWidth = 150
         self.valueColumnX = 200
@@ -1456,6 +1464,8 @@ private struct PDFHeaderContent {
     let title: String
     let customerName: String?
     let address: String?
+    let phone: String?
+    let email: String?
     let projectType: String?
     let jobNumber: String?
 }

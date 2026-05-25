@@ -40,6 +40,8 @@ struct JobTreadCustomerDetail: Sendable {
     let city: String?
     let state: String?
     let postalCode: String?
+    let phone: String?
+    let email: String?
 }
 
 struct JobTreadCurrentGrant: Decodable, Sendable {
@@ -564,6 +566,9 @@ private struct JobTreadCustomerDetailAccountSelection: Encodable {
     let type = JobTreadEmptySelection()
     let primaryLocation = JobTreadLocationSelection()
     let locations = JobTreadLocationsSelection()
+    let customFieldValues = JobTreadCustomFieldValuesSelection()
+    let primaryContact = JobTreadContactSelection()
+    let contacts = JobTreadContactsSelection()
 }
 
 private struct JobTreadLocationsSelection: Encodable {
@@ -588,6 +593,55 @@ private struct JobTreadLocationSelection: Encodable {
     let state = JobTreadEmptySelection()
     let postalCode = JobTreadEmptySelection()
     let formattedAddress = JobTreadEmptySelection()
+}
+
+private struct JobTreadContactsSelection: Encodable {
+    let options = JobTreadContactConnectionOptions()
+    let nodes = JobTreadContactSelection()
+
+    enum CodingKeys: String, CodingKey {
+        case options = "$"
+        case nodes
+    }
+}
+
+private struct JobTreadContactConnectionOptions: Encodable {
+    let size = 5
+}
+
+private struct JobTreadContactSelection: Encodable {
+    let id = JobTreadEmptySelection()
+    let name = JobTreadEmptySelection()
+    let firstName = JobTreadEmptySelection()
+    let lastName = JobTreadEmptySelection()
+    let title = JobTreadEmptySelection()
+    let customFieldValues = JobTreadCustomFieldValuesSelection()
+}
+
+private struct JobTreadCustomFieldValuesSelection: Encodable {
+    let options = JobTreadCustomFieldValueConnectionOptions()
+    let nodes = JobTreadCustomFieldValueSelection()
+
+    enum CodingKeys: String, CodingKey {
+        case options = "$"
+        case nodes
+    }
+}
+
+private struct JobTreadCustomFieldValueConnectionOptions: Encodable {
+    let size = 20
+}
+
+private struct JobTreadCustomFieldValueSelection: Encodable {
+    let id = JobTreadEmptySelection()
+    let value = JobTreadEmptySelection()
+    let customField = JobTreadCustomFieldSelection()
+}
+
+private struct JobTreadCustomFieldSelection: Encodable {
+    let id = JobTreadEmptySelection()
+    let name = JobTreadEmptySelection()
+    let type = JobTreadEmptySelection()
 }
 
 private struct JobTreadUserSelection: Encodable {
@@ -731,9 +785,13 @@ private struct JobTreadCustomerDetailNode: Decodable {
     let type: String?
     let primaryLocation: JobTreadLocationNode?
     let locations: JobTreadLocationConnectionNode?
+    let customFieldValues: JobTreadCustomFieldValueConnectionNode?
+    let primaryContact: JobTreadContactNode?
+    let contacts: JobTreadContactConnectionNode?
 
     var customerDetail: JobTreadCustomerDetail {
         let resolvedLocation = primaryLocation ?? locations?.nodes.first
+        let contactValues = resolvedContactValues
 
         return JobTreadCustomerDetail(
             customerID: id,
@@ -743,13 +801,118 @@ private struct JobTreadCustomerDetailNode: Decodable {
             unitNumber: resolvedLocation?.resolvedAddressParts.unitNumber,
             city: resolvedLocation?.city,
             state: resolvedLocation?.state,
-            postalCode: resolvedLocation?.postalCode
+            postalCode: resolvedLocation?.postalCode,
+            phone: contactValues.phone,
+            email: contactValues.email
+        )
+    }
+
+    private var resolvedContactValues: JobTreadResolvedContactValues {
+        var sources = [customFieldValues.resolvedContactValues]
+
+        if let primaryContact {
+            sources.append(primaryContact.resolvedContactValues)
+        }
+
+        sources.append(contentsOf: contacts?.nodes.map(\.resolvedContactValues) ?? [])
+
+        return JobTreadResolvedContactValues(
+            phone: sources.first { $0.phone != nil }?.phone,
+            email: sources.first { $0.email != nil }?.email
         )
     }
 }
 
 private struct JobTreadLocationConnectionNode: Decodable {
     let nodes: [JobTreadLocationNode]
+}
+
+private struct JobTreadContactConnectionNode: Decodable {
+    let nodes: [JobTreadContactNode]
+}
+
+private struct JobTreadContactNode: Decodable {
+    let id: String?
+    let name: String?
+    let firstName: String?
+    let lastName: String?
+    let title: String?
+    let customFieldValues: JobTreadCustomFieldValueConnectionNode?
+
+    var resolvedContactValues: JobTreadResolvedContactValues {
+        customFieldValues.resolvedContactValues
+    }
+}
+
+private struct JobTreadCustomFieldValueConnectionNode: Decodable {
+    let nodes: [JobTreadCustomFieldValueNode]
+
+    var resolvedContactValues: JobTreadResolvedContactValues {
+        JobTreadResolvedContactValues(
+            phone: nodes.firstTypedValue(.phoneNumber),
+            email: nodes.firstTypedValue(.emailAddress)
+        )
+    }
+}
+
+private struct JobTreadCustomFieldValueNode: Decodable {
+    let id: String?
+    let value: String?
+    let customField: JobTreadCustomFieldNode?
+
+    private enum CodingKeys: String, CodingKey {
+        case id
+        case value
+        case customField
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decodeIfPresent(String.self, forKey: .id)
+        customField = try container.decodeIfPresent(JobTreadCustomFieldNode.self, forKey: .customField)
+
+        if let stringValue = try? container.decodeIfPresent(String.self, forKey: .value) {
+            value = stringValue
+        } else if let intValue = try? container.decodeIfPresent(Int.self, forKey: .value) {
+            value = String(intValue)
+        } else if let doubleValue = try? container.decodeIfPresent(Double.self, forKey: .value) {
+            value = String(doubleValue)
+        } else if let boolValue = try? container.decodeIfPresent(Bool.self, forKey: .value) {
+            value = boolValue ? "true" : "false"
+        } else {
+            value = nil
+        }
+    }
+}
+
+private struct JobTreadCustomFieldNode: Decodable {
+    let id: String?
+    let name: String?
+    let type: String?
+}
+
+private struct JobTreadResolvedContactValues {
+    let phone: String?
+    let email: String?
+}
+
+private enum JobTreadContactCustomFieldType: String {
+    case phoneNumber
+    case emailAddress
+}
+
+private extension Optional where Wrapped == JobTreadCustomFieldValueConnectionNode {
+    var resolvedContactValues: JobTreadResolvedContactValues {
+        self?.resolvedContactValues ?? JobTreadResolvedContactValues(phone: nil, email: nil)
+    }
+}
+
+private extension Array where Element == JobTreadCustomFieldValueNode {
+    func firstTypedValue(_ type: JobTreadContactCustomFieldType) -> String? {
+        first { node in
+            node.customField?.type == type.rawValue
+        }?.value?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty
+    }
 }
 
 private struct JobTreadLocationNode: Decodable {

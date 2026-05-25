@@ -2542,6 +2542,8 @@ final class JobScope {
         let trimmedCity = detail.city?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty
         let trimmedState = detail.state?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty
         let trimmedZIP = detail.postalCode?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty
+        let trimmedPhone = detail.phone?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty
+        let trimmedEmail = detail.email?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty
 
         if jobTreadCustomer != nil {
             jobTreadCustomer?.displayName = trimmedName
@@ -2551,6 +2553,8 @@ final class JobScope {
             jobTreadCustomer?.city = trimmedCity
             jobTreadCustomer?.state = trimmedState
             jobTreadCustomer?.postalCode = trimmedZIP
+            jobTreadCustomer?.phone = trimmedPhone
+            jobTreadCustomer?.email = trimmedEmail
             jobTreadCustomer?.fetchedAt = .now
         }
 
@@ -2560,6 +2564,8 @@ final class JobScope {
         projectInfo.city = trimmedCity
         projectInfo.state = trimmedState
         projectInfo.zip = trimmedZIP
+        projectInfo.phone = trimmedPhone
+        projectInfo.email = trimmedEmail
         updatedAt = .now
     }
 }

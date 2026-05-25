@@ -2028,7 +2028,7 @@ struct SectionEditorView: View {
 
                     do {
                         try modelContext.save()
-                        linkedCustomerRefreshMessage = "Verified customer fields refreshed from JobTread."
+                        linkedCustomerRefreshMessage = "Verified customer and contact fields refreshed from JobTread."
                     } catch {
                         assertionFailure("Failed to save refreshed customer details: \(error)")
                         linkedCustomerRefreshErrorMessage = "Refreshed customer details could not be saved locally."

@@ -335,6 +335,19 @@ Keep milestones small, testable, and reviewable.
   - Do not expand production hydration until the exact supported object and field path is verified
 - Milestone 5.2.23 – Linked Customer Ownership Stabilization
   - Preserve the existing local ownership UX work in `Views/SectionEditors.swift` and avoid broad view rewrites
+- Milestone 5.2.24 – Linked Customer Phone/Email Hydration
+  - Verify the supported JobTread source path before production hydration:
+    - direct `account.phone` / `account.email` fields are not exposed
+    - direct `contact.phone` / `contact.email` fields are not exposed
+    - account/contact `customFieldValues` expose typed `emailAddress` and `phoneNumber` values
+  - Expand the existing post-selection customer-detail lookup by selected account ID to include:
+    - account-level custom field values as the primary customer phone/email source
+    - primary contact custom field values as the first fallback
+    - related contact custom field values as the final fallback
+  - Hydrate linked-scope `projectInfo.phone` and `projectInfo.email` only from verified JobTread values while preserving current name/address/location hydration.
+  - Treat hydrated phone/email as read-only JobTread customer fields in linked scopes, alongside customer name and location fields.
+  - Include hydrated phone/email in the PDF header/customer block only when present.
+  - Keep the change scoped to JobTread customer detail mapping, linked customer UI, PDF header rendering, and status docs.
 - Milestone 5.2.33 – External Pricing Configuration Foundation
   - Add a pricing configuration source/layer separate from the pricing rule registry
   - Key draft configuration by stable rule IDs so real business-owned pricing data can replace the embedded draft source later without redesigning the rules layer

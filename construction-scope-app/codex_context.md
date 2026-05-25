@@ -1,16 +1,18 @@
 Read codex_context.md before making changes.
 
 Current working focus:
-Section review/completion workflow inside the scope editor.
+JobTread customer contact hydration audit and implementation.
 
 Highest-priority requirement:
-Each section in the scope editor needs a lightweight “reviewed / complete” acknowledgment so the user can confirm they are done with that section for now. This is not validation and should not require fields. It should provide peace of mind without blocking editing or export.
+When a JobTread customer is selected in the app, the in-app linked scope should hydrate not only address/location details but also the customer’s phone number and email when JobTread actually provides them. Those values should then appear:
+- in the scope UI
+- in the exported PDF header/customer block
 
 Important constraint:
-Do not destabilize the current working JobTread customer search/select, linked-customer hydration, verified read-only ownership behavior, Documents / Attachments section, pricing engine, persistence continuity fixes, or current PDF export improvements unless the task explicitly requires it.
+Do not destabilize the current working JobTread customer search/select, linked-customer hydration, verified read-only ownership behavior, Documents / Attachments section, pricing engine, persistence continuity fixes, or current PDF export filtering/layout improvements unless the task explicitly requires it.
 
 Current app phase:
-PDF export work has reached a reasonable stopping point for now. The next active phase is to add section-level completion/review workflow so users can clearly mark sections as reviewed and see which sections still need attention.
+PDF export filtering/layout work has reached a reasonable stopping point for now. The next active phase is to strengthen JobTread customer hydration so phone number and email can be pulled into the linked scope and included in the PDF output when available from JobTread.
 
 What is already true:
 - SwiftUI iPad construction scope app exists
@@ -21,50 +23,68 @@ What is already true:
 - JobTread customer search/select creation path exists
 - Live partial-name JobTread customer search works
 - Selecting a JobTread customer creates a linked scope
-- Linked-customer hydration works for some verified fields
-- Documents / Attachments section exists and is functioning
-- Signature and Site Diagram persistence have been strengthened enough to survive recent continuity tests
-- PDF export currently includes only relevant scope content and has improved layout/thumbnail behavior
+- Linked-customer hydration already works for some verified fields such as customer name and address/location information
+- Street-address normalization works in tested cases
+- Unit number extraction from JobTread uses the correct fallback behavior when needed
+- Verified JobTread-sourced customer/location fields are treated as read-only in the app
+- Refresh/re-hydration from JobTread is the intended pattern for upstream customer/location changes
+- Current PDF export now includes only relevant scope content and has improved photo/page-flow behavior
+- Signature and Site Diagram persistence have been strengthened enough to survive the latest continuity tests
 
 Known limitations / current truths:
-- This section completion feature is not a validation system
-- No fields should become required because of this feature
-- Completion state should not block editing, saving, export, or future changes
-- If a completed section is edited later, it must automatically return to a “Needs Review” state until the user re-confirms it
+- Phone/email hydration from JobTread is not yet implemented correctly in the current app flow
+- The correct JobTread ownership path for phone/email still needs to be verified in code/query shape:
+  - account
+  - primary contact
+  - location/contact relationship
+  - or custom field fallback
+- Do not assume arbitrary uploaded PDFs can be parsed by JobTread to populate structured fields automatically
+- Not every app field will necessarily map 1:1 to a native JobTread field
+- The app is still primarily local-storage based today
+- Same-device continuity is the current beta target; reinstall/new-device continuity is not currently guaranteed
+- Cross-device sync and multi-user shared company data remain future backend/cloud architecture work
 
 Current architectural direction:
-- The app should remain fast and low-friction in the field
-- Workflow reassurance is valuable, but it should not behave like form validation
-- Section review/completion should be treated as lightweight persisted workflow state
-- Section completion should be visible both:
-  - inside the section
-  - and from the section list/sidebar if possible
-- Editing a previously completed section should automatically invalidate that completion state
-- PDF/export behavior should not depend on section completion state in this phase
+- JobTread is the source of truth for customer records
+- The app should not create duplicate customers
+- The app should not edit JobTread-owned customer master data locally unless a future phase explicitly verifies and adopts that behavior
+- Linked JobTread customer/location/contact fields that come from JobTread should remain read-only in the app
+- If JobTread customer/location/contact data changes upstream, the app should support refreshing those fields into the linked local scope
+- The scope app should become the source of truth for:
+  - scope selections
+  - proposal composition
+  - estimate-relevant structured output
+  - customer-facing proposal/PDF generation
+- PDF export should render from the app’s filtered export composition rather than raw model dumps
+- JobTread integration changes should preserve offline-first behavior where possible
 
 Immediate implementation direction:
-- Add section-level completion/review state
-- Add a lightweight in-section control such as:
-  - Mark Section Complete
-  - Completed / Needs Review state
-- Show section completion state in the section list/sidebar
-- Preserve the ability to freely edit completed sections
-- Automatically reset a section from Completed to Needs Review when its content changes
-- Do not introduce required-field validation or export gating
+- Audit the current JobTread hydration/query path end-to-end
+- Determine where customer phone/email truly live in the JobTread graph for the linked customer flow:
+  - account fields
+  - primaryContact
+  - related contacts
+  - location/contact linkage
+  - custom field fallback if needed
+- Implement the smallest safe hydration expansion so phone/email populate into the linked scope when available
+- Include those hydrated values in the PDF customer/header block when present
+- Preserve current read-only ownership behavior for JobTread-sourced values
 
 Most relevant near-term domains to build:
-- section completion state model
-- section completion UI control
-- sidebar/list completion indicators
-- automatic completion invalidation on section edits
-- persisted workflow-state handling for sections
+- JobTread query expansion for customer contact data
+- hydration normalization for phone/email
+- ownership/read-only handling for hydrated contact values
+- linked-scope model mapping for phone/email
+- PDF header/customer block contact rendering
 
 Current priorities:
-1. Add lightweight section completion/review acknowledgment
-2. Show completion state clearly in the editor and section list
-3. Automatically reset completion when a section changes
-4. Preserve free editing and no-required-fields behavior
-5. Avoid coupling completion state to export or validation
+1. Verify the real JobTread source of phone/email for linked customers
+2. Expand JobTread hydration to include phone/email safely
+3. Surface hydrated phone/email in the scope UI
+4. Include hydrated phone/email in the PDF header/customer block
+5. Preserve current working customer search/select and address hydration behavior
+6. Avoid guessing unsupported or unverified JobTread ownership paths
+7. Keep this phase tightly scoped to customer contact hydration + PDF inclusion
 
 Editing rules:
 - Follow READ → PLAN → EDIT
@@ -73,5 +93,5 @@ Editing rules:
 - Preserve working service and model boundaries
 - Explain what files changed and why
 - Prefer incremental, production-safe changes over broad refactors
-- Keep business logic out of low-level rendering code
-- This phase is workflow-state UX, not validation or export logic
+- Keep business logic out of low-level rendering code where possible
+- This phase is JobTread customer contact hydration first, not broad feature expansion

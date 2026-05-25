@@ -144,9 +144,16 @@ enum ScopePDFExporter {
     }
 
     static func generate(scope: JobScope) throws -> PDFExportResult {
-        pruneInactiveExistingConditionsValuesForExport(scope)
-        pruneInactiveStructuralValuesForExport(scope)
-        pruneInactiveEnclosureValuesForExport(scope)
+        let visibleSections = ScopeSection.visibleSectionSet(for: scope)
+        if visibleSections.contains(.existingConditions) {
+            pruneInactiveExistingConditionsValuesForExport(scope)
+        }
+        if visibleSections.contains(.structuralSystem) {
+            pruneInactiveStructuralValuesForExport(scope)
+        }
+        if visibleSections.contains(.enclosure), visibleSections.contains(.windowsAndGlass) {
+            pruneInactiveEnclosureValuesForExport(scope)
+        }
         let render = try render(scope: scope)
         let outputURL = FileManager.default.temporaryDirectory
             .appendingPathComponent(render.filename)
@@ -740,6 +747,7 @@ enum ScopePDFExporter {
 
     private static func pageOne(_ scope: JobScope) -> PDFPageContent? {
         let project = scope.projectInfo
+        let shouldIncludeDimensions = !project.activeProjectTypes.isEmpty
 
         return page(
             title: "Job Header + Project Info",
@@ -758,16 +766,17 @@ enum ScopePDFExporter {
                     row("Project Type", project.activeProjectTypes.isEmpty ? nil : project.projectTypeDisplaySummary),
                     row("Notes", project.notes)
                 ]),
-                section(title: "Dimensions", rows: dimensionRows(scope.dimensions))
+                shouldIncludeDimensions ? section(title: "Dimensions", rows: dimensionRows(scope.dimensions)) : nil
             ]
         )
     }
 
     private static func pageTwo(_ scope: JobScope) -> PDFPageContent? {
+        let visibleSections = ScopeSection.visibleSectionSet(for: scope)
         let existing = scope.existingConditions?.normalizedForExport()
         let attachment = scope.attachment
         var sections: [PDFSection?] = [
-            section(title: "Existing Conditions", rows: [
+            visibleSections.contains(.existingConditions) ? section(title: "Existing Conditions", rows: [
                 enumRow("House Stories", existing?.houseStories),
                 row("Exterior Finish", existing?.exteriorFinish?.displaySummary),
                 row("Posts/Columns Material", existing?.exteriorFinish?.postsColumnsMaterialDisplaySummary),
@@ -780,12 +789,14 @@ enum ScopePDFExporter {
                 row("Obstacles", existing?.obstaclesNotes),
                 row("Utilities", existing?.utilitiesNotes),
                 row("HOA Notes", existing?.hoaNotes)
-            ])
+            ]) : nil
         ]
 
-        sections.append(contentsOf: checklistPhotoThumbnailSections(scopeID: scope.id).map { Optional($0) })
+        if visibleSections.contains(.existingConditions) {
+            sections.append(contentsOf: checklistPhotoThumbnailSections(scopeID: scope.id).map { Optional($0) })
+        }
         sections.append(
-            section(title: "Attachment Conditions", rows: [
+            visibleSections.contains(.attachmentConditions) ? section(title: "Attachment Conditions", rows: [
                 row("House Material", resolvedHouseWallMaterial(attachment)),
                 enumRow("Mounting Type", attachment?.houseMountingType),
                 enumRow("Mount Condition", attachment?.mountCondition),
@@ -796,7 +807,7 @@ enum ScopePDFExporter {
                 row("Trim Thickness", resolvedTrimThickness(attachment)),
                 row("Fastener Plan", attachment?.fastenerPlan?.map(\.displayName).joined(separator: ", ")),
                 row("Notes", attachment?.notes)
-            ], additionalRows: measurementRows(attachment?.measurements))
+            ], additionalRows: measurementRows(attachment?.measurements)) : nil
         )
 
         return page(
@@ -806,14 +817,15 @@ enum ScopePDFExporter {
     }
 
     private static func pageThree(_ scope: JobScope) -> PDFPageContent? {
+        let visibleSections = ScopeSection.visibleSectionSet(for: scope)
         let structural = scope.structuralSystem?.normalizedForExport()
         let enclosure = scope.enclosure?.normalizedForExport()
 
         return page(
             title: "Structural + Screen Enclosure",
             sections: [
-                section(title: "Structural System", additionalRows: structuralRows(structural)),
-                section(title: "Screen Enclosure", rows: [
+                visibleSections.contains(.structuralSystem) ? section(title: "Structural System", additionalRows: structuralRows(structural)) : nil,
+                visibleSections.contains(.enclosure) ? section(title: "Screen Enclosure", rows: [
                     row("Screen Enclosure Type", enclosure?.enclosureTypeDisplaySummary),
                     enumRow("Screen Type", enclosure?.screenWallType),
                     enumRow("Tint", enclosure?.screenTint),
@@ -830,12 +842,13 @@ enum ScopePDFExporter {
                     row("Sliding Door Color", enclosure?.doors?.color),
                     row("Sliding Door Dimensions", enclosure?.doors?.dimensions),
                     row("Door Notes", enclosure?.doors?.notes)
-                ], additionalRows: measurementRows(enclosure?.screenMeasurements))
+                ], additionalRows: measurementRows(enclosure?.screenMeasurements)) : nil
             ]
         )
     }
 
     private static func pageFour(_ scope: JobScope) -> PDFPageContent? {
+        let visibleSections = ScopeSection.visibleSectionSet(for: scope)
         let enclosure = scope.enclosure?.normalizedForExport()
         let window = enclosure?.windowSystem
         let electrical = scope.electrical
@@ -844,7 +857,7 @@ enum ScopePDFExporter {
         return page(
             title: "Sunroom + Electrical + Drainage",
             sections: [
-                section(title: "Sunroom", rows: [
+                visibleSections.contains(.windowsAndGlass) ? section(title: "Sunroom", rows: [
                     enumRow("Window Type", window?.windowType),
                     enumRow("Frame System", window?.frameSystem),
                     enumRow("Glass Type", window?.glassType),
@@ -855,26 +868,27 @@ enum ScopePDFExporter {
                     row("Height / Bays", combinedValue(formatOptionalPDFNumber(window?.windowHeight, suffix: "ft"), formatOptionalPDFNumber(window?.numBays, suffix: "bays"))),
                     enumRow("Configuration", window?.configuration),
                     row("Notes", window?.notes)
-                ], additionalRows: measurementRows(enclosure?.sunroomMeasurements)),
-                section(title: "Electrical", rows: [
+                ], additionalRows: measurementRows(enclosure?.sunroomMeasurements)) : nil,
+                visibleSections.contains(.electrical) ? section(title: "Electrical", rows: [
                     numberRow("Outlets", electrical?.outletCount),
                     enumRow("Lighting", electrical?.lighting),
                     boolRow("Fan Install", electrical?.fanInstall),
                     row("Switch Locations", electrical?.switchLocations),
                     row("Dedicated Circuits", electrical?.dedicatedCircuits?.map(\.displayName).joined(separator: ", ")),
                     row("Notes", electrical?.notes)
-                ], additionalRows: measurementRows(electrical?.measurements)),
-                section(title: "Drainage", rows: [
+                ], additionalRows: measurementRows(electrical?.measurements)) : nil,
+                visibleSections.contains(.drainage) ? section(title: "Drainage", rows: [
                     boolRow("Gutters", drainage?.gutters),
                     row("Downspouts", drainage?.downspoutLocations),
                     boolRow("Drain Tie-In", drainage?.drainTieIn),
                     row("Drain Notes", drainage?.slopeNotes)
-                ], additionalRows: measurementRows(drainage?.measurements))
+                ], additionalRows: measurementRows(drainage?.measurements)) : nil
             ]
         )
     }
 
     private static func pageFive(_ scope: JobScope) throws -> PDFPageContent? {
+        let visibleSections = ScopeSection.visibleSectionSet(for: scope)
         let finishes = scope.finishes
         let permits = scope.permitsHOA
         let production = scope.production
@@ -884,7 +898,7 @@ enum ScopePDFExporter {
         ]
         var signatureImage: UIImage?
 
-        if let path = scope.customerApproval?.signaturePNGPath {
+        if visibleSections.contains(.signatureAndExport), let path = scope.customerApproval?.signaturePNGPath {
             signatureImage = try loadImage(at: path, scopeID: scope.id.uuidString, reasonContext: "signature image")
             signatureRows.append(PDFRow(label: "Signature", value: "Embedded"))
         }
@@ -892,30 +906,30 @@ enum ScopePDFExporter {
         return page(
             title: "Finishes + Permits + Production",
             sections: [
-                section(title: "Finishes", rows: [
+                visibleSections.contains(.finishes) ? section(title: "Finishes", rows: [
                     row("Trim Type", finishes?.trimType),
                     row("Paint / Powder", finishes?.paintOrPowderColor),
                     boolRow("Siding Replacement", finishes?.sidingReplacementRequired),
                     row("Caulking / Sealing", finishes?.caulkingSealingNotes)
-                ], additionalRows: measurementRows(finishes?.measurements)),
-                section(title: "Permits / HOA", rows: [
+                ], additionalRows: measurementRows(finishes?.measurements)) : nil,
+                visibleSections.contains(.permitsHOA) ? section(title: "Permits / HOA", rows: [
                     boolRow("Permit Required", permits?.permitRequired),
                     boolRow("HOA Required", permits?.hoaApprovalRequired),
                     boolRow("Engineering Required", permits?.engineeringRequired),
                     row("Jurisdiction", permits?.jurisdiction),
                     row("Status Notes", permits?.statusNotes)
-                ]),
-                section(title: "Production", rows: [
+                ]) : nil,
+                visibleSections.contains(.productionNotes) ? section(title: "Production", rows: [
                     row("Crew Lead", production?.crewLead),
                     dateRow("Start Date", production?.startDate),
                     row("Duration", production?.durationEstimate),
                     enumRow("Material Status", production?.materialOrderStatus),
                     enumRow("Permit Status", production?.permitStatus),
                     row("Notes", scope.customerApproval?.optionsConfirmedText)
-                ]),
-                documentsSection(scope.documents),
-                scopePhotoThumbnailSection(scope.photos, scopeID: scope.id),
-                section(title: "Customer Signature", rows: signatureRows, image: signatureImage, imageRole: .signature)
+                ]) : nil,
+                visibleSections.contains(.documents) ? documentsSection(scope.documents) : nil,
+                visibleSections.contains(.documents) ? scopePhotoThumbnailSection(scope.photos, scopeID: scope.id) : nil,
+                visibleSections.contains(.signatureAndExport) ? section(title: "Customer Signature", rows: signatureRows, image: signatureImage, imageRole: .signature) : nil
             ]
         )
     }
@@ -1148,6 +1162,10 @@ enum ScopePDFExporter {
 
     private static func appendixPages(_ scope: JobScope) throws -> [PDFPageContent] {
         var pages: [PDFPageContent] = []
+
+        guard ScopeSection.signatureAndExport.isVisible(in: scope) else {
+            return pages
+        }
 
         if let diagram = scope.sketches?.first(where: { $0.title == "Site Diagram" }) {
             let image = try loadImage(at: diagram.previewPNGPath, scopeID: scope.id.uuidString, reasonContext: "site diagram appendix")

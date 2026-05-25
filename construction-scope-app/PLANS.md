@@ -105,6 +105,15 @@ Keep milestones small, testable, and reviewable.
 - Keep the implementation scoped to workflow-state persistence, section editor chrome, section navigation indicators, and status docs without changing JobTread, pricing, PDF export, or hard validation behavior.
 - Defer section-specific review checklists, export gating, required-field enforcement, and any proposal/PDF dependency on review state.
 
+### Milestone 2.5 – Project-Type-Driven Section Visibility
+- Add a centralized section relevance model driven by `ProjectInfo.activeProjectTypes`.
+- Show only `Project Information` before any project type is selected.
+- After one or more project types are selected, show the ordered union of sections relevant to those selected types.
+- Preserve hidden section data in `JobScope`; visibility must not clear or mutate hidden section values.
+- Exclude hidden/not-relevant sections from PDF/export and proposal composition while they are hidden.
+- Keep the first-pass mapping easy to refine from field feedback and avoid unrelated JobTread, persistence, pricing, or PDF visual changes.
+- Defer destructive cleanup of hidden data, validation gating, and broader UX polish.
+
 ## Milestone 3 – Pencil Support
 - Ensure TextEditor note fields support Scribble
 - PencilKit signature capture page

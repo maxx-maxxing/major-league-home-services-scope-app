@@ -66,6 +66,79 @@ enum ScopeSection: String, CaseIterable, Identifiable {
     }
 }
 
+extension ScopeSection {
+    private static let sharedSectionsAfterProjectType: [ScopeSection] = [
+        .existingConditions,
+        .documents,
+        .permitsHOA,
+        .productionNotes,
+        .signatureAndExport
+    ]
+
+    private static let structuralWorkSections: [ScopeSection] = [
+        .structuralSystem,
+        .electrical,
+        .drainage,
+        .attachmentConditions,
+        .finishes
+    ]
+
+    private static let projectTypeSectionMap: [ProjectType: [ScopeSection]] = [
+        .patioCover: sharedSectionsAfterProjectType + structuralWorkSections,
+        .screenRoom: sharedSectionsAfterProjectType + [
+            .structuralSystem,
+            .enclosure,
+            .electrical,
+            .drainage,
+            .attachmentConditions,
+            .finishes
+        ],
+        .sunroom: sharedSectionsAfterProjectType + [
+            .structuralSystem,
+            .windowsAndGlass,
+            .electrical,
+            .drainage,
+            .attachmentConditions,
+            .finishes
+        ],
+        .deck: sharedSectionsAfterProjectType + structuralWorkSections,
+        .pergola: sharedSectionsAfterProjectType + structuralWorkSections,
+        .concrete: sharedSectionsAfterProjectType + [
+            .drainage,
+            .finishes
+        ],
+        .other: sharedSectionsAfterProjectType + structuralWorkSections
+    ]
+
+    static func visibleSections(for projectTypes: [ProjectType]) -> [ScopeSection] {
+        let activeTypes = ProjectType.selectableCases.filter { projectTypes.contains($0) }
+        guard !activeTypes.isEmpty else { return [.projectInfo] }
+
+        var visibleSections: Set<ScopeSection> = [.projectInfo]
+        for type in activeTypes {
+            visibleSections.formUnion(projectTypeSectionMap[type] ?? sharedSectionsAfterProjectType)
+        }
+
+        return allCases.filter { visibleSections.contains($0) }
+    }
+
+    static func visibleSections(for projectInfo: ProjectInfo) -> [ScopeSection] {
+        visibleSections(for: projectInfo.activeProjectTypes)
+    }
+
+    static func visibleSections(for scope: JobScope) -> [ScopeSection] {
+        visibleSections(for: scope.projectInfo)
+    }
+
+    static func visibleSectionSet(for scope: JobScope) -> Set<ScopeSection> {
+        Set(visibleSections(for: scope))
+    }
+
+    func isVisible(in scope: JobScope) -> Bool {
+        Self.visibleSectionSet(for: scope).contains(self)
+    }
+}
+
 private enum ScopeSortOption: String, CaseIterable, Identifiable {
     case alphabetical
     case jobStatus
@@ -209,8 +282,17 @@ struct RootNavigationView: View {
         horizontalSizeClass == .compact
     }
 
+    private var selectedScopeProjectTypes: [ProjectType] {
+        selectedScope?.projectInfo.activeProjectTypes ?? []
+    }
+
+    private var effectiveSelectedSection: ScopeSection {
+        guard let selectedScope else { return .projectInfo }
+        return selectedSection.isVisible(in: selectedScope) ? selectedSection : .projectInfo
+    }
+
     private var detailTransitionKey: String {
-        "\(selectedScopeID?.uuidString ?? "none")-\(selectedSection.rawValue)"
+        "\(selectedScopeID?.uuidString ?? "none")-\(effectiveSelectedSection.rawValue)"
     }
 
     var body: some View {
@@ -248,12 +330,14 @@ struct RootNavigationView: View {
                     } detail: {
                         ZStack {
                             if let scope = selectedScope {
+                                let effectiveSection = effectiveSelectedSection
                                 SectionEditorView(
                                     scope: scope,
-                                    section: selectedSection,
+                                    section: effectiveSection,
                                     autosave: autosave,
                                     sectionReviewStore: sectionReviewStore,
                                     sketchAction: {
+                                        guard ScopeSection.signatureAndExport.isVisible(in: scope) else { return }
                                         withAnimation(.snappy(duration: 0.26, extraBounce: 0)) {
                                             selectedSection = .signatureAndExport
                                         }
@@ -332,9 +416,13 @@ struct RootNavigationView: View {
             selectFirstScopeIfNeeded()
         }
         .onChange(of: selectedScopeID) { _, _ in
+            ensureSelectedSectionIsVisible()
 #if DEBUG
             syncDebugSelectedScopeID()
 #endif
+        }
+        .onChange(of: selectedScopeProjectTypes) { _, _ in
+            ensureSelectedSectionIsVisible()
         }
         .sheet(isPresented: $showingScopeCreationSheet) {
             ScopeCreationSheet(
@@ -483,7 +571,18 @@ struct RootNavigationView: View {
 
     private func handleScopeSelection(_ scope: JobScope) {
         selectedScopeID = scope.id
+        ensureSelectedSectionIsVisible(for: scope)
         recordScopeOpened(scope)
+    }
+
+    private func ensureSelectedSectionIsVisible(for scope: JobScope? = nil) {
+        guard let scope = scope ?? selectedScope else {
+            selectedSection = .projectInfo
+            return
+        }
+
+        guard !selectedSection.isVisible(in: scope) else { return }
+        selectedSection = .projectInfo
     }
 
     private func recordScopeOpened(_ scope: JobScope) {
@@ -547,6 +646,11 @@ private struct ScopeSidebarView: View {
 
     private var selectedScope: JobScope? {
         scopes.first(where: { $0.id == selectedScopeID })
+    }
+
+    private var visibleSections: [ScopeSection] {
+        guard let selectedScope else { return [] }
+        return ScopeSection.visibleSections(for: selectedScope)
     }
 
     var body: some View {
@@ -649,7 +753,7 @@ private struct ScopeSidebarView: View {
                 }
 
                 Section("Sections") {
-                    ForEach(ScopeSection.allCases) { section in
+                    ForEach(visibleSections) { section in
                         Button {
                             withAnimation(.spring(response: 0.28, dampingFraction: 0.82)) {
                                 selectedSection = section
@@ -668,6 +772,7 @@ private struct ScopeSidebarView: View {
         .listStyle(.sidebar)
         .scrollContentBackground(.hidden)
         .animation(.snappy(duration: 0.28, extraBounce: 0), value: scopes.map(\.id))
+        .animation(.snappy(duration: 0.24, extraBounce: 0), value: visibleSections.map(\.id))
         .animation(.snappy(duration: 0.24, extraBounce: 0), value: scopesExpanded)
         .navigationTitle("Scopes")
         .alert("Delete Scope?", isPresented: deleteAlertPresented) {
@@ -1430,10 +1535,14 @@ private struct PhoneSectionListView: View {
     @ObservedObject var autosave: DebouncedAutosave
     @ObservedObject var sectionReviewStore: SectionReviewStore
 
+    private var visibleSections: [ScopeSection] {
+        ScopeSection.visibleSections(for: scope)
+    }
+
     var body: some View {
         List {
             Section {
-                ForEach(ScopeSection.allCases) { section in
+                ForEach(visibleSections) { section in
                     NavigationLink {
                         SectionEditorView(
                             scope: scope,
@@ -1461,6 +1570,7 @@ private struct PhoneSectionListView: View {
         }
         .scrollContentBackground(.hidden)
         .background(LiquidGlassBackdrop())
+        .animation(.snappy(duration: 0.24, extraBounce: 0), value: visibleSections.map(\.id))
         .navigationTitle(scope.displayName)
         .navigationBarTitleDisplayMode(.inline)
     }

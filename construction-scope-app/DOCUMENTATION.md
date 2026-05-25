@@ -13,6 +13,7 @@
 - Milestone 2.3.3: Implemented (Existing Structure notes field)
 - Milestone 2.3.2: Implemented (Structural System branching workflow alignment)
 - Milestone 2.4: Implemented (section review / completion workflow)
+- Milestone 2.5: Implemented (project-type-driven section visibility)
 - Milestone 3: Implemented (PencilKit signature + sketch capture)
 - Milestone 3.4.1: Implemented (Signature/diagram persistence repair)
 - Milestone 3.4.2: Implemented (immediate sketch metadata durability)
@@ -69,6 +70,38 @@
 - Milestone 7.6.6: Implemented (persistent text field labels)
 
 ## Decisions
+- Milestone 2.5 Project-type-driven section visibility:
+  - Task scope:
+    - reduce field overwhelm by showing only contextually relevant scope sections after project type selection
+    - keep `Project Information` as the only visible section before any project type is selected
+    - preserve hidden section data while excluding hidden sections from PDF/export and proposal composition
+  - Implemented architecture:
+    - added a centralized `ScopeSection` visibility map in [RootNavigationView.swift](/Users/maxx/Documents/major-league-home-services-scope-app/construction-scope-app/Views/RootNavigationView.swift)
+    - visibility is derived from `ProjectInfo.activeProjectTypes`, with multiple project types resolving to the ordered union of relevant sections
+    - iPad sidebar and compact phone section lists now render `ScopeSection.visibleSections(for:)` instead of `ScopeSection.allCases`
+    - selected-section routing now falls back to `Project Information` if the previously selected section becomes hidden for the active scope
+  - First-pass mapping:
+    - `Project Information` is always visible
+    - after any selected project type, shared sections are `Existing Conditions`, `Documents`, `Permits / HOA`, `Production Notes`, and `Signature & Export`
+    - `screen_room` adds `Screen Enclosure`, `Structural System`, `Electrical`, `Drainage`, `Attachment Conditions`, and `Finishes`
+    - `sunroom` adds `Sunroom`, `Structural System`, `Electrical`, `Drainage`, `Attachment Conditions`, and `Finishes`
+    - `patio_cover`, `deck`, `pergola`, and `other` add the structural work set: `Structural System`, `Electrical`, `Drainage`, `Attachment Conditions`, and `Finishes`
+    - `concrete` adds `Drainage` and `Finishes`
+  - Hidden data behavior:
+    - no section model values are cleared when project types change
+    - PDF composition in [PDFPreviewStubView.swift](/Users/maxx/Documents/major-league-home-services-scope-app/construction-scope-app/PDFEngine/PDFPreviewStubView.swift) now checks visibility before composing section content, thumbnails, signatures, and the site-diagram appendix
+    - export-time pruning of dependent values no longer runs for hidden sections; Enclosure pruning is only written back when both Screen Enclosure and Sunroom are visible, so a one-type scope does not clear the other Enclosure-backed section's stored data
+    - proposal composition in [PricingProposalFoundation.swift](/Users/maxx/Documents/major-league-home-services-scope-app/construction-scope-app/Models/PricingProposalFoundation.swift) filters hidden capture sections out of the input snapshot, and splits Screen Enclosure vs Sunroom values so hidden Enclosure-backed fields do not feed proposal/pricing inputs
+  - Preserved:
+    - JobTread customer search/select, linked hydration/read-only ownership, persistence shape, pricing configuration, section review state storage, current PDF rendering layout, and existing editor models
+  - Deferred:
+    - field-tuned mapping changes after real salesperson feedback
+    - toolbar-level UX polish for hidden Photos/Sketch shortcuts
+    - validation gating, section-specific checklists, and destructive cleanup of hidden data
+  - Validation:
+    - `git diff --check` passed
+    - `xcodebuild -project ConstructionScopeApp.xcodeproj -scheme ConstructionScopeApp -destination 'generic/platform=iOS' -derivedDataPath /tmp/ConstructionScopeAppSectionVisibilityDerivedData CODE_SIGNING_ALLOWED=NO build` succeeded
+
 - Milestone 2.4 Section review / completion workflow:
   - Task scope:
     - add lightweight per-section `Completed` / `Needs Review` state in the scope editor

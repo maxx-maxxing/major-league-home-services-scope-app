@@ -928,12 +928,52 @@ enum ProposalFoundationBuilder {
         let exportStructural = scope.structuralSystem?.normalizedForExport()
         let exportEnclosure = scope.enclosure?.normalizedForExport()
         let checklistPhotoSummary = ChecklistPhotoAssetStore.summary(scopeID: scope.id)
+        let visibleScopeSections = ScopeSection.visibleSectionSet(for: scope)
+        let hasSelectedProjectTypes = !scope.projectInfo.activeProjectTypes.isEmpty
+        let showsScreenEnclosure = visibleScopeSections.contains(.enclosure)
+        let showsSunroom = visibleScopeSections.contains(.windowsAndGlass)
 
         let additionalDocuments = documents?.additionalAttachments ?? []
         let additionalDocumentNames = additionalDocuments.compactMap { attachment in
             attachment.name?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfBlank ??
                 attachment.attachment?.originalFilename.nilIfBlank
         }
+        let screenEnclosureValues: [ProposalInputValue?] = showsScreenEnclosure ? [
+            textValue(.enclosureType, "Screen Enclosure Type", exportEnclosure?.enclosureTypeDisplaySummary),
+            textValue(.screenEnclosureNotes, "Screen Enclosure Notes", exportEnclosure?.screenEnclosureNotes),
+            enumValue(.screenWallType, "Screen Wall Type", exportEnclosure?.screenWallType),
+            enumValue(.screenTint, "Screen Tint", exportEnclosure?.screenTint),
+            enumValue(.screenFrameSize, "Screen Frame Size", exportEnclosure?.screenFrameSize),
+            textValue(.screenFrameColor, "Screen Frame Color", resolvedScreenFrameColor(exportEnclosure)),
+            enumValue(.kneeWallOption, "Knee Wall Option", exportEnclosure?.kneeWall?.option),
+            enumValue(.kneeWallPanelHeight, "Knee Wall Panel Height", exportEnclosure?.kneeWall?.panelHeight),
+            textValue(.kneeWallPanelColor, "Knee Wall Panel Color", exportEnclosure?.kneeWall?.panelColor),
+            textValue(.kneeWallLinearFootage, "Knee Wall Linear Footage", exportEnclosure?.kneeWall?.linearFootage),
+            textValue(.kneeWallHeight, "Knee Wall Height", exportEnclosure?.kneeWall?.height),
+            enumValue(.kneeWallFraming, "Knee Wall Framing", exportEnclosure?.kneeWall?.framing),
+            enumValue(.doorType, "Door Type", resolvedDoorType(exportEnclosure?.doors?.doorType)),
+            enumValue(.doorStyle, "Door Style", exportEnclosure?.doors?.style),
+            enumValue(.doorOperableSide, "Door Operable Side", exportEnclosure?.doors?.operableSide),
+            enumValue(.doorHingeSide, "Door Hinge Side", exportEnclosure?.doors?.hingeSide),
+            textValue(.doorWidth, "Door Width", exportEnclosure?.doors?.width),
+            textValue(.doorHeight, "Door Height", exportEnclosure?.doors?.height),
+            textValue(.doorColor, "Door Color", exportEnclosure?.doors?.color),
+            textValue(.doorDimensions, "Door Dimensions", exportEnclosure?.doors?.dimensions),
+            textValue(.doorNotes, "Door Notes", exportEnclosure?.doors?.notes)
+        ] : []
+        let sunroomValues: [ProposalInputValue?] = showsSunroom ? [
+            enumValue(.windowType, "Window Type", exportEnclosure?.windowSystem?.windowType),
+            enumValue(.windowFrameSystem, "Window Frame System", exportEnclosure?.windowSystem?.frameSystem),
+            enumValue(.glassType, "Glass Type", exportEnclosure?.windowSystem?.glassType),
+            enumValue(.glassSafety, "Glass Safety", exportEnclosure?.windowSystem?.glassSafety),
+            enumValue(.gridOption, "Grid Option", exportEnclosure?.windowSystem?.gridOption),
+            enumValue(.windowOperation, "Window Operation", exportEnclosure?.windowSystem?.operation),
+            textValue(.windowColor, "Window Color", resolvedWindowColor(exportEnclosure?.windowSystem)),
+            measurementValue(.windowHeight, "Window Height", exportEnclosure?.windowSystem?.windowHeight, suffix: "ft"),
+            measurementValue(.windowBayCount, "Number of Bays", exportEnclosure?.windowSystem?.numBays, suffix: nil),
+            enumValue(.windowConfiguration, "Window Configuration", exportEnclosure?.windowSystem?.configuration),
+            textValue(.windowNotes, "Window Notes", exportEnclosure?.windowSystem?.notes)
+        ] : []
 
         let sections = [
             ScopeCaptureSectionSnapshot(
@@ -1000,40 +1040,7 @@ enum ProposalFoundationBuilder {
             ),
             ScopeCaptureSectionSnapshot(
                 section: .enclosure,
-                values: [
-                    textValue(.enclosureType, "Screen Enclosure Type", exportEnclosure?.enclosureTypeDisplaySummary),
-                    textValue(.screenEnclosureNotes, "Screen Enclosure Notes", exportEnclosure?.screenEnclosureNotes),
-                    enumValue(.screenWallType, "Screen Wall Type", exportEnclosure?.screenWallType),
-                    enumValue(.screenTint, "Screen Tint", exportEnclosure?.screenTint),
-                    enumValue(.screenFrameSize, "Screen Frame Size", exportEnclosure?.screenFrameSize),
-                    textValue(.screenFrameColor, "Screen Frame Color", resolvedScreenFrameColor(exportEnclosure)),
-                    enumValue(.windowType, "Window Type", exportEnclosure?.windowSystem?.windowType),
-                    enumValue(.windowFrameSystem, "Window Frame System", exportEnclosure?.windowSystem?.frameSystem),
-                    enumValue(.glassType, "Glass Type", exportEnclosure?.windowSystem?.glassType),
-                    enumValue(.glassSafety, "Glass Safety", exportEnclosure?.windowSystem?.glassSafety),
-                    enumValue(.gridOption, "Grid Option", exportEnclosure?.windowSystem?.gridOption),
-                    enumValue(.windowOperation, "Window Operation", exportEnclosure?.windowSystem?.operation),
-                    textValue(.windowColor, "Window Color", resolvedWindowColor(exportEnclosure?.windowSystem)),
-                    measurementValue(.windowHeight, "Window Height", exportEnclosure?.windowSystem?.windowHeight, suffix: "ft"),
-                    measurementValue(.windowBayCount, "Number of Bays", exportEnclosure?.windowSystem?.numBays, suffix: nil),
-                    enumValue(.windowConfiguration, "Window Configuration", exportEnclosure?.windowSystem?.configuration),
-                    textValue(.windowNotes, "Window Notes", exportEnclosure?.windowSystem?.notes),
-                    enumValue(.kneeWallOption, "Knee Wall Option", exportEnclosure?.kneeWall?.option),
-                    enumValue(.kneeWallPanelHeight, "Knee Wall Panel Height", exportEnclosure?.kneeWall?.panelHeight),
-                    textValue(.kneeWallPanelColor, "Knee Wall Panel Color", exportEnclosure?.kneeWall?.panelColor),
-                    textValue(.kneeWallLinearFootage, "Knee Wall Linear Footage", exportEnclosure?.kneeWall?.linearFootage),
-                    textValue(.kneeWallHeight, "Knee Wall Height", exportEnclosure?.kneeWall?.height),
-                    enumValue(.kneeWallFraming, "Knee Wall Framing", exportEnclosure?.kneeWall?.framing),
-                    enumValue(.doorType, "Door Type", resolvedDoorType(exportEnclosure?.doors?.doorType)),
-                    enumValue(.doorStyle, "Door Style", exportEnclosure?.doors?.style),
-                    enumValue(.doorOperableSide, "Door Operable Side", exportEnclosure?.doors?.operableSide),
-                    enumValue(.doorHingeSide, "Door Hinge Side", exportEnclosure?.doors?.hingeSide),
-                    textValue(.doorWidth, "Door Width", exportEnclosure?.doors?.width),
-                    textValue(.doorHeight, "Door Height", exportEnclosure?.doors?.height),
-                    textValue(.doorColor, "Door Color", exportEnclosure?.doors?.color),
-                    textValue(.doorDimensions, "Door Dimensions", exportEnclosure?.doors?.dimensions),
-                    textValue(.doorNotes, "Door Notes", exportEnclosure?.doors?.notes)
-                ].compactMap { $0 }
+                values: (screenEnclosureValues + sunroomValues).compactMap { $0 }
             ),
             ScopeCaptureSectionSnapshot(
                 section: .electrical,
@@ -1120,7 +1127,14 @@ enum ProposalFoundationBuilder {
                     countValue(.sketchCount, "Sketches", scope.sketches?.count ?? 0)
                 ].compactMap { $0 }
             )
-        ].filter { !$0.values.isEmpty }
+        ].filter { snapshot in
+            !snapshot.values.isEmpty &&
+                isCaptureSectionVisible(
+                    snapshot.section,
+                    visibleScopeSections: visibleScopeSections,
+                    hasSelectedProjectTypes: hasSelectedProjectTypes
+                )
+        }
 
         return ProposalCompositionInput(
             scopeID: scope.id,
@@ -1135,6 +1149,41 @@ enum ProposalFoundationBuilder {
             ),
             sections: sections
         )
+    }
+
+    private static func isCaptureSectionVisible(
+        _ section: ScopeCaptureSectionKey,
+        visibleScopeSections: Set<ScopeSection>,
+        hasSelectedProjectTypes: Bool
+    ) -> Bool {
+        switch section {
+        case .projectInfo:
+            return true
+        case .dimensions:
+            return hasSelectedProjectTypes
+        case .existingConditions:
+            return visibleScopeSections.contains(.existingConditions)
+        case .structuralSystem:
+            return visibleScopeSections.contains(.structuralSystem)
+        case .enclosure:
+            return visibleScopeSections.contains(.enclosure) || visibleScopeSections.contains(.windowsAndGlass)
+        case .electrical:
+            return visibleScopeSections.contains(.electrical)
+        case .drainage:
+            return visibleScopeSections.contains(.drainage)
+        case .attachmentConditions:
+            return visibleScopeSections.contains(.attachmentConditions)
+        case .documents:
+            return visibleScopeSections.contains(.documents)
+        case .finishes:
+            return visibleScopeSections.contains(.finishes)
+        case .permitsHOA:
+            return visibleScopeSections.contains(.permitsHOA)
+        case .production:
+            return visibleScopeSections.contains(.productionNotes)
+        case .attachmentsAndSketches:
+            return visibleScopeSections.contains(.signatureAndExport)
+        }
     }
 
     private static func makeProposalDraft(

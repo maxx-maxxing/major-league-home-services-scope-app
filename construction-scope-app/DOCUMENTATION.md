@@ -42,6 +42,7 @@
 - Milestone 5.2.22: Verified (account phone/email probe)
 - Milestone 5.2.23: Implemented (linked customer ownership stabilization)
 - Milestone 5.2.24: Implemented (linked customer phone/email hydration)
+- Milestone 5.2.24.1: Implemented (linked customer contact field polish)
 - Milestone 5.2.27: Planned (proposal-generation + structured JobTread sync architecture audit)
 - Milestone 5.2.28: Implemented (editable pricing / proposal foundation)
 - Milestone 5.2.29: Implemented (internal proposal foundation inspector)
@@ -70,6 +71,25 @@
 - Milestone 7.6.6: Implemented (persistent text field labels)
 
 ## Decisions
+- Milestone 5.2.24.1 linked customer contact field polish:
+  - Task scope:
+    - improve only the in-app display and interaction for JobTread-hydrated phone/email in Project Information
+    - preserve read-only ownership for JobTread-sourced values
+    - avoid schema, hydration, persistence, PDF, proposal, and broader workflow changes
+  - What changed:
+    - updated [SectionEditors.swift](/Users/maxx/Documents/major-league-home-services-scope-app/construction-scope-app/Views/SectionEditors.swift) so linked phone and email now render as separate full-width read-only rows instead of a cramped two-column row
+    - added display-only US phone formatting for 10-digit values and leading-1 US values, for example `(203) 948-1502`
+    - added a small native contact `Menu` on populated linked phone/email fields:
+      - phone offers `Call` when the value normalizes to a US dialable number, plus `Copy Number`
+      - email offers `Email` plus `Copy Email`
+    - kept the lock affordance and existing read-only field styling so the JobTread ownership model remains visible
+  - Deferred:
+    - `Open in JobTread` was not added because the current linked customer data contains `customerID` and API config, but no reliable JobTread web URL or supported web URL derivation path
+    - no JobTread web URL pattern was guessed from API base URL or customer ID
+  - Validation:
+    - `git diff --check` passed
+    - `xcodebuild -project ConstructionScopeApp.xcodeproj -scheme ConstructionScopeApp -destination 'generic/platform=iOS' -derivedDataPath /tmp/ConstructionScopeAppContactPolishDerivedData CODE_SIGNING_ALLOWED=NO build` succeeded
+
 - Milestone 2.5 Project-type-driven section visibility:
   - Task scope:
     - reduce field overwhelm by showing only contextually relevant scope sections after project type selection

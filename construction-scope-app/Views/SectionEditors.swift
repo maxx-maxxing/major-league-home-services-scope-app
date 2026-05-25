@@ -107,10 +107,20 @@ struct ProjectInfoEditorView: View {
                             ReadOnlyProjectField(title: "ZIP", value: scope.projectInfo.zip, placeholder: "Not provided")
                         }
 
-                        HStack(spacing: 12) {
-                            ReadOnlyProjectField(title: "Phone", value: scope.projectInfo.phone, placeholder: "Not provided")
-                            ReadOnlyProjectField(title: "Email", value: scope.projectInfo.email, placeholder: "Not provided")
-                        }
+                        ReadOnlyContactProjectField(
+                            title: "Phone",
+                            value: scope.projectInfo.phone,
+                            displayValue: formattedUSPhoneNumber(scope.projectInfo.phone),
+                            placeholder: "Not provided",
+                            kind: .phone
+                        )
+
+                        ReadOnlyContactProjectField(
+                            title: "Email",
+                            value: scope.projectInfo.email,
+                            placeholder: "Not provided",
+                            kind: .email
+                        )
                     } else {
                         LabeledTextField("Customer Name", text: requiredStringBinding(\.clientName), prompt: "Enter customer name", isRequired: true)
                         LabeledTextField("Address", text: requiredStringBinding(\.address), prompt: "Street address", isRequired: true)
@@ -313,6 +323,153 @@ private struct ReadOnlyProjectField: View {
             .liquidGlassInputBackground(cornerRadius: 14)
         }
     }
+}
+
+private enum ReadOnlyContactFieldKind {
+    case phone
+    case email
+}
+
+private struct ReadOnlyContactProjectField: View {
+    @Environment(\.openURL) private var openURL
+
+    let title: String
+    let value: String?
+    let displayValue: String?
+    let placeholder: String
+    let kind: ReadOnlyContactFieldKind
+
+    init(
+        title: String,
+        value: String?,
+        displayValue: String? = nil,
+        placeholder: String,
+        kind: ReadOnlyContactFieldKind
+    ) {
+        self.title = title
+        let trimmed = value?.trimmingCharacters(in: .whitespacesAndNewlines)
+        self.value = (trimmed?.isEmpty == true) ? nil : trimmed
+
+        let trimmedDisplay = displayValue?.trimmingCharacters(in: .whitespacesAndNewlines)
+        self.displayValue = (trimmedDisplay?.isEmpty == true) ? nil : trimmedDisplay
+        self.placeholder = placeholder
+        self.kind = kind
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(title)
+                .font(.body)
+
+            HStack(spacing: 8) {
+                Text(displayValue ?? value ?? placeholder)
+                    .foregroundStyle(value == nil ? .secondary : .primary)
+                    .lineLimit(1)
+                    .truncationMode(kind == .email ? .middle : .tail)
+                    .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+
+                if value != nil {
+                    Menu {
+                        actionMenuItems
+                    } label: {
+                        Image(systemName: "ellipsis.circle")
+                            .font(.body)
+                            .foregroundStyle(.secondary)
+                            .frame(width: 44, height: 44)
+                    }
+                    .accessibilityLabel("\(title) actions")
+                }
+
+                Image(systemName: "lock.fill")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 6)
+            .liquidGlassInputBackground(cornerRadius: 14)
+        }
+    }
+
+    @ViewBuilder
+    private var actionMenuItems: some View {
+        switch kind {
+        case .phone:
+            if let phoneURL {
+                Button {
+                    openURL(phoneURL)
+                } label: {
+                    Label("Call", systemImage: "phone")
+                }
+            }
+
+            if let copyValue = displayValue ?? value {
+                Button {
+                    copyToPasteboard(copyValue)
+                } label: {
+                    Label("Copy Number", systemImage: "doc.on.doc")
+                }
+            }
+        case .email:
+            if let emailURL {
+                Button {
+                    openURL(emailURL)
+                } label: {
+                    Label("Email", systemImage: "envelope")
+                }
+            }
+
+            if let value {
+                Button {
+                    copyToPasteboard(value)
+                } label: {
+                    Label("Copy Email", systemImage: "doc.on.doc")
+                }
+            }
+        }
+    }
+
+    private var phoneURL: URL? {
+        guard case .phone = kind,
+              let value,
+              let dialableDigits = normalizedUSPhoneDigits(value) else { return nil }
+
+        return URL(string: "tel:\(dialableDigits)")
+    }
+
+    private var emailURL: URL? {
+        guard case .email = kind, let value else { return nil }
+        return URL(string: "mailto:\(value)")
+    }
+
+    private func copyToPasteboard(_ value: String) {
+        #if canImport(UIKit)
+        UIPasteboard.general.string = value
+        #endif
+    }
+}
+
+private func formattedUSPhoneNumber(_ value: String?) -> String? {
+    guard let value,
+          let localDigits = normalizedUSPhoneDigits(value) else {
+        return value?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty
+    }
+
+    let digits = Array(localDigits)
+    return "(\(String(digits[0..<3]))) \(String(digits[3..<6]))-\(String(digits[6..<10]))"
+}
+
+private func normalizedUSPhoneDigits(_ value: String) -> String? {
+    let digits = value.filter(\.isNumber)
+
+    if digits.count == 10 {
+        return digits
+    }
+
+    if digits.count == 11, digits.first == "1" {
+        return String(digits.dropFirst())
+    }
+
+    return nil
 }
 
 struct ExistingConditionsEditorView: View {

@@ -357,6 +357,15 @@ Keep milestones small, testable, and reviewable.
   - Treat hydrated phone/email as read-only JobTread customer fields in linked scopes, alongside customer name and location fields.
   - Include hydrated phone/email in the PDF header/customer block only when present.
   - Keep the change scoped to JobTread customer detail mapping, linked customer UI, PDF header rendering, and status docs.
+- Milestone 5.2.24.1 – Linked Customer Contact Field Polish
+  - Keep JobTread-hydrated phone/email read-only and preserve the existing hydration/storage behavior.
+  - Format US-style linked phone values for display only without changing stored JobTread values.
+  - Move linked email to its own full-width read-only row under the phone row.
+  - Add safe native contact actions for populated linked phone/email fields:
+    - Call / Copy Number
+    - Email / Copy Email
+  - Include `Open in JobTread` only if a reliable linked customer web URL is already available; do not derive one from API base URL or customer ID alone.
+  - Keep the change scoped to the Project Information linked-customer UI and status docs.
 - Milestone 5.2.33 – External Pricing Configuration Foundation
   - Add a pricing configuration source/layer separate from the pricing rule registry
   - Key draft configuration by stable rule IDs so real business-owned pricing data can replace the embedded draft source later without redesigning the rules layer

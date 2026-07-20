@@ -669,7 +669,10 @@ struct ExistingConditionsEditorView: View {
                     errorFallbackMessage: "Unable to import the selected checklist photo.",
                     handleFileImportResult: handleChecklistFileImportResult,
                     importSelectedPhotoItem: importSelectedChecklistPhotoItem,
-                    importCameraImage: importChecklistCameraImage,
+                    importCameraImage: { image in
+                        importChecklistCameraImage(image)
+                        return true
+                    },
                     resetImportPresentation: resetChecklistImportPresentation
                 )
             }
@@ -3473,7 +3476,7 @@ struct DocumentsEditorView: View {
     let scope: JobScope
     @ObservedObject var autosave: DebouncedAutosave
 
-    @State private var activeSlot: DocumentSlotTarget?
+    @State private var importCoordination = DocumentImportCoordination()
     @State private var showingFileImporter = false
     @State private var selectedPhotoItem: PhotosPickerItem?
     @State private var showingPhotoPicker = false
@@ -3486,6 +3489,7 @@ struct DocumentsEditorView: View {
             additionalAttachmentsCard
 
             if shouldRenderImportPresenter {
+                let request = importCoordination.activeRequest
                 DocumentImportPresenter(
                     showingFileImporter: $showingFileImporter,
                     selectedPhotoItem: $selectedPhotoItem,
@@ -3495,12 +3499,31 @@ struct DocumentsEditorView: View {
                     allowedContentTypes: [.item],
                     errorTitle: "Attachment Import Failed",
                     errorFallbackMessage: "Unable to import the selected attachment.",
-                    handleFileImportResult: handleFileImportResult,
-                    importSelectedPhotoItem: importSelectedPhotoItem,
-                    importCameraImage: importCameraImage,
-                    resetImportPresentation: resetImportPresentation
+                    handleFileImportResult: { result in
+                        guard let request else { return }
+                        handleFileImportResult(result, for: request)
+                    },
+                    importSelectedPhotoItem: { item in
+                        guard let request else { return }
+                        importSelectedPhotoItem(item, for: request)
+                    },
+                    importCameraImage: { image in
+                        guard let request else { return false }
+                        return importCameraImage(image, for: request)
+                    },
+                    resetImportPresentation: { clearActiveRequest in
+                        guard let request else { return }
+                        resetImportPresentation(
+                            for: request,
+                            clearActiveRequest: clearActiveRequest
+                        )
+                    }
                 )
+                .id(request?.id)
             }
+        }
+        .onDisappear {
+            resetImportPresentation(clearActiveRequest: true)
         }
     }
 
@@ -3509,7 +3532,7 @@ struct DocumentsEditorView: View {
     }
 
     private var shouldRenderImportPresenter: Bool {
-        activeSlot != nil ||
+        importCoordination.activeRequest != nil ||
         showingFileImporter ||
         showingPhotoPicker ||
         showingCameraPicker ||
@@ -3703,7 +3726,7 @@ struct DocumentsEditorView: View {
     }
 
     private func presentImporter(_ source: DocumentImportSource, for target: DocumentSlotTarget) {
-        activeSlot = target
+        importCoordination.beginRequest(scopeID: scope.id, target: target)
         selectedPhotoItem = nil
 
         switch source {
@@ -3716,15 +3739,26 @@ struct DocumentsEditorView: View {
         }
     }
 
-    private func resetImportPresentation(clearActiveSlot: Bool) {
+    private func resetImportPresentation(clearActiveRequest: Bool) {
         showingFileImporter = false
         showingPhotoPicker = false
         showingCameraPicker = false
         selectedPhotoItem = nil
 
-        if clearActiveSlot {
-            activeSlot = nil
+        if clearActiveRequest {
+            importCoordination.invalidateActiveRequest()
         }
+    }
+
+    private func resetImportPresentation(
+        for request: DocumentImportRequest,
+        clearActiveRequest: Bool
+    ) {
+        if clearActiveRequest,
+           !importCoordination.invalidate(request) {
+            return
+        }
+        resetImportPresentation(clearActiveRequest: false)
     }
 
     private func addAdditionalAttachmentRow() {
@@ -3736,6 +3770,7 @@ struct DocumentsEditorView: View {
     }
 
     private func removeAdditionalAttachmentRow(_ rowID: UUID) {
+        invalidateImportRequest(for: .additional(rowID))
         let attachment = additionalAttachments.first(where: { $0.id == rowID })?.attachment
 
         updateDocuments(retiring: attachment) { documents in
@@ -3746,6 +3781,7 @@ struct DocumentsEditorView: View {
     }
 
     private func clearAttachment(for target: DocumentSlotTarget) {
+        invalidateImportRequest(for: target)
         let existing = existingAttachment(for: target)
 
         updateDocuments(retiring: existing) { documents in
@@ -3763,83 +3799,92 @@ struct DocumentsEditorView: View {
         }
     }
 
-    private func handleFileImportResult(_ result: Result<[URL], Error>) {
+    private func handleFileImportResult(
+        _ result: Result<[URL], Error>,
+        for request: DocumentImportRequest
+    ) {
         switch result {
         case .success(let urls):
             guard let url = urls.first else {
-                resetImportPresentation(clearActiveSlot: true)
+                finishImportPresentation(for: request)
                 return
             }
-            let target = activeSlot
-            let scopeID = scope.id
 
             Task {
                 do {
                     let attachment = try await Task.detached(priority: .userInitiated) {
-                        try DocumentAssetStore.importFile(from: url, scopeID: scopeID)
+                        try DocumentAssetStore.importFile(from: url, scopeID: request.scopeID)
                     }.value
 
                     await MainActor.run {
-                        persistImportedAttachment(attachment, for: target)
-                        resetImportPresentation(clearActiveSlot: true)
+                        completeImportedAttachment(attachment, for: request)
                     }
                 } catch {
                     await MainActor.run {
-                        importError = error.localizedDescription
-                        resetImportPresentation(clearActiveSlot: true)
+                        handleImportFailure(error, for: request)
                     }
                 }
             }
         case .failure(let error):
-            importError = error.localizedDescription
-            resetImportPresentation(clearActiveSlot: true)
+            handleImportFailure(error, for: request)
         }
     }
 
-    private func importSelectedPhotoItem(_ item: PhotosPickerItem) {
+    private func importSelectedPhotoItem(
+        _ item: PhotosPickerItem,
+        for request: DocumentImportRequest
+    ) {
         Task {
             do {
                 guard let data = try await item.loadTransferable(type: Data.self) else {
                     throw DocumentAssetStore.StoreError.unsupportedImageData
                 }
-                let scopeID = scope.id
-                let target = activeSlot
                 let attachment = try await Task.detached(priority: .userInitiated) {
-                    try DocumentAssetStore.savePhotoLibraryImage(data: data, scopeID: scopeID)
+                    try DocumentAssetStore.savePhotoLibraryImage(data: data, scopeID: request.scopeID)
                 }.value
 
                 await MainActor.run {
-                    persistImportedAttachment(attachment, for: target)
-                    resetImportPresentation(clearActiveSlot: true)
+                    completeImportedAttachment(attachment, for: request)
                 }
             } catch {
                 await MainActor.run {
-                    importError = error.localizedDescription
-                    resetImportPresentation(clearActiveSlot: true)
+                    handleImportFailure(error, for: request)
                 }
             }
         }
     }
 
     #if canImport(UIKit)
-    private func importCameraImage(_ image: UIImage) {
-        do {
-            let attachment = try DocumentAssetStore.saveCameraImage(image, scopeID: scope.id)
-            persistImportedAttachment(attachment, for: activeSlot)
-            resetImportPresentation(clearActiveSlot: true)
-        } catch {
-            importError = error.localizedDescription
-            resetImportPresentation(clearActiveSlot: true)
+    private func importCameraImage(
+        _ image: UIImage,
+        for request: DocumentImportRequest
+    ) -> Bool {
+        guard case .adopt = importCoordination.completionDecision(
+            for: request,
+            currentScopeID: scope.id,
+            targetExists: targetExists
+        ) else {
+            return false
         }
+
+        do {
+            let attachment = try DocumentAssetStore.saveCameraImage(image, scopeID: request.scopeID)
+            completeImportedAttachment(attachment, for: request)
+        } catch {
+            handleImportFailure(error, for: request)
+        }
+        return true
     }
     #endif
 
-    private func persistImportedAttachment(_ attachment: DocumentAttachmentFile, for target: DocumentSlotTarget?) {
-        guard let target else { return }
-
+    @discardableResult
+    private func persistImportedAttachment(
+        _ attachment: DocumentAttachmentFile,
+        for target: DocumentSlotTarget
+    ) -> Bool {
         let existing = existingAttachment(for: target)
 
-        updateDocuments(retiring: existing) { documents in
+        return updateDocuments(retiring: existing) { documents in
             switch target {
             case .irrigation:
                 documents.irrigation = attachment
@@ -3852,8 +3897,76 @@ struct DocumentsEditorView: View {
                 documents.additionalAttachments = rows
             }
         }
+    }
 
-        activeSlot = nil
+    private func completeImportedAttachment(
+        _ attachment: DocumentAttachmentFile,
+        for request: DocumentImportRequest
+    ) {
+        let decision = importCoordination.resolveCompletion(
+            for: request,
+            currentScopeID: scope.id,
+            targetExists: targetExists
+        )
+
+        switch decision {
+        case .adopt(let target):
+            guard persistImportedAttachment(attachment, for: target) else {
+                retireNeverAdoptedAttachment(attachment, for: request)
+                resetImportPresentation(clearActiveRequest: false)
+                return
+            }
+            resetImportPresentation(clearActiveRequest: false)
+        case .discard(.staleRequest):
+            retireNeverAdoptedAttachment(attachment, for: request)
+        case .discard:
+            retireNeverAdoptedAttachment(attachment, for: request)
+            resetImportPresentation(clearActiveRequest: false)
+        }
+    }
+
+    private func handleImportFailure(
+        _ error: Error,
+        for request: DocumentImportRequest
+    ) {
+        guard importCoordination.invalidate(request) else { return }
+        importError = error.localizedDescription
+        resetImportPresentation(clearActiveRequest: false)
+    }
+
+    private func finishImportPresentation(for request: DocumentImportRequest) {
+        guard importCoordination.invalidate(request) else { return }
+        resetImportPresentation(clearActiveRequest: false)
+    }
+
+    private func invalidateImportRequest(for target: DocumentSlotTarget) {
+        guard let request = importCoordination.activeRequest,
+              request.target == target,
+              importCoordination.invalidate(request) else {
+            return
+        }
+        resetImportPresentation(clearActiveRequest: false)
+    }
+
+    private func targetExists(_ target: DocumentSlotTarget) -> Bool {
+        switch target {
+        case .irrigation, .propertySurvey:
+            return true
+        case .additional(let rowID):
+            return additionalAttachments.contains { $0.id == rowID }
+        }
+    }
+
+    private func retireNeverAdoptedAttachment(
+        _ attachment: DocumentAttachmentFile,
+        for request: DocumentImportRequest
+    ) {
+        guard request.scopeID == scope.id,
+              !Self.isAttachment(attachment, referencedIn: scope.documents) else {
+            return
+        }
+
+        DocumentAssetStore.retireAttachment(attachment, scopeID: request.scopeID)
     }
 
     private func existingAttachment(for target: DocumentSlotTarget) -> DocumentAttachmentFile? {
@@ -3948,7 +4061,7 @@ private struct DocumentImportPresenter: View {
     let handleFileImportResult: (Result<[URL], Error>) -> Void
     let importSelectedPhotoItem: (PhotosPickerItem) -> Void
 #if canImport(UIKit)
-    let importCameraImage: (UIImage) -> Void
+    let importCameraImage: (UIImage) -> Bool
 #endif
     let resetImportPresentation: (Bool) -> Void
 
@@ -3975,8 +4088,8 @@ private struct DocumentImportPresenter: View {
                 #if canImport(UIKit)
                 DocumentCameraPicker(
                     onImagePicked: { image in
+                        guard importCameraImage(image) else { return }
                         showingCameraPicker = false
-                        importCameraImage(image)
                     },
                     onCancel: {
                         resetImportPresentation(true)
@@ -4012,23 +4125,6 @@ private enum DocumentImportSource {
     case files
     case photoLibrary
     case camera
-}
-
-private enum DocumentSlotTarget: Identifiable, Equatable {
-    case irrigation
-    case propertySurvey
-    case additional(UUID)
-
-    var id: String {
-        switch self {
-        case .irrigation:
-            return "irrigation"
-        case .propertySurvey:
-            return "propertySurvey"
-        case .additional(let rowID):
-            return "additional-\(rowID.uuidString)"
-        }
-    }
 }
 
 struct FinishesEditorView: View {

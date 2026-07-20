@@ -16,6 +16,7 @@
 		AA0000010000000000000005 /* CardComponents.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000010000000000000015 /* CardComponents.swift */; };
 		AA0000010000000000000006 /* PDFPreviewStubView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000010000000000000016 /* PDFPreviewStubView.swift */; };
 		AA0000010000000000000007 /* SectionEditors.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000010000000000000018 /* SectionEditors.swift */; };
+		D1C000010000000000000001 /* DocumentImportCoordination.swift in Sources */ = {isa = PBXBuildFile; fileRef = D1C000010000000000000011 /* DocumentImportCoordination.swift */; };
 		AA0000010000000000000008 /* PencilDrawingSupport.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000010000000000000019 /* PencilDrawingSupport.swift */; };
 		AA0000010000000000000009 /* PhotoAttachmentSupport.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000010000000000000020 /* PhotoAttachmentSupport.swift */; };
 		AA00000100000000000000A1 /* PricingProposalFoundation.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA00000100000000000000B1 /* PricingProposalFoundation.swift */; };
@@ -39,6 +40,7 @@
 		AA0000010000000000000016 /* PDFPreviewStubView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PDFPreviewStubView.swift; sourceTree = "<group>"; };
 		AA0000010000000000000017 /* ConstructionScopeApp.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ConstructionScopeApp.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		AA0000010000000000000018 /* SectionEditors.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SectionEditors.swift; sourceTree = "<group>"; };
+		D1C000010000000000000011 /* DocumentImportCoordination.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DocumentImportCoordination.swift; sourceTree = "<group>"; };
 		AA0000010000000000000019 /* PencilDrawingSupport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PencilDrawingSupport.swift; sourceTree = "<group>"; };
 		AA0000010000000000000020 /* PhotoAttachmentSupport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhotoAttachmentSupport.swift; sourceTree = "<group>"; };
 		AA00000100000000000000B1 /* PricingProposalFoundation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PricingProposalFoundation.swift; sourceTree = "<group>"; };
@@ -118,6 +120,7 @@
 			isa = PBXGroup;
 			children = (
 				AA0000010000000000000014 /* RootNavigationView.swift */,
+				D1C000010000000000000011 /* DocumentImportCoordination.swift */,
 				AA0000010000000000000018 /* SectionEditors.swift */,
 				AA0000010000000000000019 /* PencilDrawingSupport.swift */,
 				AA0000010000000000000020 /* PhotoAttachmentSupport.swift */,
@@ -264,6 +267,7 @@
 				AA0000010000000000000004 /* RootNavigationView.swift in Sources */,
 				AA0000010000000000000005 /* CardComponents.swift in Sources */,
 				AA0000010000000000000006 /* PDFPreviewStubView.swift in Sources */,
+				D1C000010000000000000001 /* DocumentImportCoordination.swift in Sources */,
 				AA0000010000000000000007 /* SectionEditors.swift in Sources */,
 				AA0000010000000000000008 /* PencilDrawingSupport.swift in Sources */,
 				AA0000010000000000000009 /* PhotoAttachmentSupport.swift in Sources */,

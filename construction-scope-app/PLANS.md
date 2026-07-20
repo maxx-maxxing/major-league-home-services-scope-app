@@ -49,6 +49,7 @@ Status meanings:
 | 7.6.4 | In progress | Recovery risks are documented and 7.6.4.1 save-failure containment is implemented; the manual continuity matrix and lossless backup/import remain open. |
 | 7.6.4.1 | Implemented; manual acceptance remains | Core SwiftData saves share a privacy-safe failure warning and deterministic same-context retry; device layout, VoiceOver, Reduce Motion, and interruption behavior still require manual acceptance. |
 | 7.6.4.2 | Implemented; manual release gate remains | Superseded Documents files retire only after confirmed metadata saves through a scope/attachment-bound, symlink-safe deletion path; target-device import/removal and interruption checks remain manual. |
+| 7.6.4.3 | Implemented; manual release gate remains | Documents imports use immutable request identity, reject stale/out-of-order completion, and safely retire never-adopted managed files; rapid target-device picker/interruption checks remain manual. |
 | 7.6.5–7.6.6 | Implemented | General whitespace repair and persistent text-field labels are present. |
 | 7.7 | Implemented; compatibility gate applies | Section-owned measurement blocks and PDF mapping are present; future stored-shape changes remain governed by 7.6.3. |
 
@@ -1137,6 +1138,53 @@ Status meanings:
   - Manual gate: target-device replace/clear/additional-row removal through Files, Photos, and Camera; save-failure warning/retry; force-close/relaunch; and confirmation that current/new files reopen while retired files do not
   - Definition of done: automated tests and independent review prove save-before-delete and fail-closed path containment, docs preserve exclusions, and no existing user workflow or stored shape is redesigned
   - Checkpoint: stop before async import concurrency redesign, durable cleanup/backup architecture, migration/path-format work, TestFlight/deployment, or any external-system mutation
+- Milestone 7.6.4.3 – Documents Async Import Identity Safety
+  - Status: Implemented and repository-verified as of 2026-07-20; manual release acceptance remains
+  - Hierarchy: `Full Suite Program → Construction Scope Workstream → Phase 2 → Persistence hardening → Documents import concurrency`
+  - Confirmed pre-change risk:
+    - photo-library target identity was read after an asynchronous transferable load, so a later picker could redirect an older result
+    - file/photo tasks could complete out of order; an older completion could overwrite a newer attachment or clear the newer presentation state
+    - clear, row removal, or navigation away did not invalidate in-flight work, so late completion could restore removed metadata
+    - if an additional row disappeared before completion, the already-created managed file was not adopted and remained orphaned
+  - Objective: preserve the existing Files, Photos, and Camera UI while allowing only the current immutable request for the same scope and still-existing target to adopt a newly created attachment
+  - Scope:
+    - create a small Foundation-only request/decision contract with a unique request ID, scope ID, and immutable target captured before the first suspension
+    - replace mutable-slot completion routing with exact active-request comparison
+    - treat a newer request for any target as superseding the older request; stale success must not reset or overwrite the newer presentation
+    - invalidate a matching request when its attachment is cleared, its additional row is removed, or the Documents editor disappears
+    - require an additional-row target to still exist at adoption time
+    - immediately retire a successfully created but never-adopted managed file only after rechecking that the current scope does not reference its ID or standardized path
+    - surface the existing import error only for the still-current request; stale failure is ignored
+    - preserve the 7.6.4.2 confirmed-save retirement path for attachments that were actually adopted and later replaced/removed
+  - Exclusions:
+    - no `JobScope`/`schema.json` change, durable task/retirement ledger, orphan sweep, backup/import, path migration, reinstall/device recovery, or other asset-system redesign
+    - no changes to labels, menus, supported import sources/types, attachment metadata, PDF/pricing/JobTread, cloud/backend, deployment, or live systems
+    - no broad structured-concurrency rewrite, progress/cancel UI, picker redesign, or camera JPEG/file-write performance move in this slice
+  - Expected files: one pure coordination helper, standalone tests/gate, Documents editor routing, Xcode source membership, project-hash updates in affected gates, and status/context documentation
+  - Acceptance criteria:
+    - a current matching request adopts once into its original target and retains current save/retirement semantics
+    - an older same-target or different-target completion cannot overwrite a newer request or clear its presentation
+    - photo-library routing captures its target before transferable loading
+    - clear/remove/navigation invalidation prevents late adoption
+    - a vanished additional row prevents adoption and safely retires only the never-adopted file
+    - stale errors do not replace a current request's UI state; current errors keep the existing customer-facing message flow
+    - rejected cleanup leaves an orphan rather than deleting a current, referenced, wrong-scope, or external file
+    - `Models/SchemaModels.swift` and `schema.json` remain byte-for-byte unchanged
+  - Implementation evidence:
+    - `DocumentImportCoordination` owns the current immutable request ID, scope ID, and target, and returns explicit adopt or stale/wrong-scope/missing-target discard decisions
+    - each presenter instance and Files/Photos/Camera callback is bound to the request ID that opened it; Photos receives that request before its first transferable suspension
+    - newer requests supersede prior requests; same-target clear, additional-row removal, and editor disappearance invalidate before late completion can mutate Documents
+    - current success uses `updateDocuments(retiring:)`; stale success never resets newer presentation and retires only its own unreferenced, scope-bound file
+    - stale failure is ignored; current failure retains the existing alert/message flow
+    - camera encoding/writing and dismissal are gated by a current scope/target decision after final security review; checklist-camera behavior remains unchanged
+  - Verification evidence:
+    - `verify_document_import_coordination.sh` passed Swift 6 strict-concurrency identity, staleness, invalidation, duplicate, route, presentation, reference, and frozen-hash checks
+    - nested asset-retirement/save-health gates, Debug/Release builds, Release analysis, persistence compatibility, offline JobTread contract/security, and PDF privacy passed
+    - project/plist parsing, shell syntax/executable modes, frozen hashes, secret scan, and whitespace checks passed
+    - independent behavior/privacy review found no P0–P3 regression; the security review's one presentation-state finding was fixed and reverified
+  - Manual gate: rapidly start same-target and cross-target imports with differently named fixtures; clear/remove/navigate away while loading; test Files, Photos, and Camera; confirm only the latest current target changes, stale files are absent, and error/picker state remains usable
+  - Definition of done: automated tests and independent review prove immutable routing, stale-completion rejection, safe never-adopted cleanup, and preservation of all existing user-visible import behavior and stored shapes
+  - Checkpoint: stop before durable recovery/orphan architecture, generalized asset import framework, task-progress UI, camera performance redesign, TestFlight/deployment, or any external-system mutation
 - Milestone 7.6.5 – General Text Entry Whitespace Repair
   - Audit SwiftUI `TextField` / `TextEditor` bindings and related setter paths for live whitespace normalization
   - Keep the established Scope Title behavior: editable text stores raw user input during typing, while display/export/persistence boundaries may still trim blank-only values

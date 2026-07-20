@@ -10,9 +10,22 @@
 - Milestone 5.6.1 implements optional voice-note and AI-draft **storage contracts only**. There is no recording, transcription, extraction/review, intent, render, or AI publishing feature.
 - Milestone 6 local photo handling is implemented; its former full-page PDF appendix presentation was superseded by Milestone 4.8.1 compact thumbnails.
 - Milestones 7.1, 7.3, 7.4, 7.5, 7.5.2, and 7.7 are implemented in code. Milestone 7.5.1 is a superseded investigation, and Milestone 7.2 acceptance/device/accessibility closeout remains open.
-- Milestones 7.6.1–7.6.2.3, 7.6.3.1, 7.6.4.1–7.6.4.2, 7.6.5, and 7.6.6 are implemented; 7.6.3 remains an active persistence-shape guardrail. Milestone 7.6.4 remains in progress because its device continuity matrix and lossless backup/import path are still open.
+- Milestones 7.6.1–7.6.2.3, 7.6.3.1, 7.6.4.1–7.6.4.3, 7.6.5, and 7.6.6 are implemented; 7.6.3 remains an active persistence-shape guardrail. Milestone 7.6.4 remains in progress because its device continuity matrix and lossless backup/import path are still open.
 
 ## Decisions
+- Milestone 7.6.4.3 Documents async-import identity safety — 2026-07-20:
+  - A focused audit confirmed that Photo Library read the mutable target after `loadTransferable` suspended, tasks could complete out of order, clear/remove/navigation did not invalidate in-flight work, and a deleted additional-row completion left its created file orphaned.
+  - Added the Foundation-only `DocumentImportCoordination` contract. Each request has an immutable unique ID, scope ID, and target; completion adopts only the exact current request for the same scope and a still-existing target.
+  - Each presenter and its Files, Photos, and Camera callbacks are bound to the request that opened it. Photos receives identity before its first asynchronous load. Older success/failure cannot reset a newer picker or error state.
+  - Same-target clear, additional-row removal, and editor disappearance invalidate before metadata mutation/navigation. Clear on an unrelated target leaves the active request intact.
+  - Current success still uses `updateDocuments(retiring:)`: empty-slot import remains debounced, replacement preserves 7.6.4.2 confirmed-save retirement, and save failure keeps the new file referenced for retry.
+  - A created but never-adopted file is retired only after the original scope matches and the current model does not reference its ID/path. Cleanup reuses the scope/UUID/symlink-safe helper; rejection leaves an orphan.
+  - Final security review caught camera-sheet dismissal before delayed-callback validation. Camera encoding/writing and dismissal now require a current request/scope/target; the checklist-camera adapter preserves prior behavior.
+  - Labels, menus, import sources/types, metadata/display, error messaging, schema, PDF, pricing, JobTread, and other asset systems were not redesigned. Camera JPEG/file work remains on the main actor as before.
+  - Verification passed after the camera fix: the Swift 6 coordination gate, nested retirement/save gates, Debug/Release builds, Release analysis, persistence compatibility, offline JobTread contract/security, PDF privacy, plist/project/shell/mode/frozen-hash/secret/whitespace checks, and two independent reviews.
+  - Manual acceptance remains for rapid same/cross-target Files/Photos imports, clear/remove/navigation while loading, Camera, error/picker state, and file reopening. Photo cancellation still relies on a later import/navigation to invalidate its harmless logical request, matching prior presentation behavior.
+  - Durable task/retirement state, orphan sweeping, backup/import, path migration, reinstall recovery, camera performance, progress UI, deployment, cloud/backend work, and all external writes remain separate.
+
 - Milestone 7.6.4.2 save-confirmed Documents asset retirement — 2026-07-20:
   - A production-readiness audit confirmed that Documents replace, clear, and additional-row deletion removed the prior local file before the debounced metadata save completed. A save failure or interruption could therefore leave persisted attachment metadata pointing to deleted bytes, and the old deletion API accepted any persisted absolute path.
   - `PersistenceSaveHealth` now owns a nonthrowing confirmed-save action queue. Actions are registered before the save attempt, retained across failed attempts and retries, and drained exactly once only after the shared model-context save succeeds. Cleanup failure is deliberately separate from save health so a safely persisted metadata change is not reported as unsaved.

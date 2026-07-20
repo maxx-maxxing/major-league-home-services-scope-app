@@ -58,16 +58,23 @@ struct PersistenceStartupIssue: LocalizedError {
 
 @MainActor
 final class DebouncedAutosave: ObservableObject {
-    private var modelContext: ModelContext?
+    let persistenceHealth: PersistenceSaveHealth
+
     private var pendingSaveTask: Task<Void, Never>?
     private let delay: TimeInterval
 
-    init(delay: TimeInterval = 0.8) {
+    init(
+        delay: TimeInterval = 0.8,
+        persistenceHealth: PersistenceSaveHealth? = nil
+    ) {
         self.delay = delay
+        self.persistenceHealth = persistenceHealth ?? PersistenceSaveHealth()
     }
 
     func configure(with modelContext: ModelContext) {
-        self.modelContext = modelContext
+        persistenceHealth.configure {
+            try modelContext.save()
+        }
     }
 
     func scheduleSave(for scope: JobScope) {
@@ -82,23 +89,19 @@ final class DebouncedAutosave: ObservableObject {
             guard !Task.isCancelled else { return }
 
             scope.updatedAt = .now
-            do {
-                try self.modelContext?.save()
-            } catch {
-                assertionFailure("Autosave failed: \(error)")
-            }
+            self.saveNow(.autosave)
         }
     }
 
     func flush(scope: JobScope) {
         pendingSaveTask?.cancel()
         scope.updatedAt = .now
+        saveNow(.manualFlush)
+    }
 
-        do {
-            try modelContext?.save()
-        } catch {
-            assertionFailure("Manual save failed: \(error)")
-        }
+    @discardableResult
+    func saveNow(_ operation: PersistenceSaveOperation) -> Bool {
+        persistenceHealth.attempt(operation)
     }
 }
 

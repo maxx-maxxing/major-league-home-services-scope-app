@@ -49,7 +49,7 @@ struct ProjectInfoEditorView: View {
                                     .foregroundStyle(.secondary)
 
                                 if let fetchedAt = scope.jobTreadCustomer?.fetchedAt {
-                                    Text("Last synced \(fetchedAt.formatted(date: .abbreviated, time: .shortened))")
+                                    Text("Customer details refreshed \(fetchedAt.formatted(date: .abbreviated, time: .shortened))")
                                         .font(.footnote)
                                         .foregroundStyle(.secondary)
                                 }

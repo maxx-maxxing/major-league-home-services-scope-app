@@ -1,8 +1,53 @@
 # PLANS.md
 # Milestone Plan – Construction Scope App
 
-This is the milestone-by-milestone plan. Treat this file as the **source of truth** for implementation order.
-Keep milestones small, testable, and reviewable.
+This is the milestone-by-milestone plan. Treat the audited ledger and active phase card in this file as the **source of truth** for current status and execution order.
+Detailed historical cards are intentionally retained even where earlier work accumulated out of numeric order. Keep new milestones small, testable, and reviewable.
+
+## Audited Roadmap Status – 2026-07-20
+
+This ledger is the authoritative current-status view. The milestone definitions below remain the implementation history and intended order; `DOCUMENTATION.md` records evidence, decisions, and superseded behavior.
+
+Status meanings:
+- **Implemented**: the current code contains the milestone behavior and proportional repository checks have passed.
+- **Implemented; manual release gate remains**: code is present, but signed-device, accessibility, or update-in-place validation is still required before field release.
+- **In progress**: only part of the parent milestone is implemented.
+- **Active guardrail**: policy is in force and must continue to be applied to later changes.
+- **Superseded / historical**: useful decision history that no longer describes the current implementation.
+- **Planned / not started**: no end-user implementation is present.
+
+| Milestone | Audited status | Current boundary |
+|---|---|---|
+| 0–1 | Implemented | App skeleton, SwiftData storage, templates, and debounced autosave exist. |
+| 2–2.5 | Implemented | Schema-backed editors, multi-select workflows, review state, and project-type relevance are present. |
+| 3–3.4.4 | Implemented | PencilKit capture and deterministic signature/diagram restore paths are present. |
+| 4–4.8.3 | Implemented; manual release gate remains | Flattened PDF preview/export, relevance filtering, compact thumbnails/flow, and print-safe rendering are present; physical-device PDF smoke testing remains a release gate. |
+| 5 | In progress | Debug-only JobTread customer read/link/refresh and internal proposal/pricing scaffolding exist; Release authentication and every outbound sync/write remain unimplemented. |
+| 5.1 | In progress | Linked model foundation is implemented; the canonical field-by-field JobTread mapping/readiness freeze is incomplete. |
+| 5.2 | Partially implemented | Typed Debug read client, hydration, and local fallback exist; production authentication, retry/backoff, offline operations, and outbound APIs are pending. |
+| 5.2.7–5.2.14 | Superseded / historical | Query experiments culminated in the current bounded `like` search sequence plus exact fallback. |
+| 5.2.20–5.2.22 | Superseded / historical | Phone/email uncertainty and the one-time live probe were superseded by verified custom-field hydration. |
+| 5.2.24–5.2.26 | Implemented | Verified phone/email and unit/location hydration plus display polish are present. The unit milestone is disambiguated below as 5.2.24.2. |
+| 5.2.27 | Needs refresh | The architecture audit exists, but parts of its mapping evidence predate verified phone/email hydration; no outbound sync is implemented. |
+| 5.2.28–5.2.39 | Implemented as internal/debug scaffolding | These paths use sample/draft pricing and are not a production pricing system, customer proposal UI, PDF pricing output, or JobTread submission flow. |
+| 5.3–5.5 | Planned / not started | No JobTread create/update/upload/send workflow exists. |
+| 5.6 | Planned; 5.6.1 implemented | Voice-note and AI-draft storage contracts exist; recording, transcription, extraction/review, intents, renders, and publishing are not implemented. |
+| 6 | Implemented; presentation superseded | Local photo capture/import/storage remains; 4.8.1 replaced the former full-page appendix with compact PDF thumbnails. |
+| 7 | In progress | Code polish is broadly implemented; formal device/accessibility acceptance in 7.2 remains open. |
+| 7.1 | Implemented; manual acceptance remains | Interaction animation pass is present; device motion/accessibility checks remain under 7.2. |
+| 7.2 | In progress | Dynamic Type, Light/Dark, VoiceOver, Reduce Motion, force-close continuity, and complete device/PDF acceptance are not fully recorded. |
+| 7.3 | Implemented, then superseded by 7.4 | Restrained glass work was replaced by the later maximalist/refinement track. |
+| 7.4–7.4.7 | Implemented | 7.4.4–7.4.6 grouping experiments were later superseded by 7.4.7's flat multi-project-type scope list. |
+| 7.5 | Implemented; manual release gate remains | Local Documents / Attachments import and management are present; device import smoke testing remains a release gate. |
+| 7.5.1 | Mitigations implemented; diagnosis superseded / historical | Import presentation-state and off-main-thread file handling remain useful, but 7.5.2 superseded the original presenter-first diagnosis. |
+| 7.5.2 | Implemented; manual release gate remains | Encoded documents-payload hardening is present; device reopening and any legacy-data limitations remain release checks. |
+| 7.6.1–7.6.2.2 | Implemented; manual release gate remains | Persistence audit and Release/JobTread containment checks pass; signed TestFlight launch and build-to-build continuity remain manual. |
+| 7.6.3 | Active guardrail | Persistence-shape policy is in force; enforcement remains review-driven. |
+| 7.6.3.1 | Implemented; manual release gate remains | Host-reconstructed compatibility gate passes; installed-build device continuity is not proven. |
+| 7.6.4 | In progress | Recovery risks are documented and 7.6.4.1 save-failure containment is implemented; the manual continuity matrix and lossless backup/import remain open. |
+| 7.6.4.1 | Implemented; manual acceptance remains | Core SwiftData saves share a privacy-safe failure warning and deterministic same-context retry; device layout, VoiceOver, Reduce Motion, and interruption behavior still require manual acceptance. |
+| 7.6.5–7.6.6 | Implemented | General whitespace repair and persistent text-field labels are present. |
+| 7.7 | Implemented; compatibility gate applies | Section-owned measurement blocks and PDF mapping are present; future stored-shape changes remain governed by 7.6.3. |
 
 ## Milestone 0 – Repo + App Skeleton
 - Create Xcode project (SwiftUI)
@@ -96,6 +141,11 @@ Keep milestones small, testable, and reviewable.
 - Preserve backward-compatible decoding for previously saved flat structural payloads where practical.
 - Normalize/prune inactive hidden structural branch values for proposal/PDF/export output so only the active branch is emitted.
 - Keep the change scoped to `schema.json`, Structural System model/view code, proposal/PDF export composition, and status docs without refactoring unrelated sections.
+
+### Milestone 2.3.3 – Existing Structure Notes
+- Add a dedicated optional notes field for Existing Structure context.
+- Surface the value in the Existing Conditions editor and relevant proposal/PDF composition.
+- Preserve existing structured selections and unrelated section workflows.
 
 ### Milestone 2.4 – Section Review / Completion Workflow
 - Add lightweight per-section review state so field users can mark a section complete for now without requiring any fields.
@@ -535,7 +585,7 @@ Keep milestones small, testable, and reviewable.
     - ZIP
   - Leave phone/email editable as local scope-owned fields for now
   - Validate the pass with a clean compile without touching partial search or linked-scope creation
-- Milestone 5.2.24 – Linked Customer Unit Number Hydration
+- Milestone 5.2.24.2 – Linked Customer Unit Number Hydration
   - Add an additive optional `unitNumber` field to the schema-backed project info model and linked JobTread customer metadata
   - Keep `projectInfo.address` limited to the street line and hydrate `unitNumber` separately when the verified JobTread location payload clearly contains unit information
   - Prefer a clearly available verified location source first; otherwise conservatively extract only obvious trailing unit designators from the existing verified address string
@@ -940,6 +990,49 @@ Keep milestones small, testable, and reviewable.
     - attachment/photo/signature/sketch reopening
     - delete/relaunch edge cases
   - Define a near-term local backup/export path for production scopes before broader beta distribution
+- Milestone 7.6.4.1 – Model Save Failure Containment + Retry
+  - Status: Implemented and repository-verified on 2026-07-20; manual device/accessibility acceptance remains
+  - Hierarchy: `Full Suite Program → Construction Scope Workstream → Phase 2 → Persistence hardening → local save-failure containment`
+  - Objective: ensure a Release user cannot unknowingly continue after a failed core SwiftData save
+  - Scope:
+    - centralize core scope-save attempts behind one persistence-health boundary
+    - preserve the existing debounced autosave timing and successful save behavior
+    - show a persistent, accessible `Changes Not Saved` warning after failure
+    - retry the same in-memory `ModelContext` changes deterministically
+    - clear the warning only after a confirmed successful save
+    - use generic user copy and fixed, privacy-safe operation metadata in diagnostics
+  - Core save paths covered:
+    - debounced autosave and manual flush
+    - scope create, rename, delete, and access-time updates
+    - linked-customer initial hydration and manual refresh persistence
+  - Exclusions:
+    - no model/schema changes, migrations, store deletion/recreation, rollback, backup/import, asset-path redesign, JobTread behavior change, pricing, PDF, or feature redesign
+    - no raw error, customer data, production identifier, credential, or local path in the warning or diagnostic message
+  - Expected files/systems affected: persistence coordination, root warning UI/save call sites, narrow injected-failure tests/script, Xcode file membership, and status/context documentation; no external system
+  - Acceptance criteria:
+    - successful autosave retains its current debounce and timestamp behavior
+    - injected save failure creates a warning and retry failure keeps it present
+    - retry success clears the warning after saving the existing pending context
+    - all listed core save paths use the shared reporting boundary
+    - user-visible and logged failure content is privacy-safe
+    - `SchemaModels.swift` and `schema.json` remain byte-for-byte unchanged
+  - Verification:
+    - standalone injected-failure/retry gate
+    - Debug and Release generic-iOS builds and Release analysis
+    - repository-baseline persistence compatibility gate
+    - JobTread security gate, plist/project parsing, shell syntax, executable modes, and whitespace checks
+  - Implementation evidence:
+    - `PersistenceSaveHealth` owns the fixed operation metadata, generic warning state, injected save action, and retry lifecycle
+    - `DebouncedAutosave` preserves its 0.8-second debounce and timestamp updates while routing all listed save attempts through the shared boundary
+    - root and presented scope workflows show the same persistent warning, including creation, PDF preview/share, photos, and sketch/signature sheets
+    - the warning has a full-width 44-point retry action, moves accessibility focus to its header, and avoids motion when Reduce Motion is enabled
+    - injected success/failure/retry tests, exact route/privacy/schema-freeze checks, Debug and Release builds, Release analysis, repository-baseline compatibility, and JobTread security verification passed
+    - `Models/SchemaModels.swift` and `schema.json` retained their pre-slice SHA-256 hashes
+  - Remaining manual gate: verify warning layout/hit testing and retry behavior on target iPhone/iPad presentations, including that a failure remains visible after dismissing Apple-owned photo/file/camera pickers; then exercise VoiceOver, Dynamic Type, Reduce Motion, Light/Dark, background/foreground, and force-close/relaunch behavior
+  - Risks and failure modes: warning layout obstruction, false success copy, save-boundary omissions, retry clearing a still-failing state, or accidental successful-path timing changes; Apple-owned photo/file/camera pickers can temporarily cover the in-app warning, which must remain visible after dismissal
+  - Size and estimate: Small, one bounded implementation/verification checkpoint
+  - Definition of done: automated checks pass, the warning remains until confirmed save success, existing features and stored shapes are unchanged, and manual device checks are reported honestly
+  - Checkpoint: stop before lossless backup/import, migration architecture, TestFlight deployment, credential rotation, or any live JobTread mutation
 - Milestone 7.6.5 – General Text Entry Whitespace Repair
   - Audit SwiftUI `TextField` / `TextEditor` bindings and related setter paths for live whitespace normalization
   - Keep the established Scope Title behavior: editable text stores raw user input during typing, while display/export/persistence boundaries may still trim blank-only values

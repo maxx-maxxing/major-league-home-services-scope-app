@@ -240,6 +240,101 @@ private func sortedScopes(
 }
 
 private let rootNavigationCoordinateSpace = "RootNavigationCoordinateSpace"
+
+private struct PersistenceSaveWarningOverlay: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @ObservedObject var persistenceHealth: PersistenceSaveHealth
+    @AccessibilityFocusState private var warningTitleFocused: Bool
+
+    var body: some View {
+        Group {
+            if let issue = persistenceHealth.issue {
+                VStack(alignment: .leading, spacing: 12) {
+                    Label {
+                        Text(issue.title)
+                            .font(.headline)
+                    } icon: {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .foregroundStyle(.red)
+                    }
+                    .accessibilityAddTraits(.isHeader)
+                    .accessibilityFocused($warningTitleFocused)
+
+                    Text(issue.message)
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+
+                    Button {
+                        _ = persistenceHealth.retry()
+                    } label: {
+                        Label("Retry Save", systemImage: "arrow.clockwise")
+                            .frame(maxWidth: .infinity, minHeight: 44)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .tint(.red)
+                    .accessibilityHint("Attempts to save all pending local changes again.")
+                }
+                .padding(16)
+                .frame(maxWidth: 560, alignment: .leading)
+                .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+                .overlay {
+                    RoundedRectangle(cornerRadius: 18, style: .continuous)
+                        .stroke(.red.opacity(0.35), lineWidth: 1)
+                }
+                .shadow(color: .black.opacity(0.16), radius: 14, y: 6)
+                .padding(.horizontal, 16)
+                .padding(.top, 12)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+                .transition(reduceMotion ? .identity : .move(edge: .top).combined(with: .opacity))
+                .accessibilityElement(children: .contain)
+                .accessibilitySortPriority(100)
+            }
+        }
+        .animation(
+            reduceMotion ? nil : .snappy(duration: 0.24, extraBounce: 0),
+            value: persistenceHealth.issue != nil
+        )
+        .task(id: persistenceHealth.issue?.id) {
+            guard let issueID = persistenceHealth.issue?.id else {
+                warningTitleFocused = false
+                return
+            }
+
+            warningTitleFocused = false
+            if reduceMotion {
+                await Task.yield()
+            } else {
+                try? await Task.sleep(for: .milliseconds(280))
+            }
+
+            guard !Task.isCancelled, persistenceHealth.issue?.id == issueID else { return }
+            warningTitleFocused = true
+        }
+    }
+}
+
+private struct PersistenceSaveWarningLayer<Content: View>: View {
+    let persistenceHealth: PersistenceSaveHealth
+    let content: Content
+
+    init(
+        persistenceHealth: PersistenceSaveHealth,
+        @ViewBuilder content: () -> Content
+    ) {
+        self.persistenceHealth = persistenceHealth
+        self.content = content()
+    }
+
+    var body: some View {
+        ZStack {
+            content
+
+            PersistenceSaveWarningOverlay(persistenceHealth: persistenceHealth)
+                .zIndex(30)
+        }
+    }
+}
+
 struct RootNavigationView: View {
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @Environment(\.modelContext) private var modelContext
@@ -403,6 +498,9 @@ struct RootNavigationView: View {
             }
             .zIndex(20)
 #endif
+
+            PersistenceSaveWarningOverlay(persistenceHealth: autosave.persistenceHealth)
+                .zIndex(30)
         }
         .coordinateSpace(name: rootNavigationCoordinateSpace)
         .onAppear {
@@ -425,17 +523,19 @@ struct RootNavigationView: View {
             ensureSelectedSectionIsVisible()
         }
         .sheet(isPresented: $showingScopeCreationSheet) {
-            ScopeCreationSheet(
-                onCreateBlankScope: {
-                    let newScope = createNewScope()
-                    if !useCompactNavigation {
-                        beginSidebarRename(for: newScope, mode: .newScope)
+            PersistenceSaveWarningLayer(persistenceHealth: autosave.persistenceHealth) {
+                ScopeCreationSheet(
+                    onCreateBlankScope: {
+                        let newScope = createNewScope()
+                        if !useCompactNavigation {
+                            beginSidebarRename(for: newScope, mode: .newScope)
+                        }
+                    },
+                    onCreateScopeFromCustomer: { customer in
+                        _ = createScopeFromCustomer(customer)
                     }
-                },
-                onCreateScopeFromCustomer: { customer in
-                    _ = createScopeFromCustomer(customer)
-                }
-            )
+                )
+            }
         }
     }
 
@@ -510,12 +610,7 @@ struct RootNavigationView: View {
     @discardableResult
     private func persistNewScope(_ newScope: JobScope) -> JobScope {
         modelContext.insert(newScope)
-
-        do {
-            try modelContext.save()
-        } catch {
-            assertionFailure("Failed to save new scope")
-        }
+        _ = autosave.saveNow(.createScope)
 
         selectedScopeID = newScope.id
         selectedSection = .projectInfo
@@ -528,12 +623,7 @@ struct RootNavigationView: View {
         guard !trimmed.isEmpty else { return }
 
         scope.setLocalScopeTitle(trimmed)
-
-        do {
-            try modelContext.save()
-        } catch {
-            assertionFailure("Failed to rename scope")
-        }
+        _ = autosave.saveNow(.renameScope)
     }
 
     private func deleteScope(_ scope: JobScope) {
@@ -543,11 +633,7 @@ struct RootNavigationView: View {
             }
 
             modelContext.delete(scope)
-            do {
-                try modelContext.save()
-            } catch {
-                assertionFailure("Failed to delete scope")
-            }
+            _ = autosave.saveNow(.deleteScope)
 
             selectFirstScopeIfNeeded()
         }
@@ -587,12 +673,7 @@ struct RootNavigationView: View {
 
     private func recordScopeOpened(_ scope: JobScope) {
         scope.lastOpenedAt = .now
-
-        do {
-            try modelContext.save()
-        } catch {
-            assertionFailure("Failed to record scope access")
-        }
+        _ = autosave.saveNow(.recordScopeAccess)
     }
 
     private func hydrateScopeFromSelectedCustomer(scopeID: UUID, customerID: String) {
@@ -608,12 +689,7 @@ struct RootNavigationView: View {
                     }
 
                     scope.applyLinkedCustomerHydration(detail)
-
-                    do {
-                        try modelContext.save()
-                    } catch {
-                        assertionFailure("Failed to save hydrated customer details")
-                    }
+                    _ = autosave.saveNow(.hydrateLinkedCustomer)
                 }
             } catch {
                 assertionFailure("JobTread customer detail hydration failed")
@@ -1112,17 +1188,19 @@ private struct PhoneScopesListView: View {
             Text("This permanently removes the scope and its entered details.")
         }
         .sheet(isPresented: $showingScopeCreationSheet) {
-            ScopeCreationSheet(
-                onCreateBlankScope: {
-                    let newScope = createNewScope()
-                    scopePendingRename = newScope
-                    renameDraft = ""
-                    renamePromptMode = .newScope
-                },
-                onCreateScopeFromCustomer: { customer in
-                    _ = createScopeFromCustomer(customer)
-                }
-            )
+            PersistenceSaveWarningLayer(persistenceHealth: autosave.persistenceHealth) {
+                ScopeCreationSheet(
+                    onCreateBlankScope: {
+                        let newScope = createNewScope()
+                        scopePendingRename = newScope
+                        renameDraft = ""
+                        renamePromptMode = .newScope
+                    },
+                    onCreateScopeFromCustomer: { customer in
+                        _ = createScopeFromCustomer(customer)
+                    }
+                )
+            }
         }
     }
 
@@ -1860,8 +1938,6 @@ private struct SketchSectionFingerprint: Codable {
 }
 
 struct SectionEditorView: View {
-    @Environment(\.modelContext) private var modelContext
-
     let scope: JobScope
     let section: ScopeSection
     @ObservedObject var autosave: DebouncedAutosave
@@ -2028,24 +2104,32 @@ struct SectionEditorView: View {
             }
         }
         .sheet(isPresented: $showingPreview) {
-            NavigationStack {
-                ScopePDFPreviewSheet(scope: scope)
+            PersistenceSaveWarningLayer(persistenceHealth: autosave.persistenceHealth) {
+                NavigationStack {
+                    ScopePDFPreviewSheet(scope: scope)
+                }
             }
             .presentationBackground(.clear)
         }
         .sheet(isPresented: $showingPhotos) {
-            ScopePhotosSheet(scope: scope, autosave: autosave)
-                .presentationBackground(.clear)
+            PersistenceSaveWarningLayer(persistenceHealth: autosave.persistenceHealth) {
+                ScopePhotosSheet(scope: scope, autosave: autosave)
+            }
+            .presentationBackground(.clear)
         }
         .sheet(isPresented: $showingSketchSheet) {
-            NavigationStack {
-                SignatureAndSketchSheet(scope: scope, autosave: autosave)
+            PersistenceSaveWarningLayer(persistenceHealth: autosave.persistenceHealth) {
+                NavigationStack {
+                    SignatureAndSketchSheet(scope: scope, autosave: autosave)
+                }
             }
             .presentationBackground(.clear)
         }
         .sheet(isPresented: $showingShareSheet) {
             if let shareURL {
-                ActivityShareSheet(items: [shareURL])
+                PersistenceSaveWarningLayer(persistenceHealth: autosave.persistenceHealth) {
+                    ActivityShareSheet(items: [shareURL])
+                }
             }
         }
         .alert("PDF Export Failed", isPresented: exportErrorBinding) {
@@ -2131,14 +2215,9 @@ struct SectionEditorView: View {
 
                 await MainActor.run {
                     scope.applyLinkedCustomerHydration(detail)
-                    autosave.scheduleSave(for: scope)
 
-                    do {
-                        try modelContext.save()
+                    if autosave.saveNow(.refreshLinkedCustomer) {
                         linkedCustomerRefreshMessage = "Verified customer and contact fields refreshed from JobTread."
-                    } catch {
-                        assertionFailure("Failed to save refreshed customer details")
-                        linkedCustomerRefreshErrorMessage = "Refreshed customer details could not be saved locally."
                     }
 
                     isRefreshingLinkedCustomer = false

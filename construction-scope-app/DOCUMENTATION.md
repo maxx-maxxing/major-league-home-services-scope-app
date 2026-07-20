@@ -2,79 +2,29 @@
 # Project Log - Construction Scope App
 
 ## Current Status
-- Milestone 0: Implemented
-- Milestone 1: Implemented
-- Milestone 2: Implemented (requested section editors)
-- Milestone 2.1: Implemented (Windows & Glass stability/usability pass)
-- Milestone 2.1.1: Implemented (Screen Enclosure / Sunroom terminology)
-- Milestone 2.2: Implemented (remaining schema-backed section editors)
-- Milestone 2.3: Implemented (Existing Conditions multi-select workflow alignment)
-- Milestone 2.3.1: Implemented (Existing Conditions photo checklist structured photo workflow)
-- Milestone 2.3.3: Implemented (Existing Structure notes field)
-- Milestone 2.3.2: Implemented (Structural System branching workflow alignment)
-- Milestone 2.4: Implemented (section review / completion workflow)
-- Milestone 2.5: Implemented (project-type-driven section visibility)
-- Milestone 3: Implemented (PencilKit signature + sketch capture)
-- Milestone 3.4.1: Implemented (Signature/diagram persistence repair)
-- Milestone 3.4.2: Implemented (immediate sketch metadata durability)
-- Milestone 3.4.3: Implemented (sketch metadata commit path repair)
-- Milestone 3.4.4: Implemented (deterministic sketch restore durability)
-- Milestone 4: Implemented (flattened PDF preview + export)
-- Milestone 4.7: In progress (PDF export reliability hardening)
-- Milestone 4.8: Implemented (PDF export relevance filtering)
-- Milestone 4.8.1: Implemented (compact PDF photo thumbnails)
-- Milestone 4.8.2: Implemented (compact PDF section flow)
-- Milestone 4.8.3: Implemented (PDF heading hierarchy polish)
-- Milestone 5: Not started
-- Milestone 5.1.1: Implemented (linked JobTread model foundation)
-- Milestone 5.2.1: Implemented (customer lookup entry flow)
-- Milestone 5.2.2: Implemented (local scope title separation)
-- Milestone 5.2.3: Implemented (naming UI clarification)
-- Milestone 5.2.4: Implemented (export + validation naming cleanup)
-- Milestone 5.2.5: Implemented (customer lookup query fix)
-- Milestone 5.2.6: Implemented (search field reduction)
-- Milestone 5.2.15: Implemented (post-selection customer detail hydration)
-- Milestone 5.2.16: Implemented (street-address hydration cleanup)
-- Milestone 5.2.17: Implemented (linked address contamination repair)
-- Milestone 5.2.18: Implemented (trailing city suffix cleanup)
-- Milestone 5.2.19: Implemented (linked customer read-only + refresh)
-- Milestone 5.2.21: Implemented (linked customer ownership UX clarification)
-- Milestone 5.2.22: Verified (account phone/email probe)
-- Milestone 5.2.23: Implemented (linked customer ownership stabilization)
-- Milestone 5.2.24: Implemented (linked customer phone/email hydration)
-- Milestone 5.2.24.1: Implemented (linked customer contact field polish)
-- Milestone 5.2.27: Planned (proposal-generation + structured JobTread sync architecture audit)
-- Milestone 5.2.28: Implemented (editable pricing / proposal foundation)
-- Milestone 5.2.29: Implemented (internal proposal foundation inspector)
-- Milestone 5.2.30: Implemented (proposal composition usefulness pass)
-- Milestone 5.2.31: Implemented (pricing seed / config per bucket)
-- Milestone 5.2.32: Implemented (pricing rule registry foundation)
-- Milestone 5.2.33: Implemented (external pricing configuration foundation)
-- Milestone 5.2.34: Implemented (business-owned pricing import boundary)
-- Milestone 5.2.35: Implemented (business-facing pricing intake deliverable)
-- Milestone 5.2.36: Implemented (returned pricing workbook normalization + validation)
-- Milestone 5.2.37: Implemented (bucket subtotal execution)
-- Milestone 5.2.38: Implemented (lookup-adjusted buckets + aggregate total scaffolding)
-- Milestone 5.2.39: Implemented (typed lookup execution for selected deferred families)
-- Milestone 5.6: Planned (intelligence-assisted scope capture)
-- Milestone 5.6.1: Implemented (voice note + AI draft storage foundation)
-- Milestone 6: Implemented (photo attachment flow + PDF photo appendix)
-- Milestone 7.1: In progress (interaction animation polish)
-- Milestone 7.2: In progress (acceptance closeout)
-- Milestone 7.3: In progress (liquid-glass chrome pass)
-- Milestone 7.4: In progress (maximalist Liquid Glass exploration)
-- Milestone 7.5: Implemented (documents / attachments section)
-- Milestone 7.5.1: In progress (documents responsiveness regression recovery)
-- Milestone 7.6.1: Implemented (TestFlight continuity + persistence audit)
-- Milestone 7.6.2: Implemented (Release/TestFlight configuration safety first pass)
-- Milestone 7.6.2.1: Implemented (internal debug entry point Release gating)
-- Milestone 7.6.2.2: Implemented (direct JobTread credential + diagnostic containment)
-- Milestone 7.6.3: In progress (persistence schema discipline, with checklist store-compatibility repair applied)
-- Milestone 7.6.3.1: Implemented (host-reconstructed compatibility gate + evolution policy; installed-build device continuity remains manual)
-- Milestone 7.6.5: Implemented (general text entry whitespace repair)
-- Milestone 7.6.6: Implemented (persistent text field labels)
+- The audited ledger in `PLANS.md` is the authoritative roadmap status. This section is a compact snapshot, not a second milestone tracker.
+- Milestones 0–3.4.4 are implemented. The canonical Milestone 2.1 is **Enclosure Type Multi-Select**; the older Windows & Glass stability entry below is retained only as historical evidence.
+- Milestones 4–4.8.3 are implemented in code. Milestone 4.7 still has a signed physical-device PDF smoke-test gate before field release.
+- Milestone 5 is in progress: Debug-only JobTread customer read/link/refresh exists, while Release authentication and every outbound write/sync remain unimplemented. Milestones 5.2.28–5.2.39 are internal sample/draft pricing scaffolding, not a production pricing or proposal system.
+- Milestone 5.2.24.2 is the linked-customer unit-number milestone, disambiguating it from 5.2.24 phone/email hydration. Milestone 5.2.27 contains a useful architecture audit but needs a mapping-evidence refresh after later verified hydration work.
+- Milestone 5.6.1 implements optional voice-note and AI-draft **storage contracts only**. There is no recording, transcription, extraction/review, intent, render, or AI publishing feature.
+- Milestone 6 local photo handling is implemented; its former full-page PDF appendix presentation was superseded by Milestone 4.8.1 compact thumbnails.
+- Milestones 7.1, 7.3, 7.4, 7.5, 7.5.2, and 7.7 are implemented in code. Milestone 7.5.1 is a superseded investigation, and Milestone 7.2 acceptance/device/accessibility closeout remains open.
+- Milestones 7.6.1–7.6.2.2, 7.6.3.1, 7.6.4.1, 7.6.5, and 7.6.6 are implemented; 7.6.3 remains an active persistence-shape guardrail. Milestone 7.6.4 remains in progress because its device continuity matrix and lossless backup/import path are still open.
 
 ## Decisions
+- Roadmap audit and save-failure containment implementation — 2026-07-20:
+  - Evidence review reconciled the roadmap against current source, milestone logs, compatibility/security harnesses, and the pushed branch checkpoint. The audited ledger now lives in `PLANS.md` so implementation history and present status are no longer conflated.
+  - The audit corrected material stale claims: Milestone 5 is partial rather than not started; 5.6.1 is storage-only; 7.5.1 was superseded by the 7.5.2 persistence diagnosis; and the implemented 7.7 section-scoped measurements milestone is now represented.
+  - Naming was disambiguated: canonical Milestone 2.1 is Enclosure Type Multi-Select, and linked-customer unit-number hydration is Milestone 5.2.24.2 rather than a second 5.2.24.
+  - Milestone 5.2.27 remains useful architecture history, but its field-mapping evidence needs refresh before it can guide outbound integration work. No outbound JobTread sync/write was inferred from the internal proposal/pricing scaffolding.
+  - Milestone 7.6.4.1 was selected because core SwiftData save failures could previously become assertion-only failures in Release. The implementation adds a persistent privacy-safe warning and deterministic same-context retry without changing model/schema shape, successful save timing, JobTread behavior, pricing, PDF composition, or existing feature workflows.
+  - `PersistenceSaveHealth.swift` centralizes generic save-failure state and fixed operation metadata. `DebouncedAutosave` now routes its existing autosave/manual-flush behavior through that boundary, and every listed root create/rename/delete/access/hydration/refresh save uses the same path.
+  - Root and presented scope workflows show the same `Changes Not Saved` warning with an accessible 44-point retry action. Failed retries keep the warning visible; only a confirmed successful save clears it. VoiceOver focus moves to the warning header, and Reduce Motion suppresses its movement transition.
+  - Verification passed: the standalone injected failure/retry gate, exact route/privacy/schema-freeze checks, Debug and Release unsigned generic-iOS builds, Release analysis, repository-baseline persistence compatibility, JobTread security containment, project/plist parsing, shell syntax/executable modes, and whitespace checks.
+  - `Models/SchemaModels.swift` remained `f848b2307fa94c64e8efe8c31a0201950d2036f596a54dabfbf75aee8ddbaee8`; `schema.json` remained `819b1b81ea23d3600ae83c05e073843f5036811c524b73bc743235be88a447f4`.
+  - Manual acceptance remains for target-device warning layout/hit testing across sheets, VoiceOver, Dynamic Type, Reduce Motion, Light/Dark, background/foreground, force-close/relaunch, signed TestFlight launch, and build-to-build continuity. Apple-owned photo/file/camera pickers can temporarily cover any in-app overlay; the retained warning must be confirmed visible immediately after those pickers dismiss. No PR, merge, deployment, TestFlight upload, credential rotation, cloud/backend work, or live JobTread mutation was performed.
+
 - Milestone 5.6.1 voice note + AI draft storage foundation:
   - Branch:
     - created `ai-scope-assistant` because `feature/ai-scope-assistant` could not be created due to a local Git ref path collision with `feature`
@@ -1222,7 +1172,8 @@
   - Validation:
     - compiled successfully with:
       - `xcodebuild -project ConstructionScopeApp.xcodeproj -scheme ConstructionScopeApp -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' -derivedDataPath /tmp/ConstructionScopeAppDerivedData CODE_SIGNING_ALLOWED=NO build`
-- Milestone 5.2.27 proposal-generation + structured JobTread sync architecture audit:
+- Milestone 5.2.27 proposal-generation + structured JobTread sync architecture audit (mapping evidence needs refresh):
+  - Status note (2026-07-20): retain the architecture conclusions as decision history, but re-check field-level mapping evidence against the later verified phone/email and unit/location hydration work before using it for any outbound-sync design.
   - Current architecture audit conclusion:
     - the best end-state is a hybrid model:
       - app-first for scope capture, pricing rules/calculations, proposal composition, signature embedding, and polished PDF generation
@@ -1315,7 +1266,7 @@
 - Inputs follow native control guidance:
   - Picker / Toggle / Segmented controls for discrete options
   - TextEditor for notes (Scribble-friendly)
-- Milestone 2.1 Windows & Glass fixes:
+- Historical Windows & Glass stability/usability fixes (formerly also labeled Milestone 2.1; distinct from canonical Milestone 2.1 Enclosure Type Multi-Select):
   - `Window Type` and `Glass Type` now support `Not Set` to restore schema-optional (`nil`) state.
   - Empty `windowSystem` is now cleaned up to `nil` instead of persisting an all-empty nested object.
   - Empty `enclosure` is now cleaned up to `nil` when no enclosure data remains.
@@ -1409,12 +1360,13 @@
   - Current first pass is local-only:
     - no JobTread upload/sync behavior
     - no PDF embedding/export of attached documents yet
-- Milestone 7.5.1 documents responsiveness recovery:
-  - Investigating a regression where the app becomes unresponsive after the Documents import flow work.
-  - Current leading hypothesis is modal presentation churn in the Documents section:
+- Milestone 7.5.1 documents responsiveness recovery (superseded investigation):
+  - This historical investigation initially examined a regression where the app became unresponsive after the Documents import flow work.
+  - Its leading hypothesis was modal presentation churn in the Documents section:
     - confirmation dialog directly arming `fileImporter` / `photosPicker` / camera sheet
     - transient import state not being cleared consistently after success/cancel/failure
-  - Recovery work is intentionally narrow:
+  - The later Milestone 7.5.2 reproduction identified `JobScope.documents.getter` and persisted model reconstruction as the primary fault domain, superseding this presenter-first hypothesis.
+  - The narrow recovery constraints remained useful:
     - keep the Documents section
     - stabilize importer presentation state first
     - push heavy document file writes off the main actor where practical
@@ -2036,7 +1988,7 @@
   - Added a conservative suffix-only trim for cases where a standalone city token remains at the end of the street line.
   - The trim only applies when the trailing token exactly matches the separately hydrated city and sits on a trailing whitespace boundary.
   - Middle-of-string words and unrelated street names are left unchanged.
-- Milestone 5.2.24 linked customer unit number hydration:
+- Milestone 5.2.24.2 linked customer unit number hydration:
   - Added additive optional `unitNumber` support to the schema-backed `ProjectInfo` model and persisted linked `JobTreadCustomerRef` metadata.
   - Kept the main street address field separate from unit data in the Project Information UI, PDF project-info rows, and scope address summaries.
   - The linked-customer refresh path now updates `projectInfo.unitNumber` and `jobTreadCustomer.unitNumber` alongside the existing verified JobTread-owned address fields.
@@ -2117,7 +2069,7 @@
   - `xcodebuild -project ConstructionScopeApp.xcodeproj -scheme ConstructionScopeApp -destination 'generic/platform=iOS Simulator' -derivedDataPath /tmp/ConstructionScopeAppAddressRepairDerived CODE_SIGNING_ALLOWED=NO build`
 - Unsandboxed `xcodebuild` validation succeeded on March 23, 2026 after Milestone 5.2.18 trailing city suffix cleanup using:
   - `xcodebuild -project ConstructionScopeApp.xcodeproj -scheme ConstructionScopeApp -destination 'generic/platform=iOS Simulator' -derivedDataPath /tmp/ConstructionScopeAppAddressSuffixDerived CODE_SIGNING_ALLOWED=NO build`
-- Unsandboxed `xcodebuild` validation succeeded on March 25, 2026 after Milestone 5.2.24 linked customer unit number hydration using:
+- Unsandboxed `xcodebuild` validation succeeded on March 25, 2026 after Milestone 5.2.24.2 linked customer unit number hydration using:
   - `xcodebuild -project ConstructionScopeApp.xcodeproj -scheme ConstructionScopeApp -destination 'generic/platform=iOS Simulator' -derivedDataPath /tmp/ConstructionScopeAppUnitNumberDerived CODE_SIGNING_ALLOWED=NO build`
 - Unsandboxed `xcodebuild` validation succeeded on March 25, 2026 after Milestone 5.2.25 linked customer unit edge-case coverage using:
   - `xcodebuild -project ConstructionScopeApp.xcodeproj -scheme ConstructionScopeApp -destination 'generic/platform=iOS Simulator' -derivedDataPath /tmp/ConstructionScopeAppUnitNumberEdgeDerived CODE_SIGNING_ALLOWED=NO build`

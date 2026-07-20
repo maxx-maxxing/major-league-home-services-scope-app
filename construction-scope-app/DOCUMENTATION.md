@@ -56,6 +56,8 @@
 - Milestone 5.2.37: Implemented (bucket subtotal execution)
 - Milestone 5.2.38: Implemented (lookup-adjusted buckets + aggregate total scaffolding)
 - Milestone 5.2.39: Implemented (typed lookup execution for selected deferred families)
+- Milestone 5.6: Planned (intelligence-assisted scope capture)
+- Milestone 5.6.1: Implemented (voice note + AI draft storage foundation)
 - Milestone 6: Implemented (photo attachment flow + PDF photo appendix)
 - Milestone 7.1: In progress (interaction animation polish)
 - Milestone 7.2: In progress (acceptance closeout)
@@ -66,11 +68,31 @@
 - Milestone 7.6.1: Implemented (TestFlight continuity + persistence audit)
 - Milestone 7.6.2: Implemented (Release/TestFlight configuration safety first pass)
 - Milestone 7.6.2.1: Implemented (internal debug entry point Release gating)
+- Milestone 7.6.2.2: Implemented (direct JobTread credential + diagnostic containment)
 - Milestone 7.6.3: In progress (persistence schema discipline, with checklist store-compatibility repair applied)
+- Milestone 7.6.3.1: Implemented (host-reconstructed compatibility gate + evolution policy; installed-build device continuity remains manual)
 - Milestone 7.6.5: Implemented (general text entry whitespace repair)
 - Milestone 7.6.6: Implemented (persistent text field labels)
 
 ## Decisions
+- Milestone 5.6.1 voice note + AI draft storage foundation:
+  - Branch:
+    - created `ai-scope-assistant` because `feature/ai-scope-assistant` could not be created due to a local Git ref path collision with `feature`
+  - Task scope:
+    - establish additive storage for the future voice-note-to-scope workflow
+    - keep the first pass storage-only before adding audio recording, transcription, Foundation Models extraction, App Intents, Image Playground, or JobTread upload behavior
+    - keep extracted AI values review-only by storing suggestions separately from canonical scope fields
+  - What changed:
+    - updated `PLANS.md` with Milestone 5.6 and sub-milestones for voice capture, transcription, structured extraction review, completion guidance, App Intents, concept renders, and JobTread publish packaging
+    - updated `schema.json` with optional `voiceNotes` and `aiExtractionDrafts` arrays on `JobScope`
+    - added schema types for `ScopeVoiceNote`, `ScopeAIExtractionDraft`, and `ScopeAIFieldSuggestion`
+    - mirrored those types and optional `JobScope` properties in `SchemaModels.swift`
+  - Deferred:
+    - no microphone permissions or recording UI
+    - no Speech framework transcription implementation
+    - no Foundation Models calls or generated field application
+    - no App Intents, Siri, Shortcuts, Visual Intelligence, Image Playground, PDF, or JobTread upload changes
+
 - Milestone 5.2.24.1 linked customer contact field polish:
   - Task scope:
     - improve only the in-app display and interaction for JobTread-hydrated phone/email in Project Information
@@ -551,8 +573,8 @@
 - Milestone 7.6.2 release/TestFlight configuration safety first pass:
   - Hardened Release/TestFlight config resolution around the existing JobTread integration without expanding scope into sync or broader architecture.
   - What changed:
-    - added a checked-in shared xcconfig at [AppConfig.xcconfig](/Users/maxx/Documents/major-league-home-services-scope-app/construction-scope-app/Config/AppConfig.xcconfig) with empty defaults plus an optional include of the ignored local [JobTreadSecrets.xcconfig](/Users/maxx/Documents/major-league-home-services-scope-app/construction-scope-app/Config/JobTreadSecrets.xcconfig)
-    - pointed both Debug and Release project/target configurations at that shared xcconfig in [project.pbxproj](/Users/maxx/Documents/major-league-home-services-scope-app/construction-scope-app/ConstructionScopeApp.xcodeproj/project.pbxproj)
+    - added checked-in empty defaults at [AppConfig.xcconfig](/Users/maxx/Documents/major-league-home-services-scope-app/construction-scope-app/Config/AppConfig.xcconfig)
+    - the later Milestone 7.6.2.2 split project/target configuration wiring into [AppConfig.Debug.xcconfig](/Users/maxx/Documents/major-league-home-services-scope-app/construction-scope-app/Config/AppConfig.Debug.xcconfig), which may include the ignored local [JobTreadSecrets.xcconfig](/Users/maxx/Documents/major-league-home-services-scope-app/construction-scope-app/Config/JobTreadSecrets.xcconfig), and [AppConfig.Release.xcconfig](/Users/maxx/Documents/major-league-home-services-scope-app/construction-scope-app/Config/AppConfig.Release.xcconfig), which never includes it
     - removed `JobTreadSecrets.xcconfig` from the app Resources build phase in [project.pbxproj](/Users/maxx/Documents/major-league-home-services-scope-app/construction-scope-app/ConstructionScopeApp.xcodeproj/project.pbxproj) so secret/config material no longer ships inside the app bundle
     - corrected the local JobTread API base URL in [JobTreadSecrets.xcconfig](/Users/maxx/Documents/major-league-home-services-scope-app/construction-scope-app/Config/JobTreadSecrets.xcconfig) so the current baseline can still work when local secrets are present
     - replaced launch-time `fatalError` config loading in [JobTreadConfig.swift](/Users/maxx/Documents/major-league-home-services-scope-app/construction-scope-app/Services/JobTreadConfig.swift) with typed non-fatal validation errors
@@ -560,7 +582,7 @@
     - replaced the persistence container `fatalError` path in [Persistence.swift](/Users/maxx/Documents/major-league-home-services-scope-app/construction-scope-app/Persistence/Persistence.swift) with a guarded recovery state
     - updated [ConstructionScopeAppApp.swift](/Users/maxx/Documents/major-league-home-services-scope-app/construction-scope-app/App/ConstructionScopeAppApp.swift) so the app can still launch into a blocked recovery screen if the SwiftData store cannot be opened, rather than crashing immediately
   - Why this is the smallest safe hardening pass:
-    - Release now resolves config through the same path as Debug
+    - Release now resolves only the checked-in empty defaults, while Debug alone may resolve the ignored local override
     - missing JobTread config no longer creates a launch-time crash path
     - secret/config material is no longer copied into shipped resources
     - persistence-open failure no longer silently wipes the user into an editable empty state
@@ -574,7 +596,7 @@
     - freeze persistence-shape changes unless they are unavoidable and explicitly migration-reviewed
     - avoid renaming/removing persisted fields, changing enum raw values, changing optional-to-required semantics, or changing attachment/document payload shapes during the active field beta window
     - treat reinstall/new-device recovery as unsupported for this beta unless a separate recovery/export path is implemented and validated
-  - Validation:
+  - Validation at this first-pass milestone, superseded by the successful Milestone 7.6.2.2 validation below:
     - Release-style build reached compilation with:
       - `xcodebuild -project ConstructionScopeApp.xcodeproj -scheme ConstructionScopeApp -configuration Release -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' -derivedDataPath /tmp/ConstructionScopeAppReleaseDerivedData CODE_SIGNING_ALLOWED=NO build`
     - remaining build failure is the pre-existing SwiftData macro/plugin sandbox issue in [SchemaModels.swift](/Users/maxx/Documents/major-league-home-services-scope-app/construction-scope-app/Models/SchemaModels.swift) and [RootNavigationView.swift](/Users/maxx/Documents/major-league-home-services-scope-app/construction-scope-app/Views/RootNavigationView.swift), not a new hardening-path compile error
@@ -590,6 +612,76 @@
     - local development keeps the current debug button/window access unchanged
     - production/TestFlight users do not see or access the internal tooling because the opener and scene are excluded at compile time rather than merely hidden at runtime
     - no normal production navigation or field workflow was refactored
+- Milestone 7.6.2.2 direct JobTread credential + diagnostic containment:
+  - Confirmed outcome:
+    - Release/TestFlight is fail closed for direct JobTread Pave access and contains no direct organization grant configuration
+    - Debug may continue using the existing ignored local override for developer-only read access
+    - the blank local scope workflow remains available in every build
+  - What changed:
+    - split Debug and Release xcconfig wiring and added [ConstructionScopeApp-Release-Info.plist](/Users/maxx/Documents/major-league-home-services-scope-app/construction-scope-app/ConstructionScopeApp-Release-Info.plist) with no `JOBTREAD_*` keys
+    - removed the ignored secret file reference from the Xcode project and kept it out of application resources
+    - added compile-time Release denial in [JobTreadConfig.swift](/Users/maxx/Documents/major-league-home-services-scope-app/construction-scope-app/Services/JobTreadConfig.swift) and defense-in-depth denial in [JobTreadClient.swift](/Users/maxx/Documents/major-league-home-services-scope-app/construction-scope-app/Services/JobTreadClient.swift), including when build-setting values are injected
+    - limited Debug API configuration to absolute HTTPS URLs without URL credentials, query parameters, or fragments
+    - replaced customer queries, identifiers, raw response bodies, API messages, and interpolated persistence errors in console diagnostics with fixed or count/type-only metadata
+    - replaced direct lookup and linked-customer refresh controls in Release with clear unavailable states while preserving existing locally stored linked-customer data
+    - added standalone Debug/Release security tests and the executable [verify_jobtread_security.sh](/Users/maxx/Documents/major-league-home-services-scope-app/construction-scope-app/scripts/verify_jobtread_security.sh) regression gate
+  - Verification performed:
+    - unsigned generic-device Debug build: succeeded
+    - unsigned generic-device Release build: succeeded
+    - Release static analysis: succeeded with no diagnostics
+    - `./scripts/verify_jobtread_security.sh`: passed Debug and Release security runners, source privacy checks, shared-scheme Archive configuration check, Release build-setting checks, and a fresh sentinel-injected Release artifact scan
+    - packaged Release plist contains no direct JobTread keys; the bundle contains no ignored secret file, injected sentinel, or configured local JobTread value
+    - plist syntax, shell syntax, and Git whitespace checks passed
+  - Scope boundaries:
+    - no JobTread write, send, financial, bulk-edit, or delete operation was performed
+    - no persistence schema or stored-data representation was changed by this milestone
+    - secure authenticated JobTread access for distributed builds requires a separate backend/service architecture milestone
+  - Credential incident and required follow-up:
+    - during the audit, the existing ignored local Debug grant was inadvertently rendered in terminal tool output; its value is not repeated or documented here
+    - treat that grant as exposed even though it remains ignored and was not found in the Release artifact
+    - revocation/rotation and replacement of the ignored Debug override remain pending explicit approval because they are live JobTread mutations
+  - Remaining manual checks:
+    - run the signed archive/TestFlight build on a physical device and confirm blank-scope creation, the Release unavailable states, and existing linked-scope read-only presentation
+    - complete the separate same-device build-A-to-build-B continuity test before field handoff
+- Milestone 7.6.3.1 repository-baseline persistence compatibility gate:
+  - Why this slice was selected:
+    - the recorded project-type-driven visibility focus was audited and confirmed already implemented in the committed codebase, so [codex_context.md](/Users/maxx/Documents/major-league-home-services-scope-app/construction-scope-app/codex_context.md) was stale
+    - the highest current production-readiness risk is another untested SwiftData stored-shape change after a prior nested-`Codable` change caused a real store-open failure
+    - the working tree adds optional `voiceNotes` and `aiExtractionDrafts` storage to `JobScope`; optional additions may lightweight-migrate, but that needed executable evidence rather than assumption
+  - What changed:
+    - added a sanitized baseline store writer and current-schema upgrade/reopen verifier under [PersistenceTests](/Users/maxx/Documents/major-league-home-services-scope-app/construction-scope-app/PersistenceTests/BaselineStoreWriter.swift)
+    - added executable [verify_persistence_compatibility.sh](/Users/maxx/Documents/major-league-home-services-scope-app/construction-scope-app/scripts/verify_persistence_compatibility.sh)
+    - pinned the repository compatibility baseline to commit `07b42f308cee328926046f3198bbaa5fe36fa43b`
+    - documented the SwiftData evolution policy and release gates in [DATA_MODEL.md](/Users/maxx/Documents/major-league-home-services-scope-app/construction-scope-app/DATA_MODEL.md)
+    - corrected [codex_context.md](/Users/maxx/Documents/major-league-home-services-scope-app/construction-scope-app/codex_context.md) so future work does not reimplement Milestone 2.5 and instead preserves the current persistence freeze/checkpoint
+  - Automated compatibility proof:
+    - reconstructs the pinned baseline `SchemaModels.swift` from Git history with the current host Xcode/SwiftData toolchain and creates a temporary sanitized SwiftData store
+    - checks that current `schema.json` contains the candidate AI field/type declarations and the pinned baseline schema does not
+    - persists representative scope identity/status, project information/type, fake JobTread references, encoded document metadata, existing conditions, dimensions, electrical/drainage/attachment/finish/permit/production values, customer approval, photo metadata, and sketch metadata
+    - opens the baseline store with the working-tree model and confirms every populated baseline root value, document/asset path, identifier, date, enum, and optional fixture value remains intact
+    - confirms the new optional AI storage fields initially resolve to `nil`
+    - writes deterministic values for every voice-note, extraction-draft, and nested-suggestion field, exits, reopens through a second process, and compares the complete additive values
+    - rejects arbitrary store paths, copies no ignored config or installed app container, removes sanitized artifacts on success, and retains a pristine baseline plus the failing sanitized workspace on failure
+  - Verification result:
+    - `./scripts/verify_persistence_compatibility.sh`: passed
+    - baseline store creation: passed
+    - current-schema open and additive save: passed
+    - separate current-schema reopen: passed
+    - unsigned generic-iOS Debug build with sanitized Debug configuration: succeeded
+    - unsigned generic-iOS Release build with fail-closed Release configuration: succeeded
+    - Release static analysis: succeeded
+    - `./scripts/verify_jobtread_security.sh`: passed both standalone runners, source/config checks, Release-setting checks, and sentinel-injected Release artifact scan
+    - plist/project parsing, shell syntax, executable-mode, Git whitespace, package-reference, and Git-lock checks: passed
+  - Scope boundaries:
+    - this milestone did not change `JobScope`, `schema.json`, persistence runtime behavior, app UI, or existing feature behavior
+    - no real customer data, credential, installed app store, JobTread call, cloud state, deployment, Git commit, or push was used
+  - Remaining uncertainty and manual gate:
+    - this automated result is a current-host macOS reconstruction from historical source; it is not an original baseline iOS store, an iOS app update, or a substitute for an explicit SwiftData migration plan
+    - the current fixture is specific evidence for the additive AI arrays, not blanket coverage for every unpopulated nested branch; later persisted-shape work must extend the affected fixture coverage or add a purpose-built migration test
+    - `schema.json` declaration parity is checked, but its current integer version is not a SwiftData schema version and does not itself provide a migration path
+    - the pinned repository commit is not claimed to be the build installed on the field TestFlight device; that exact build remains unknown
+    - before field handoff, identify build A, preserve its test container, install candidate B over it without uninstalling, force-close/relaunch, and verify every representative field/asset plus PDF export
+    - a future Milestone 7.6.4 backup/import package remains separate because PDF export and absolute local asset paths are not lossless recovery
 - Milestone 5.2.39 typed lookup execution for selected deferred families:
   - Added the next pricing-domain pass in [PricingProposalFoundation.swift](/Users/maxx/Documents/major-league-home-services-scope-app/construction-scope-app/Models/PricingProposalFoundation.swift) by inserting a narrow typed-lookup seam ahead of the existing generic lookup-adjusted scaffold.
   - Why this is the smallest safe architecture:
@@ -2093,21 +2185,22 @@
 - Scope deletion removes the SwiftData row but does not remove the owning `ScopeAssets/<scope-id>/` directory as a whole. That is primarily an orphaned-storage issue, not an update-continuity issue, but it shows there is no reconciliation pass around persisted asset files.
 - Same-device update continuity for real upgrades has not been validated with a documented install-build-A -> enter live data -> update-to-build-B -> verify-data-retained test cycle.
 
-### Release-Blocking Concerns
-- Release/TestFlight configuration is currently unsafe:
-  - `Services/JobTreadConfig.swift` uses `fatalError` when required Info.plist values are missing or unresolved.
-  - the Release target configuration in the Xcode project does not inherit `Config/JobTreadSecrets.xcconfig`, while Debug does.
-  - `RootNavigationView` eagerly constructs `JobTreadClient()` at view creation, so missing Release config can become a launch-time crash path rather than a contained feature failure.
-- Secret/config material is currently included in app resources:
-  - `ConstructionScopeApp.xcodeproj/project.pbxproj` adds `Config/JobTreadSecrets.xcconfig` to the Resources build phase.
-  - that file currently contains a real-looking API key/org configuration and should not ship inside the app bundle.
-- Migration safety is not strong enough to honestly promise "zero progress lost across future TestFlight updates" while the schema is still moving:
-  - no explicit migration/versioning strategy exists
-  - no upgrade validation matrix exists
-  - documents are hidden behind an encoded payload blob
+### Release And Continuity Status After Milestone 7.6.2.2
+- Confirmed resolved for the direct JobTread client:
+  - Release uses a dedicated plist with no direct JobTread keys and a Release xcconfig that cannot include the ignored local override
+  - Release code refuses direct access at compile-time-gated configuration and client boundaries, even when direct values are injected into build settings
+  - the ignored local secret config is absent from the Xcode project resources and verified absent from the built Release application bundle
+  - missing direct JobTread access is a contained feature state; it is not an app-launch crash path
+- Still unproven or release-sensitive:
+  - a signed archive/TestFlight build still needs a physical-device UI smoke test
+  - distributed JobTread lookup remains unavailable until a separately approved authenticated service is implemented
+  - migration safety is not strong enough to honestly promise "zero progress lost across future TestFlight updates" while the schema is still moving:
+    - no explicit migration/versioning strategy exists
+    - no upgrade validation matrix exists
+    - documents are hidden behind an encoded payload blob
 
 ### Acceptable-For-Now Risks For Immediate Same-Device Beta
-- Local-only persistence is acceptable for one real field tester on one device if release configuration is fixed first and the persistence schema is treated as effectively frozen for the beta window.
+- Local-only persistence is acceptable for one real field tester on one device now that Release credential containment is verified, provided the persistence schema is treated as effectively frozen for the beta window.
 - The current local asset-copying approach is acceptable for same-device use this week.
 - Orphaned asset cleanup on delete is not a release blocker for this week.
 - Lack of multi-device/company sync is acceptable for this week only because it is being treated as a separate future architecture problem, not as a promised current capability.
@@ -2147,8 +2240,9 @@
   - backup/recovery outside a single app container
 
 ### Recommendation Before Field Beta This Week
-- Do not ship a real TestFlight build until Release/TestFlight configuration is corrected and verified on an actual Release/TestFlight-style build.
-- Do not ship a build that bundles `JobTreadSecrets.xcconfig` or any real credential material inside app resources.
+- The unsigned Release configuration and artifact security checks now pass; run a signed archive/TestFlight physical-device smoke test before field handoff.
+- Do not reintroduce `JobTreadSecrets.xcconfig`, direct `JOBTREAD_*` plist keys, or any real credential material into Release resources.
+- Treat direct JobTread lookup/refresh as intentionally unavailable in distributed builds until the approved authenticated service boundary exists.
 - For this week's same-device beta, freeze persistence-shape changes unless they are absolutely necessary and explicitly migration-reviewed.
 - Run a manual continuity test before handing the app to the field user:
   - install build A
@@ -2165,8 +2259,7 @@
 
 ### Bottom-Line Readiness Call
 - Ready for one same-device field beta user this week only if:
-  - Release/TestFlight launch/config issues are fixed first
-  - secrets are removed from shipped resources
+  - the signed archive/TestFlight physical-device smoke test passes
   - persistence schema changes are effectively frozen during the beta window
 - Not ready to claim:
   - reinstall safety

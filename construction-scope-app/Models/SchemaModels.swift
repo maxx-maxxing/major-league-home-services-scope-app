@@ -2345,6 +2345,119 @@ struct SketchAttachment: Codable, Hashable, Identifiable {
     }
 }
 
+enum ScopeTranscriptStatus: String, Codable, CaseIterable, SchemaEnumDisplayable {
+    case pending
+    case transcribing
+    case succeeded
+    case failed
+}
+
+struct ScopeVoiceNote: Codable, Hashable, Identifiable {
+    var id: UUID
+    var audioPath: String
+    var transcript: String?
+    var transcriptStatus: ScopeTranscriptStatus
+    var transcriptErrorMessage: String?
+    var durationSeconds: Double?
+    var createdAt: Date
+    var updatedAt: Date
+
+    init(
+        id: UUID = UUID(),
+        audioPath: String,
+        transcript: String? = nil,
+        transcriptStatus: ScopeTranscriptStatus = .pending,
+        transcriptErrorMessage: String? = nil,
+        durationSeconds: Double? = nil,
+        createdAt: Date = .now,
+        updatedAt: Date = .now
+    ) {
+        self.id = id
+        self.audioPath = audioPath
+        self.transcript = transcript
+        self.transcriptStatus = transcriptStatus
+        self.transcriptErrorMessage = transcriptErrorMessage
+        self.durationSeconds = durationSeconds
+        self.createdAt = createdAt
+        self.updatedAt = updatedAt
+    }
+}
+
+enum ScopeAIExtractionDraftStatus: String, Codable, CaseIterable, SchemaEnumDisplayable {
+    case draft
+    case applied
+    case dismissed
+    case failed
+}
+
+enum ScopeAIFieldConfidence: String, Codable, CaseIterable, SchemaEnumDisplayable {
+    case low
+    case medium
+    case high
+}
+
+struct ScopeAIFieldSuggestion: Codable, Hashable, Identifiable {
+    var id: UUID
+    var sectionKey: String
+    var fieldKey: String
+    var label: String
+    var proposedValue: String
+    var confidence: ScopeAIFieldConfidence
+    var isApplied: Bool
+    var createdAt: Date
+
+    init(
+        id: UUID = UUID(),
+        sectionKey: String,
+        fieldKey: String,
+        label: String,
+        proposedValue: String,
+        confidence: ScopeAIFieldConfidence,
+        isApplied: Bool = false,
+        createdAt: Date = .now
+    ) {
+        self.id = id
+        self.sectionKey = sectionKey
+        self.fieldKey = fieldKey
+        self.label = label
+        self.proposedValue = proposedValue
+        self.confidence = confidence
+        self.isApplied = isApplied
+        self.createdAt = createdAt
+    }
+}
+
+struct ScopeAIExtractionDraft: Codable, Hashable, Identifiable {
+    var id: UUID
+    var sourceVoiceNoteID: UUID?
+    var status: ScopeAIExtractionDraftStatus
+    var summary: String?
+    var suggestedFields: [ScopeAIFieldSuggestion]
+    var remainingSectionKeys: [String]
+    var createdAt: Date
+    var updatedAt: Date
+
+    init(
+        id: UUID = UUID(),
+        sourceVoiceNoteID: UUID? = nil,
+        status: ScopeAIExtractionDraftStatus = .draft,
+        summary: String? = nil,
+        suggestedFields: [ScopeAIFieldSuggestion] = [],
+        remainingSectionKeys: [String] = [],
+        createdAt: Date = .now,
+        updatedAt: Date = .now
+    ) {
+        self.id = id
+        self.sourceVoiceNoteID = sourceVoiceNoteID
+        self.status = status
+        self.summary = summary
+        self.suggestedFields = suggestedFields
+        self.remainingSectionKeys = remainingSectionKeys
+        self.createdAt = createdAt
+        self.updatedAt = updatedAt
+    }
+}
+
 @Model
 final class JobScope {
     @Attribute(.unique) var id: UUID
@@ -2372,6 +2485,8 @@ final class JobScope {
     var customerApproval: CustomerApproval?
     var photos: [PhotoAttachment]?
     var sketches: [SketchAttachment]?
+    var voiceNotes: [ScopeVoiceNote]?
+    var aiExtractionDrafts: [ScopeAIExtractionDraft]?
 
     init(
         id: UUID = UUID(),
@@ -2398,7 +2513,9 @@ final class JobScope {
         production: ProductionOrderMeta? = nil,
         customerApproval: CustomerApproval? = nil,
         photos: [PhotoAttachment]? = nil,
-        sketches: [SketchAttachment]? = nil
+        sketches: [SketchAttachment]? = nil,
+        voiceNotes: [ScopeVoiceNote]? = nil,
+        aiExtractionDrafts: [ScopeAIExtractionDraft]? = nil
     ) {
         self.id = id
         self.createdAt = createdAt
@@ -2425,6 +2542,8 @@ final class JobScope {
         self.customerApproval = customerApproval
         self.photos = photos
         self.sketches = sketches
+        self.voiceNotes = voiceNotes
+        self.aiExtractionDrafts = aiExtractionDrafts
     }
 
     var resolvedScopeTitle: String? {

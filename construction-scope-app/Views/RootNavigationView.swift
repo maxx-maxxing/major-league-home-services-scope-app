@@ -514,7 +514,7 @@ struct RootNavigationView: View {
         do {
             try modelContext.save()
         } catch {
-            assertionFailure("Failed to save new scope: \(error)")
+            assertionFailure("Failed to save new scope")
         }
 
         selectedScopeID = newScope.id
@@ -532,7 +532,7 @@ struct RootNavigationView: View {
         do {
             try modelContext.save()
         } catch {
-            assertionFailure("Failed to rename scope: \(error)")
+            assertionFailure("Failed to rename scope")
         }
     }
 
@@ -546,7 +546,7 @@ struct RootNavigationView: View {
             do {
                 try modelContext.save()
             } catch {
-                assertionFailure("Failed to delete scope: \(error)")
+                assertionFailure("Failed to delete scope")
             }
 
             selectFirstScopeIfNeeded()
@@ -591,7 +591,7 @@ struct RootNavigationView: View {
         do {
             try modelContext.save()
         } catch {
-            assertionFailure("Failed to record scope access: \(error)")
+            assertionFailure("Failed to record scope access")
         }
     }
 
@@ -599,13 +599,11 @@ struct RootNavigationView: View {
         Task {
             do {
                 guard let detail = try await customerDetailFetcher.fetchCustomerDetails(customerID: customerID) else {
-                    print("[JobTread] customer detail hydration skipped scopeID='\(scopeID)' customerID='\(customerID)' reason=not-found")
                     return
                 }
 
                 await MainActor.run {
                     guard let scope = scopes.first(where: { $0.id == scopeID }) else {
-                        print("[JobTread] customer detail hydration skipped scopeID='\(scopeID)' customerID='\(customerID)' reason=scope-missing")
                         return
                     }
 
@@ -613,13 +611,12 @@ struct RootNavigationView: View {
 
                     do {
                         try modelContext.save()
-                        print("[JobTread] customer detail hydration applied scopeID='\(scopeID)' customerID='\(customerID)'")
                     } catch {
-                        assertionFailure("Failed to save hydrated customer details: \(error)")
+                        assertionFailure("Failed to save hydrated customer details")
                     }
                 }
             } catch {
-                print("[JobTread] customer detail hydration failed scopeID='\(scopeID)' customerID='\(customerID)': \(error.localizedDescription)")
+                assertionFailure("JobTread customer detail hydration failed")
             }
         }
     }
@@ -1742,7 +1739,7 @@ private struct ScopeSectionContentFingerprint: Equatable {
         do {
             return try encoder.encode(value)
         } catch {
-            assertionFailure("Failed to encode section content fingerprint: \(error)")
+            assertionFailure("Failed to encode section content fingerprint")
             return Data(String(describing: Value.self).utf8)
         }
     }
@@ -2140,7 +2137,7 @@ struct SectionEditorView: View {
                         try modelContext.save()
                         linkedCustomerRefreshMessage = "Verified customer and contact fields refreshed from JobTread."
                     } catch {
-                        assertionFailure("Failed to save refreshed customer details: \(error)")
+                        assertionFailure("Failed to save refreshed customer details")
                         linkedCustomerRefreshErrorMessage = "Refreshed customer details could not be saved locally."
                     }
 

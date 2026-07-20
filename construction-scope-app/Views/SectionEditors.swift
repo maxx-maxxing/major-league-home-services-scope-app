@@ -40,7 +40,11 @@ struct ProjectInfoEditorView: View {
                                 Text(linkedCustomerName)
                                     .font(.body.weight(.medium))
 
-                                Text("Verified JobTread-owned customer fields below are read-only and refresh from JobTread.")
+                                Text(
+                                    JobTreadConfig.isDirectAccessEnabled
+                                        ? "Verified JobTread-owned customer fields below are read-only and refresh from JobTread."
+                                        : "Verified JobTread-owned customer fields below are read-only. Direct refresh is unavailable in this build."
+                                )
                                     .font(.footnote)
                                     .foregroundStyle(.secondary)
 
@@ -53,7 +57,7 @@ struct ProjectInfoEditorView: View {
 
                             Spacer(minLength: 12)
 
-                            if let refreshLinkedCustomer {
+                            if JobTreadConfig.isDirectAccessEnabled, let refreshLinkedCustomer {
                                 Button {
                                     refreshLinkedCustomer()
                                 } label: {
@@ -67,6 +71,10 @@ struct ProjectInfoEditorView: View {
                                 }
                                 .buttonStyle(.bordered)
                                 .disabled(isRefreshingLinkedCustomer)
+                            } else if !JobTreadConfig.isDirectAccessEnabled {
+                                Label("Refresh unavailable", systemImage: "lock.shield")
+                                    .font(.footnote)
+                                    .foregroundStyle(.secondary)
                             }
                         }
 
@@ -4557,7 +4565,7 @@ struct SignatureAndSketchEditorView: View {
                 approval.signedDate = approval.signedDate ?? .now
             }
         } catch {
-            assertionFailure("Failed to save customer signature: \(error)")
+            assertionFailure("Failed to save customer signature")
         }
     }
 
@@ -4580,7 +4588,7 @@ struct SignatureAndSketchEditorView: View {
                 previewPath: urls.preview.path
             )
         } catch {
-            assertionFailure("Failed to save sketch \(title): \(error)")
+            assertionFailure("Failed to save sketch")
         }
     }
 

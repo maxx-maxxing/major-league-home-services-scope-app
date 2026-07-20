@@ -1,5 +1,3 @@
 JOBTREAD_API_KEY =
 JOBTREAD_ORG_ID =
 JOBTREAD_API_BASE_URL =
-
-#include? "JobTreadSecrets.xcconfig"

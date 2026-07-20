@@ -172,14 +172,12 @@ struct JobTreadDebugView: View {
                     statusMessage = "Success"
                     resultText = formattedResult
                 }
-                logCurrentGrant(currentGrant)
             } catch {
                 await MainActor.run {
                     isLoading = false
                     statusMessage = "Failed"
                     errorText = error.localizedDescription
                 }
-                print("[JobTread] currentGrant request failed: \(error.localizedDescription)")
             }
         }
     }
@@ -201,22 +199,6 @@ struct JobTreadDebugView: View {
         }
 
         return lines.joined(separator: "\n")
-    }
-
-    private func logCurrentGrant(_ currentGrant: JobTreadCurrentGrant) {
-        print("[JobTread] currentGrant.id: \(currentGrant.id)")
-        print("[JobTread] user.id: \(currentGrant.user.id)")
-        print("[JobTread] user.name: \(currentGrant.user.name)")
-
-        if currentGrant.user.memberships.nodes.isEmpty {
-            print("[JobTread] memberships: none")
-            return
-        }
-
-        for (index, membership) in currentGrant.user.memberships.nodes.enumerated() {
-            print("[JobTread] membership[\(index)].organization.id: \(membership.organization.id)")
-            print("[JobTread] membership[\(index)].organization.name: \(membership.organization.name)")
-        }
     }
 }
 

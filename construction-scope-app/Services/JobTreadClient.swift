@@ -1,10 +1,11 @@
 import Foundation
+import OSLog
 
 enum JobTreadClientError: LocalizedError {
     case configurationUnavailable(JobTreadConfigError)
     case invalidResponse
-    case unexpectedStatusCode(Int, body: String)
-    case apiErrors([String])
+    case unexpectedStatusCode(Int)
+    case apiErrors(Int)
     case emptyCurrentGrant
 
     var errorDescription: String? {
@@ -13,10 +14,10 @@ enum JobTreadClientError: LocalizedError {
             return error.errorDescription
         case .invalidResponse:
             return "JobTread returned an invalid response."
-        case let .unexpectedStatusCode(statusCode, body):
-            return "JobTread request failed with HTTP \(statusCode). Response: \(body)"
-        case let .apiErrors(messages):
-            return "JobTread returned API errors: \(messages.joined(separator: " | "))"
+        case let .unexpectedStatusCode(statusCode):
+            return "JobTread request failed with HTTP \(statusCode)."
+        case let .apiErrors(count):
+            return "JobTread returned \(count) API error\(count == 1 ? "" : "s")."
         case .emptyCurrentGrant:
             return "JobTread returned an empty currentGrant payload."
         }
@@ -70,6 +71,10 @@ struct JobTreadOrganization: Decodable, Sendable {
 
 struct JobTreadClient {
     private static let requestTimeout: TimeInterval = 8
+    private static let logger = Logger(
+        subsystem: Bundle.main.bundleIdentifier ?? "ConstructionScopeApp",
+        category: "JobTread"
+    )
 
     private let session: URLSession
     private let configResult: Result<JobTreadConfig, JobTreadConfigError>
@@ -94,7 +99,8 @@ struct JobTreadClient {
         let envelope: JobTreadCurrentGrantEnvelope = try await send(requestBody)
 
         if !envelope.errors.isEmpty {
-            throw JobTreadClientError.apiErrors(envelope.errors.map(\.message))
+            Self.logger.error("Current grant request returned API errors count=\(envelope.errors.count, privacy: .public)")
+            throw JobTreadClientError.apiErrors(envelope.errors.count)
         }
 
         guard let currentGrant = envelope.currentGrant else {
@@ -111,7 +117,7 @@ extension JobTreadClient: JobTreadCustomerSearching {
         let trimmedQuery = query.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmedQuery.isEmpty else { return [] }
 
-        print("[JobTread] customer search start query='\(trimmedQuery)' mode=like-then-exact limit=\(limit)")
+        Self.logger.info("Customer search started limit=\(limit, privacy: .public)")
 
         let partialAttempts: [JobTreadPartialSearchAttempt] = [
             .prefixLike(trimmedQuery),
@@ -126,24 +132,27 @@ extension JobTreadClient: JobTreadCustomerSearching {
                     nameComparison: attempt.comparison
                 )
 
-                print("[JobTread] partial attempt complete operator=\(attempt.label) query='\(attempt.value)' results=\(partialResults.count)")
+                Self.logger.info(
+                    "Customer search attempt completed mode=\(attempt.label, privacy: .public) resultCount=\(partialResults.count, privacy: .public)"
+                )
 
                 if !partialResults.isEmpty {
-                    print("[JobTread] customer search complete query='\(trimmedQuery)' mode=\(attempt.label) results=\(partialResults.count)")
                     return partialResults
                 }
             } catch {
-                print("[JobTread] partial attempt failed operator=\(attempt.label) query='\(attempt.value)' error='\(error.localizedDescription)'")
+                Self.logger.error(
+                    "Customer search attempt failed mode=\(attempt.label, privacy: .public) errorType=\(String(describing: type(of: error)), privacy: .public)"
+                )
             }
         }
 
-        print("[JobTread] customer search fallback query='\(trimmedQuery)' reason=no successful partial-like match")
+        Self.logger.info("Customer search using exact fallback")
         let exactResults = try await performCustomerSearch(
             matching: trimmedQuery,
             limit: limit,
             nameComparison: .equalTo
         )
-        print("[JobTread] customer search complete query='\(trimmedQuery)' mode=exact-fallback results=\(exactResults.count)")
+        Self.logger.info("Customer search completed mode=exact-fallback resultCount=\(exactResults.count, privacy: .public)")
         return exactResults
     }
 }
@@ -159,23 +168,24 @@ extension JobTreadClient: JobTreadCustomerDetailFetching {
             organizationID: config.organizationID,
             customerID: trimmedCustomerID
         )
-        logCustomerDetailRequest(requestBody)
+        Self.logger.info("Customer detail request started")
 
         do {
             let envelope: JobTreadCustomerDetailEnvelope = try await send(requestBody)
 
             if !envelope.errors.isEmpty {
-                let messages = envelope.errors.map(\.message)
-                print("[JobTread] customer detail api errors customerID='\(trimmedCustomerID)': \(messages.joined(separator: " | "))")
-                throw JobTreadClientError.apiErrors(messages)
+                Self.logger.error("Customer detail request returned API errors count=\(envelope.errors.count, privacy: .public)")
+                throw JobTreadClientError.apiErrors(envelope.errors.count)
             }
 
             let detail = envelope.organization?.accounts?.nodes.first?.customerDetail
             let status = detail == nil ? "missing" : "found"
-            print("[JobTread] customer detail response customerID='\(trimmedCustomerID)' status=\(status)")
+            Self.logger.info("Customer detail request completed status=\(status, privacy: .public)")
             return detail
         } catch {
-            print("[JobTread] customer detail failed customerID='\(trimmedCustomerID)': \(error.localizedDescription)")
+            Self.logger.error(
+                "Customer detail request failed errorType=\(String(describing: type(of: error)), privacy: .public)"
+            )
             throw error
         }
     }
@@ -183,12 +193,16 @@ extension JobTreadClient: JobTreadCustomerDetailFetching {
 
 private extension JobTreadClient {
     func resolvedConfig() throws -> JobTreadConfig {
+#if DEBUG
         switch configResult {
         case let .success(config):
             return config
         case let .failure(error):
             throw JobTreadClientError.configurationUnavailable(error)
         }
+#else
+        throw JobTreadClientError.configurationUnavailable(.directAccessDisabled)
+#endif
     }
 
     func performCustomerSearch(
@@ -204,21 +218,22 @@ private extension JobTreadClient {
             limit: limit,
             nameComparison: nameComparison
         )
-        logCustomerSearchRequest(requestBody, nameComparison: nameComparison)
         do {
             let envelope: JobTreadCustomerSearchEnvelope = try await send(requestBody)
 
             if !envelope.errors.isEmpty {
-                let messages = envelope.errors.map(\.message)
-                print("[JobTread] customer search api errors mode=\(nameComparison.rawValue) query='\(query)': \(messages.joined(separator: " | "))")
-                throw JobTreadClientError.apiErrors(messages)
+                Self.logger.error(
+                    "Customer search returned API errors mode=\(nameComparison.rawValue, privacy: .public) count=\(envelope.errors.count, privacy: .public)"
+                )
+                throw JobTreadClientError.apiErrors(envelope.errors.count)
             }
 
             let results = envelope.organization?.accounts?.nodes.map(\.lookupResult) ?? []
-            print("[JobTread] customer search response mode=\(nameComparison.rawValue) query='\(query)' results=\(results.count)")
             return results
         } catch {
-            print("[JobTread] customer search failed mode=\(nameComparison.rawValue) query='\(query)': \(error.localizedDescription)")
+            Self.logger.error(
+                "Customer search failed mode=\(nameComparison.rawValue, privacy: .public) errorType=\(String(describing: type(of: error)), privacy: .public)"
+            )
             throw error
         }
     }
@@ -239,34 +254,10 @@ private extension JobTreadClient {
         }
 
         guard (200 ... 299).contains(httpResponse.statusCode) else {
-            let body = String(data: data, encoding: .utf8) ?? "<non-UTF8 body>"
-            throw JobTreadClientError.unexpectedStatusCode(httpResponse.statusCode, body: body)
+            throw JobTreadClientError.unexpectedStatusCode(httpResponse.statusCode)
         }
 
         return try decoder.decode(ResponseBody.self, from: data)
-    }
-
-    func logCustomerSearchRequest(
-        _ requestBody: JobTreadCustomerSearchRequest,
-        nameComparison: JobTreadNameComparison
-    ) {
-        guard let data = try? encoder.encode(requestBody),
-              let json = String(data: data, encoding: .utf8) else {
-            print("[JobTread] customer search request: <encoding failed>")
-            return
-        }
-
-        print("[JobTread] customer search request (\(nameComparison.rawValue)): \(json)")
-    }
-
-    func logCustomerDetailRequest(_ requestBody: JobTreadCustomerDetailRequest) {
-        guard let data = try? encoder.encode(requestBody),
-              let json = String(data: data, encoding: .utf8) else {
-            print("[JobTread] customer detail request: <encoding failed>")
-            return
-        }
-
-        print("[JobTread] customer detail request: \(json)")
     }
 }
 

@@ -664,6 +664,42 @@ Keep milestones small, testable, and reviewable.
     - sync supported structured data into JobTread
     - upload proposal PDF and selected source files
   - Confirm the workflow reduces duplicate entry without relying on any PDF-import parsing behavior
+- Milestone 5.6 – Intelligence-Assisted Scope Capture
+  - Add a field-assistant workflow that helps capture scope details from voice notes while keeping the app offline-first and review-first
+  - Treat voice capture, transcription, structured extraction, user review, completion guidance, App Intents, concept renders, and JobTread publishing as separate shippable slices
+  - Use Apple on-device APIs where available and provide deterministic fallback behavior when Apple Intelligence, transcription assets, or network-backed services are unavailable
+  - Preserve the existing section editors, autosave, flattened PDF export, JobTread customer ownership rules, and pricing/proposal foundation
+- Milestone 5.6.1 – Voice Note + AI Draft Storage Foundation
+  - Update `schema.json` first with additive local storage for voice notes, transcripts, extraction drafts, field suggestions, and completion guidance keys
+  - Mirror those additive types in `SchemaModels.swift` without adding recording UI, AI calls, App Intents, or JobTread upload behavior yet
+  - Keep extracted values review-only by modeling suggestions separately from real scope fields
+  - Validate that the app still builds and existing scope creation/edit/export/JobTread customer lookup paths remain intact
+- Milestone 5.6.2 – Voice Recording + Transcript Capture
+  - Add microphone permission text and a native recording surface scoped to the active `JobScope`
+  - Record audio locally under the scope asset directory and persist lightweight `ScopeVoiceNote` metadata
+  - Transcribe with Speech framework APIs where available, preserving the raw transcript for review and fallback use
+  - Handle denied permissions, missing transcription assets, cancellation, failed transcription, and relaunch restore
+- Milestone 5.6.3 – Structured Extraction Review
+  - Use Foundation Models guided generation when available to convert transcripts into section-scoped field suggestions
+  - Never auto-apply suggestions directly to the scope; show a review screen with apply, skip, and edit behavior per suggestion
+  - Apply accepted suggestions through existing section-owned model update paths so autosave and section review invalidation continue to work
+  - Store draft status and applied flags so the user can understand what came from AI-assisted capture
+- Milestone 5.6.4 – Guided Completion Checklist
+  - Generate a visible-section completion summary from current scope data, accepted suggestions, and existing section visibility rules
+  - Deep-link from remaining items to the relevant section editor
+  - Keep completion guidance advisory only; do not gate PDF export, section completion, or JobTread publishing in the first pass
+- Milestone 5.6.5 – App Intents / Siri / Shortcuts Foundation
+  - Add `JobScope` app entities and a small set of App Shortcuts for opening a scope, starting voice capture, summarizing scope status, and preparing export
+  - Associate the active scope with user activity so Siri and Apple Intelligence can understand current onscreen scope context as supported by the OS
+  - Keep App Intent behavior aligned with existing navigation and persistence instead of creating parallel workflows
+- Milestone 5.6.6 – Concept Render Workflow
+  - Use Image Playground with scope-derived concepts and optional source photos to create clearly labeled concept renders
+  - Store accepted renders as local attachments with generated-concept metadata
+  - Optionally include selected concept render thumbnails in PDF/export with non-engineering labeling
+- Milestone 5.6.7 – AI-Assisted JobTread Publish Package
+  - Require an existing linked JobTread job before publishing AI-generated summaries, PDFs, concept renders, or attachments
+  - Build a preflight review package that separates structured sync candidates from file/document uploads
+  - Preserve offline preparation with explicit online upload/retry behavior later in the sync milestones
 
 ## Milestone 6 – Photos Appendix (Optional)
 - Photo capture per checklist
@@ -825,6 +861,38 @@ Keep milestones small, testable, and reviewable.
   - Keep local Debug access exactly as-is for development
   - Exclude the internal debug opener and window from Release/TestFlight builds with compile-time gating
   - Preserve normal production navigation and field-user workflow unchanged
+- Milestone 7.6.2.2 – Direct JobTread Credential + Diagnostic Containment
+  - Status: Implemented on 2026-07-17; automated acceptance checks pass, with signed TestFlight UI and build-to-build continuity checks retained as manual release gates
+  - Hierarchy: `Full Suite Program → Construction Scope Workstream → Phase 2 → Mobile JobTread Safety → Credential/log containment → Debug/Release verification → no organization grant distributed`
+  - Objective: keep current local Debug lookup available while making Release/TestFlight fail closed without an embedded direct-Pave organization grant or customer/credential-bearing diagnostics
+  - Scope and exclusions:
+    - split checked-in Debug and Release xcconfig entry points so only Debug may optionally include the ignored local secret override
+    - reject direct JobTread configuration at compile time outside Debug and require HTTPS when Debug access is enabled
+    - remove full request, query, customer/scope identity, raw API body, and raw API-message logging from the lookup/hydration/debug paths
+    - keep JobTread read-only; do not add a backend, user auth, job selection, upload, mutation, send, credential rotation, cloud change, or deployment
+  - Dependencies: existing linked-customer behavior and ignored local Debug config; preserve current Milestone 5.6.1 user changes
+  - Specific tasks:
+    - add explicit Debug/Release xcconfig files and point both project and app-target configurations at the correct file
+    - add generic, privacy-safe errors and fixed-metadata diagnostics
+    - show a contained unavailable state instead of an actionable direct lookup surface in Release
+    - add a standalone Swift security test harness and Release artifact verification script
+  - Expected files/systems affected: JobTread config/client/search/debug/hydration Swift files, xcconfig/project wiring, local test/script files, `PLANS.md`, and `DOCUMENTATION.md`; no external system
+  - Acceptance criteria:
+    - Debug lookup still compiles with an optional ignored local override
+    - Release compiles with empty JobTread Info.plist values and refuses direct access even if a value is injected
+    - Release artifact contains neither the ignored config file nor its configured grant/organization values
+    - inspected JobTread paths do not log queries, names, IDs, raw response bodies, raw API messages, or raw localized errors
+    - HTTP is rejected and only absolute HTTPS JobTread endpoints are accepted in Debug
+  - Testing and verification: standalone Debug/Release Swift tests, static privacy/config checks, Debug and Release generic-iOS builds, analyze, Release bundle inspection, source diff/secret scan, and no live network call
+  - Risks and failure modes: temporarily unavailable Release customer lookup, accidental Debug regression, command-line build-setting injection, incomplete source scan, and credential exposure outside the repository
+  - Size and estimate: S–M, 16–40 engineering hours; this slice targets the lower half and excludes backend/auth architecture
+  - Primary uncertainty: final secure mobile identity/backend boundary for restoring JobTread reads outside Debug
+  - Skills required: Swift/iOS, Xcode configuration, application security, API privacy, shell verification, QA
+  - External dependencies: none for containment; any credential rotation/revocation or backend/auth work requires a separate approved checkpoint
+  - Initial and recurring cost: engineering time only; no vendor purchase authorized; future backend/auth cost remains unknown
+  - Maintenance burden: run the security harness and Release artifact scan for every release; review grants and log policy quarterly
+  - Definition of done: all acceptance checks pass, current user changes remain intact, documentation matches behavior, and no live system changes
+  - Checkpoint: stop before rotation, cloud/backend creation, deployment, or any JobTread mutation and present the remaining architecture decision
 - Milestone 7.6.3 – Persistence Schema Discipline
   - Freeze risky persistence shape changes until an explicit migration strategy is defined
   - Introduce a documented SwiftData/schema evolution policy for:
@@ -836,6 +904,36 @@ Keep milestones small, testable, and reviewable.
   - Immediate repair constraint:
     - restore store-compatible persisted shapes when a beta build introduces a non-migrated SwiftData incompatibility
     - prefer moving new beta-only photo/attachment metadata to file-backed or blob-backed paths over changing nested SwiftData Codable field types in place
+- Milestone 7.6.3.1 – Repository-Baseline Persistence Compatibility Gate
+  - Status: Implemented (automated host gate complete; installed-build device continuity remains a release gate)
+  - Objective: prove that the current candidate can open and preserve a sanitized SwiftData store created by the committed repository baseline before any additional persisted-shape work proceeds
+  - Repository baseline: `07b42f308cee328926046f3198bbaa5fe36fa43b`; this is a code-history baseline only and is not assumed to identify the build currently installed on a field device
+  - Scope:
+    - reconstruct and compile the baseline `SchemaModels.swift` from Git history with the current host Xcode/SwiftData toolchain into a temporary store writer
+    - assert that current `schema.json` contains the candidate AI field/type declarations and the baseline schema does not
+    - compile the working-tree `SchemaModels.swift` into an upgrade/reopen verifier
+    - persist sanitized representative identity, status, project-type, and project-information values in the baseline store
+    - verify the current candidate opens that store with baseline values intact and new optional AI storage fields initially `nil`
+    - save deterministic values for every voice-note, extraction-draft, and nested-suggestion property, reopen the upgraded store, and verify the complete additive values remain intact
+    - guard both helpers against arbitrary store paths and retain a pristine baseline plus sanitized evidence when the harness fails
+    - document the schema-evolution policy and correct stale implementation context without changing app runtime behavior
+  - Exclusions:
+    - no changes to `JobScope`, `schema.json`, production storage paths, app UI, existing feature behavior, live customer data, JobTread, cloud state, deployment, Git commit, or push
+    - no claim that the repository baseline equals the actual installed TestFlight build
+    - no claim that a current-host reconstruction equals an original historical iOS store or proves an iOS application update
+    - no blanket compatibility claim for future changes to unpopulated nested branches; those require expanded fixtures or purpose-built migration tests
+    - no `VersionedSchema`, migration stage, backup/import feature, or destructive store repair in this slice
+  - Expected files: new standalone persistence harness/script, `DATA_MODEL.md`, `codex_context.md`, `PLANS.md`, and `DOCUMENTATION.md`
+  - Acceptance criteria:
+    - the baseline writer, current upgrader, and current reopen verifier all compile and pass from a clean temporary directory
+    - every populated baseline value and every current AI payload value is asserted after the relevant reopen
+    - `schema.json` candidate declarations are checked without treating its integer version as a SwiftData migration plan
+    - no real credential, customer record, installed app container, or repository file is copied into the fixture
+    - the harness fails closed if the pinned baseline cannot be resolved or any store/value assertion fails
+    - the current app still passes proportional Debug/Release build, analyzer, security, plist/project, and whitespace checks
+  - Remaining manual gate: identify the exact installed TestFlight build, back up that test device/container, and execute the documented install-A → update-in-place-to-B → force-close/relaunch continuity matrix before field handoff
+  - Definition of done: automated repository-baseline compatibility evidence is repeatable, the policy distinguishes safe additive changes from migration-required changes, docs match actual implementation, and no runtime feature or live system is changed
+  - Checkpoint: stop after evidence/documentation; do not advance to backup/import, explicit migrations, TestFlight deployment, grant rotation, commit, or push without the next approval
 - Milestone 7.6.4 – Local Recovery + Validation
   - Add a concrete manual continuity validation checklist for:
     - install -> enter data -> upgrade build -> verify retained data

@@ -24,12 +24,10 @@ final class JobTreadCustomerSearchViewModel: ObservableObject {
 
     func search() async {
         let trimmedQuery = query.trimmingCharacters(in: .whitespacesAndNewlines)
-        print("[JobTreadSearchVM] search requested query='\(trimmedQuery)'")
         hasSearched = true
         errorMessage = nil
 
         guard !trimmedQuery.isEmpty else {
-            print("[JobTreadSearchVM] empty query; resetting search state")
             resetSearchState(clearQuery: false)
             return
         }
@@ -38,35 +36,27 @@ final class JobTreadCustomerSearchViewModel: ObservableObject {
         let searchID = UUID()
         activeSearchID = searchID
         isLoading = true
-        print("[JobTreadSearchVM] loading started searchID=\(searchID) query='\(trimmedQuery)'")
 
         defer {
             if activeSearchID == searchID {
                 isLoading = false
-                print("[JobTreadSearchVM] loading cleared searchID=\(searchID) query='\(trimmedQuery)'")
-            } else {
-                print("[JobTreadSearchVM] skipping loading clear for stale searchID=\(searchID)")
             }
         }
 
         do {
             let results = try await customerSearcher.searchCustomers(matching: trimmedQuery, limit: 20)
             guard activeSearchID == searchID else {
-                print("[JobTreadSearchVM] ignoring stale success searchID=\(searchID)")
                 return
             }
 
             self.results = results
-            print("[JobTreadSearchVM] search success searchID=\(searchID) results=\(results.count)")
         } catch {
             guard activeSearchID == searchID else {
-                print("[JobTreadSearchVM] ignoring stale failure searchID=\(searchID)")
                 return
             }
 
             results = []
             errorMessage = error.localizedDescription
-            print("[JobTreadSearchVM] search failure searchID=\(searchID) error='\(error.localizedDescription)'")
         }
     }
 
@@ -78,7 +68,6 @@ final class JobTreadCustomerSearchViewModel: ObservableObject {
         errorMessage = nil
 
         guard !trimmedQuery.isEmpty else {
-            print("[JobTreadSearchVM] live search reset for empty query")
             resetSearchState(clearQuery: false)
             return
         }
@@ -87,11 +76,9 @@ final class JobTreadCustomerSearchViewModel: ObservableObject {
             hasSearched = false
             results = []
             isLoading = false
-            print("[JobTreadSearchVM] live search waiting for more input query='\(trimmedQuery)'")
             return
         }
 
-        print("[JobTreadSearchVM] scheduling live search query='\(trimmedQuery)'")
         scheduledSearchTask = Task { [weak self] in
             try? await Task.sleep(nanoseconds: 300_000_000)
             guard !Task.isCancelled else { return }
@@ -102,7 +89,6 @@ final class JobTreadCustomerSearchViewModel: ObservableObject {
     func submitSearch() {
         scheduledSearchTask?.cancel()
         scheduledSearchTask = nil
-        print("[JobTreadSearchVM] submit search query='\(query.trimmingCharacters(in: .whitespacesAndNewlines))'")
         Task {
             await search()
         }
@@ -119,7 +105,6 @@ final class JobTreadCustomerSearchViewModel: ObservableObject {
         hasSearched = false
         isLoading = false
         errorMessage = nil
-        print("[JobTreadSearchVM] search state reset clearQuery=\(clearQuery)")
     }
 }
 
@@ -133,81 +118,97 @@ struct ScopeCreationSheet: View {
     var body: some View {
         NavigationStack {
             List {
-                Section {
-                    Text("Search for an existing JobTread customer, then create a new scope linked to that record.")
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
-
-                    HStack(spacing: 12) {
-                        Label {
-                            TextField("Search JobTread customers", text: $viewModel.query)
-                                .textInputAutocapitalization(.words)
-                                .autocorrectionDisabled()
-                                .onSubmit {
-                                    viewModel.submitSearch()
-                                }
-                        } icon: {
-                            Image(systemName: "magnifyingglass")
-                                .foregroundStyle(.secondary)
-                        }
-
-                        Button("Search") {
-                            viewModel.submitSearch()
-                        }
-                        .disabled(viewModel.query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || viewModel.isLoading)
-                    }
-                    .frame(minHeight: 44)
-
-                    if !viewModel.query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&
-                        viewModel.query.trimmingCharacters(in: .whitespacesAndNewlines).count < JobTreadCustomerSearchViewModel.minimumLiveSearchCharacters {
-                        Text("Type at least \(JobTreadCustomerSearchViewModel.minimumLiveSearchCharacters) characters to see live matches, or submit a full exact name.")
+                if JobTreadConfig.isDirectAccessEnabled {
+                    Section {
+                        Text("Search for an existing JobTread customer, then create a new scope linked to that record.")
                             .font(.footnote)
                             .foregroundStyle(.secondary)
-                    }
 
-                    if viewModel.isLoading {
                         HStack(spacing: 12) {
-                            ProgressView()
-                            Text("Searching JobTread...")
+                            Label {
+                                TextField("Search JobTread customers", text: $viewModel.query)
+                                    .textInputAutocapitalization(.words)
+                                    .autocorrectionDisabled()
+                                    .onSubmit {
+                                        viewModel.submitSearch()
+                                    }
+                            } icon: {
+                                Image(systemName: "magnifyingglass")
+                                    .foregroundStyle(.secondary)
+                            }
+
+                            Button("Search") {
+                                viewModel.submitSearch()
+                            }
+                            .disabled(viewModel.query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || viewModel.isLoading)
+                        }
+                        .frame(minHeight: 44)
+
+                        if !viewModel.query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&
+                            viewModel.query.trimmingCharacters(in: .whitespacesAndNewlines).count < JobTreadCustomerSearchViewModel.minimumLiveSearchCharacters {
+                            Text("Type at least \(JobTreadCustomerSearchViewModel.minimumLiveSearchCharacters) characters to see live matches, or submit a full exact name.")
+                                .font(.footnote)
                                 .foregroundStyle(.secondary)
                         }
-                        .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
-                    }
-                } header: {
-                    Text("Create from JobTread Customer")
-                }
 
-                if let errorMessage = viewModel.errorMessage {
-                    Section {
-                        Text(errorMessage)
-                            .font(.footnote)
-                            .foregroundStyle(.red)
-                    } header: {
-                        Text("Lookup Error")
-                    }
-                }
-
-                if !viewModel.results.isEmpty {
-                    Section {
-                        ForEach(viewModel.results) { customer in
-                            Button {
-                                onCreateScopeFromCustomer(customer)
-                                dismiss()
-                            } label: {
-                                JobTreadCustomerResultRow(customer: customer)
+                        if viewModel.isLoading {
+                            HStack(spacing: 12) {
+                                ProgressView()
+                                Text("Searching JobTread...")
+                                    .foregroundStyle(.secondary)
                             }
-                            .buttonStyle(.plain)
+                            .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
                         }
                     } header: {
-                        Text("Matching Customers")
+                        Text("Create from JobTread Customer")
                     }
-                } else if viewModel.hasSearched && !viewModel.isLoading && viewModel.errorMessage == nil {
-                Section {
+
+                    if let errorMessage = viewModel.errorMessage {
+                        Section {
+                            Text(errorMessage)
+                                .font(.footnote)
+                                .foregroundStyle(.red)
+                        } header: {
+                            Text("Lookup Error")
+                        }
+                    }
+
+                    if !viewModel.results.isEmpty {
+                        Section {
+                            ForEach(viewModel.results) { customer in
+                                Button {
+                                    onCreateScopeFromCustomer(customer)
+                                    dismiss()
+                                } label: {
+                                    JobTreadCustomerResultRow(customer: customer)
+                                }
+                                .buttonStyle(.plain)
+                            }
+                        } header: {
+                            Text("Matching Customers")
+                        }
+                    } else if viewModel.hasSearched && !viewModel.isLoading && viewModel.errorMessage == nil {
+                        Section {
+                            ContentUnavailableView(
+                                "No Customers Found",
+                                systemImage: "person.crop.circle.badge.xmark",
+                                description: Text("Try a different customer name search.")
+                            )
+                        }
+                    }
+                } else {
+                    Section {
                         ContentUnavailableView(
-                            "No Customers Found",
-                            systemImage: "person.crop.circle.badge.xmark",
-                            description: Text("Try a different customer name search.")
+                            "JobTread Linking Unavailable",
+                            systemImage: "lock.shield",
+                            description: Text("This build keeps direct JobTread credentials off the device. Start a blank local scope and connect it later.")
                         )
+                        .frame(maxWidth: .infinity, minHeight: 120)
+                    } header: {
+                        Text("JobTread Linking")
+                    } footer: {
+                        Text("A future authenticated service can restore linked lookup without placing an organization grant in the app.")
+                            .font(.footnote)
                     }
                 }
 

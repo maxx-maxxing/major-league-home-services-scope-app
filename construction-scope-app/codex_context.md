@@ -1,23 +1,24 @@
 Read `codex_context.md` before making changes.
 
 Current working focus:
-Milestones 7.6.4.1 save-failure containment and 4.8.4 PDF diagnostic privacy are implemented and repository-verified. Preserve these checkpoints. The next queued feature-preserving candidate is an offline JobTread read-contract regression gate using sanitized mocked transport only; production JobTread code, Release behavior, credentials, models/schema, and live systems must remain unchanged.
+Milestones 7.6.4.1 save-failure containment, 4.8.4 PDF diagnostic privacy, and 7.6.2.3 offline JobTread customer read-contract verification are implemented and repository-verified. Preserve these checkpoints. The next queued feature-preserving candidate is Documents asset-retirement safety after confirmed model saves; scope it separately and do not broaden it into backup/import, path migration, or unrelated asset systems.
 
 Git checkpoint and authority:
 - Active branch: `ai-scope-assistant`
-- Verified checkpoint `4b6bce0` (`Harden JobTread release and persistence compatibility`) has been pushed to `origin/ai-scope-assistant`.
+- Verified checkpoints through `366b090` (`Contain PDF export diagnostic data`) have been pushed to `origin/ai-scope-assistant`; the current 7.6.2.3 contract gate remains the active bounded working-tree slice until its own verified commit/push.
 - The user has authorized commit/push for bounded, verified hardening work.
 - That authority does not include a pull request, merge, deployment/TestFlight upload, credential rotation, backend/cloud creation, or live JobTread write/sync.
 - Verify and report each new bounded slice before treating it as complete; do not fold unrelated working-tree changes into a commit.
 
 Highest-priority requirement:
-Preserve both verified privacy/durability boundaries: covered Release save failures must continue to show and retry through the persistence-health warning, and PDF diagnostics must never include raw customer-entered or identifying content, persistent scope IDs, filenames, paths, user labels/text, or raw dynamic contexts. Reviewed aggregate numeric/boolean metrics remain permitted.
+Preserve all verified privacy/durability boundaries: covered Release save failures must continue to show and retry through the persistence-health warning; PDF diagnostics must exclude raw customer-entered or identifying content, persistent scope IDs, filenames, paths, user labels/text, and raw dynamic contexts; and the standalone JobTread customer contract gate must remain synthetic, offline-only, and outside the app target. Reviewed aggregate numeric/boolean PDF metrics remain permitted.
 
 Current roadmap position:
 - `PLANS.md` contains the authoritative audited roadmap ledger dated 2026-07-20.
 - Milestones 0–4 are implemented in code; physical-device PDF validation remains a release gate.
 - Milestone 4.8.4 removes customer-/scope-derived PDF diagnostic content while preserving export behavior; representative target-device PDF/filename comparison remains manual.
 - Milestone 5 is partial: Debug customer read/link/refresh and internal sample/draft proposal-pricing scaffolding exist. Release authentication and every outbound JobTread write/sync remain unimplemented.
+- Milestone 7.6.2.3 pins the current Debug customer search/detail encoder, decoder, fallback, and privacy contracts against a synthetic offline transport; it does not prove live Pave behavior or scope-model hydration.
 - Milestone 5.6.1 is optional voice-note/AI-draft storage only; no AI capture or generation feature exists.
 - Milestone 7.2 acceptance closeout remains open.
 - Milestone 7.6.3 is an active persistence-shape guardrail; 7.6.3.1 host-reconstructed compatibility testing is implemented, while installed-build device continuity remains manual.
@@ -61,6 +62,13 @@ Milestone 4.8.4 verified boundary:
 - Keep customer-facing filename generation, PDF composition/layout/pagination, preview/share, and user-visible errors unchanged.
 - `./scripts/verify_pdf_export_privacy.sh` must pass alongside the existing save-health, compatibility, and JobTread security gates.
 - Manual acceptance still requires representative target-device PDF content/layout and share-sheet filename comparison.
+
+Milestone 7.6.2.3 verified boundary:
+- `./scripts/verify_jobtread_read_contract.sh` compiles the real Debug config/client into a standalone executable and routes every request through an unconditional test-only `URLProtocol` using a reserved `.invalid` endpoint.
+- Preserve whitespace short-circuiting; prefix `like`, contains `like`, then exact `=` fallback; customer-only filters; current sizes/selections; client-detail primary/fallback mapping; count-only API errors; and HTTP status classification.
+- Keep fixtures synthetic and failure output fixed/privacy-safe. Never read local credentials, use `URLSession.shared`, permit network fallthrough, add the harness to the app target, or make a live JobTread call.
+- The gate pins the reviewed client/config, model/schema, and project hashes. Any intentional change to those files requires contract review and a deliberate hash/test update rather than bypassing the gate.
+- Do not overclaim: `fetchCurrentGrant`, scope-model `applyLinkedCustomerHydration`, live vendor-schema compatibility, retries/backoff, and Release authentication are outside this milestone.
 
 Persistence discipline:
 - Treat every `JobScope` property and nested stored `Codable` shape as a persistence contract.

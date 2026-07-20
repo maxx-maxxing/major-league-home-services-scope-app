@@ -43,6 +43,7 @@ Status meanings:
 | 7.5.1 | Mitigations implemented; diagnosis superseded / historical | Import presentation-state and off-main-thread file handling remain useful, but 7.5.2 superseded the original presenter-first diagnosis. |
 | 7.5.2 | Implemented; manual release gate remains | Encoded documents-payload hardening is present; device reopening and any legacy-data limitations remain release checks. |
 | 7.6.1–7.6.2.2 | Implemented; manual release gate remains | Persistence audit and Release/JobTread containment checks pass; signed TestFlight launch and build-to-build continuity remain manual. |
+| 7.6.2.3 | Implemented | A standalone synthetic offline transport gate pins the current Debug customer-search/detail request, decoder, fallback, and error contracts without changing production code or contacting JobTread. |
 | 7.6.3 | Active guardrail | Persistence-shape policy is in force; enforcement remains review-driven. |
 | 7.6.3.1 | Implemented; manual release gate remains | Host-reconstructed compatibility gate passes; installed-build device continuity is not proven. |
 | 7.6.4 | In progress | Recovery risks are documented and 7.6.4.1 save-failure containment is implemented; the manual continuity matrix and lossless backup/import remain open. |
@@ -978,6 +979,32 @@ Status meanings:
   - Maintenance burden: run the security harness and Release artifact scan for every release; review grants and log policy quarterly
   - Definition of done: all acceptance checks pass, current user changes remain intact, documentation matches behavior, and no live system changes
   - Checkpoint: stop before rotation, cloud/backend creation, deployment, or any JobTread mutation and present the remaining architecture decision
+- Milestone 7.6.2.3 – Offline JobTread Customer Read-Contract Regression Gate
+  - Status: Implemented and repository-verified on 2026-07-20
+  - Hierarchy: `Full Suite Program → Construction Scope Workstream → Phase 2 → Mobile JobTread Safety → customer read-contract evidence`
+  - Objective: pin the current Debug-only customer search/detail request, response, fallback, and privacy contracts through the real client without changing runtime behavior or contacting JobTread
+  - Scope:
+    - compile the real `JobTreadConfig` and `JobTreadClient` into a standalone Debug-only executable with the existing injected `URLSession` seam
+    - install one test-only `URLProtocol` that intercepts every request, rejects unexpected calls locally, and returns only inline synthetic fixtures from a reserved `.invalid` endpoint
+    - assert whitespace search makes no request; prefix `like`, contains `like`, and exact `=` fallback occur in order with the customer-type constraint and requested limit
+    - semantically assert POST URL, JSON headers, eight-second timeout, grant/organization placement, filters, connection sizes, and exact search/detail field selections
+    - decode synthetic search results plus primary-location/contact-priority and fallback-location/related-contact detail cases through the real client mapping
+    - assert API messages collapse to `.apiErrors(count)` and non-success HTTP responses retain status classification without exposing fixture content
+    - pin the reviewed client/config, model/schema, and Xcode-project hashes and confirm the standalone test is absent from the app target
+  - Exclusions:
+    - no production client/config, UI, Release policy, Xcode target/scheme, persistence model/schema, credential, or app behavior changes
+    - no live request, real identifier/customer data, local secret read, JobTread write/sync, backend/cloud work, or deployment
+    - no `fetchCurrentGrant`, scope-model `applyLinkedCustomerHydration`, live vendor-schema verification, retries/backoff, authentication redesign, or XCTest-target creation
+  - Expected files: `SecurityTests/JobTreadReadContractTests.swift`, `scripts/verify_jobtread_read_contract.sh`, `PLANS.md`, `DOCUMENTATION.md`, and `codex_context.md`
+  - Acceptance criteria:
+    - the gate compiles and invokes the real customer search/detail encoder, transport validation, decoder, and client-detail mapping paths
+    - every request is absorbed by the local mock and exact expected request counts leave no unused or extra request
+    - request shapes, fallback order, decoded values, and privacy-safe errors match the reviewed contract
+    - production source, Release policy, project wiring, model, and schema remain byte-identical to the pushed checkpoint
+  - Verification: standalone contract gate, existing JobTread security containment, Debug/Release unsigned generic-iOS builds, Release analysis, persistence/save/PDF gates, project/plist/shell/mode checks, frozen hashes, and Git whitespace checks
+  - Limitations: this proves the checked-in client contract against synthetic bytes only; it does not prove the current live Pave schema, grant scope, connectivity, or distributed Release authentication
+  - Definition of done: automated gates pass, independent review finds no live-network/fixture/privacy gap or false contract claim, docs preserve exclusions, and no runtime file changes
+  - Checkpoint: stop before live schema probing, credential use/rotation, backend/auth work, Release enablement, any JobTread mutation, or app-target test integration
 - Milestone 7.6.3 – Persistence Schema Discipline
   - Freeze risky persistence shape changes until an explicit migration strategy is defined
   - Introduce a documented SwiftData/schema evolution policy for:

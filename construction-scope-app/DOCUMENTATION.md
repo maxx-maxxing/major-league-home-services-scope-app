@@ -10,9 +10,19 @@
 - Milestone 5.6.1 implements optional voice-note and AI-draft **storage contracts only**. There is no recording, transcription, extraction/review, intent, render, or AI publishing feature.
 - Milestone 6 local photo handling is implemented; its former full-page PDF appendix presentation was superseded by Milestone 4.8.1 compact thumbnails.
 - Milestones 7.1, 7.3, 7.4, 7.5, 7.5.2, and 7.7 are implemented in code. Milestone 7.5.1 is a superseded investigation, and Milestone 7.2 acceptance/device/accessibility closeout remains open.
-- Milestones 7.6.1–7.6.2.2, 7.6.3.1, 7.6.4.1, 7.6.5, and 7.6.6 are implemented; 7.6.3 remains an active persistence-shape guardrail. Milestone 7.6.4 remains in progress because its device continuity matrix and lossless backup/import path are still open.
+- Milestones 7.6.1–7.6.2.3, 7.6.3.1, 7.6.4.1, 7.6.5, and 7.6.6 are implemented; 7.6.3 remains an active persistence-shape guardrail. Milestone 7.6.4 remains in progress because its device continuity matrix and lossless backup/import path are still open.
 
 ## Decisions
+- Milestone 7.6.2.3 offline JobTread customer read-contract gate — 2026-07-20:
+  - The existing Debug customer search/detail client had injectable configuration and `URLSession` seams, but no offline transport regression test exercised its private request encoders, response decoders, three-attempt search sequence, or detail fallback mapping.
+  - Added standalone `SecurityTests/JobTreadReadContractTests.swift` and executable `scripts/verify_jobtread_read_contract.sh`; neither file is part of the app target.
+  - A test-only `URLProtocol` unconditionally intercepts every request and returns inline synthetic fixtures through `https://jobtread-contract.invalid/pave`. Unexpected or extra requests fail locally, and the harness never reads the ignored Debug secret override or permits network fallthrough.
+  - The gate semantically asserts POST/JSON/timeout behavior, grant and organization placement, customer filters, limits, exact field selections, whitespace short-circuiting, prefix/contains/exact fallback order, search decoding, primary and fallback detail mapping, count-only API errors, and non-success HTTP classification.
+  - Failure messages contain fixed contract labels only; they do not dump request/response bytes, fixture values, URLs, identifiers, customer fields, API messages, paths, or localized errors.
+  - Client/config, model/schema, and Xcode-project hashes are pinned so later production or target-wiring changes require an explicit contract review. Production source, Release policy, project wiring, model/schema, UI, and app behavior were not changed.
+  - Verification passed: the new offline contract gate, existing JobTread security containment, unsigned generic-iOS Debug and Release builds, Release analysis, PDF/save/persistence gates, plist/project parsing, shell syntax/executable modes, frozen hashes, and whitespace checks. Independent review found no P0–P2 live-network, fixture/privacy, compilation, coverage, or false-assurance blocker after the fallback and gate-hardening fixes.
+  - Deliberate exclusions remain: `fetchCurrentGrant`, scope-model `applyLinkedCustomerHydration`, live Pave schema/grant verification, retries/backoff, secure distributed authentication, any JobTread write/sync, cloud/backend work, deployment, and an Xcode test target. This offline evidence does not establish current live vendor behavior.
+
 - Milestone 4.8.4 PDF export diagnostic privacy gate — 2026-07-20:
   - A production-readiness audit confirmed that PDF diagnostics publicly logged a persistent scope UUID, a filename derived from customer identity/address/project type, page/section details, and a row label that can contain a user-entered measurement type. Asset paths were also passed into logger calls, even where marked private.
   - PDF logging now uses fixed event text plus page/section/byte/count metrics and scaled/truncated booleans only. Persistent scope IDs, customer-derived filenames, paths, page/section/row labels, rendered text contexts, and raw dynamic summaries are omitted rather than redacted.

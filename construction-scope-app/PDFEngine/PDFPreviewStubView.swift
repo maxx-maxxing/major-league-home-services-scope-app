@@ -160,7 +160,9 @@ enum ScopePDFExporter {
             .appendingPathExtension("pdf")
 
         try render.data.write(to: outputURL, options: .atomic)
-        logger.info("share-ready PDF written scope=\(scope.id.uuidString, privacy: .public) file=\(outputURL.lastPathComponent, privacy: .public) bytes=\(render.data.count) missingFields=\(render.missingFields.count)")
+        logger.info(
+            "share-ready PDF written bytes=\(render.data.count, privacy: .public) missingFields=\(render.missingFields.count, privacy: .public)"
+        )
         return PDFExportResult(fileURL: outputURL, missingFields: render.missingFields)
     }
 
@@ -170,19 +172,19 @@ enum ScopePDFExporter {
         let layout = PDFPageLayout(pageRect: pageRect)
         let composition = try exportComposition(for: scope)
         let preparedPages = composition.pages
-        let renderedPages = try paginatePages(preparedPages, layout: layout, scopeID: scope.id.uuidString)
+        let renderedPages = try paginatePages(preparedPages, layout: layout)
         let format = UIGraphicsPDFRendererFormat()
         let renderer = UIGraphicsPDFRenderer(bounds: pageRect, format: format)
 
         let diagnostics = PDFRenderDiagnostics(
-            scopeID: scope.id.uuidString,
-            filename: filename,
-            missingFields: missing,
+            missingFieldCount: missing.count,
             plannedPages: preparedPages,
             renderedPages: renderedPages
         )
 
-        logger.info("starting PDF render \(diagnostics.summary, privacy: .public)")
+        logger.info(
+            "starting PDF render plannedPages=\(diagnostics.plannedPageCount, privacy: .public) renderedPages=\(diagnostics.renderedPageCount, privacy: .public) renderedSections=\(diagnostics.renderedSectionCount, privacy: .public) appendixPages=\(diagnostics.appendixPageCount, privacy: .public) missingFields=\(diagnostics.missingFieldCount, privacy: .public)"
+        )
 
         let data = renderer.pdfData { context in
             for (index, page) in renderedPages.enumerated() {
@@ -196,36 +198,40 @@ enum ScopePDFExporter {
         }
 
         guard !data.isEmpty else {
-            logger.error("PDF render produced empty data scope=\(scope.id.uuidString, privacy: .public)")
+            logger.error("PDF render produced empty data")
             throw ExportError.renderFailed
         }
 
         let actualPageCount = PDFDocument(data: data)?.pageCount ?? renderedPages.count
-        logger.info("completed PDF render scope=\(scope.id.uuidString, privacy: .public) actualPages=\(actualPageCount) renderedPages=\(renderedPages.count) appendixPages=\(renderedPages.filter { $0.kind != .core }.count) bytes=\(data.count)")
+        logger.info(
+            "completed PDF render actualPages=\(actualPageCount, privacy: .public) renderedPages=\(renderedPages.count, privacy: .public) appendixPages=\(diagnostics.appendixPageCount, privacy: .public) bytes=\(data.count, privacy: .public)"
+        )
 
         return (data: data, missingFields: missing, filename: filename)
     }
 
-    private static func paginatePages(_ pages: [PDFPageContent], layout: PDFPageLayout, scopeID: String) throws -> [PDFRenderedPage] {
+    private static func paginatePages(_ pages: [PDFPageContent], layout: PDFPageLayout) throws -> [PDFRenderedPage] {
         var rendered: [PDFRenderedPage] = []
 
         for page in pages {
-            let paginated = try paginate(page, layout: layout, scopeID: scopeID)
+            let paginated = try paginate(page, layout: layout)
             rendered.append(contentsOf: paginated)
         }
 
         return rendered
     }
 
-    private static func paginate(_ page: PDFPageContent, layout: PDFPageLayout, scopeID: String) throws -> [PDFRenderedPage] {
+    private static func paginate(_ page: PDFPageContent, layout: PDFPageLayout) throws -> [PDFRenderedPage] {
         var output: [PDFRenderedPage] = []
         var currentPage = PDFRenderedPage(title: page.title, kind: page.kind, sections: [])
         var remainingHeight = layout.bodyRect.height
 
-        func beginNewPage(reason: String, sectionTitle: String) {
+        func beginNewPage() {
             if !currentPage.sections.isEmpty {
                 output.append(currentPage)
-                logger.info("page break scope=\(scopeID, privacy: .public) pageTitle=\(page.title, privacy: .public) section=\(sectionTitle, privacy: .public) reason=\(reason, privacy: .public) emittedSections=\(currentPage.sections.count) nextRenderedPage=\(output.count + 1)")
+                logger.info(
+                    "PDF page break emittedSections=\(currentPage.sections.count, privacy: .public) nextRenderedPage=\(output.count + 1, privacy: .public)"
+                )
             }
             currentPage = PDFRenderedPage(
                 title: page.title,
@@ -253,10 +259,12 @@ enum ScopePDFExporter {
 
                 if remainingHeight < requiredTitleHeight + minimumBodyHeight {
                     if currentPage.sections.isEmpty {
-                        logger.error("insufficient fresh-page space scope=\(scopeID, privacy: .public) pageTitle=\(page.title, privacy: .public) section=\(section.title, privacy: .public) remainingHeight=\(remainingHeight)")
+                        logger.error(
+                            "PDF section did not fit a fresh page remainingHeight=\(remainingHeight, privacy: .public)"
+                        )
                         throw ExportError.contentRenderFailed("The PDF could not render section '\(section.title)' on '\(page.title)' because the content does not fit on a fresh page.")
                     } else {
-                        beginNewPage(reason: "section-start-overflow", sectionTitle: section.title)
+                        beginNewPage()
                     }
                 }
 
@@ -280,7 +288,7 @@ enum ScopePDFExporter {
 
                     if let remainder = placement.remainder {
                         pendingRows.insert(remainder, at: 0)
-                        logger.info("row split scope=\(scopeID, privacy: .public) pageTitle=\(page.title, privacy: .public) section=\(section.title, privacy: .public) label=\(row.label, privacy: .public)")
+                        logger.info("PDF row split across pages")
                         break
                     }
                 }
@@ -292,9 +300,11 @@ enum ScopePDFExporter {
                         pendingThumbnails = nil
                         placedContent = true
                     } else if placedContent || !currentPage.sections.isEmpty {
-                        logger.info("page break scope=\(scopeID, privacy: .public) pageTitle=\(page.title, privacy: .public) section=\(section.title, privacy: .public) reason=thumbnails-overflow emittedSections=\(currentPage.sections.count + 1) nextRenderedPage=\(output.count + 1)")
+                        logger.info(
+                            "PDF thumbnail continuation emittedSections=\(currentPage.sections.count + 1, privacy: .public) nextRenderedPage=\(output.count + 1, privacy: .public)"
+                        )
                     } else {
-                        logger.error("skipped thumbnail placement scope=\(scopeID, privacy: .public) pageTitle=\(page.title, privacy: .public) section=\(section.title, privacy: .public) reason=no-usable-space")
+                        logger.error("PDF thumbnail placement failed reason=no-usable-space")
                         throw ExportError.contentRenderFailed("The PDF could not render the thumbnails in section '\(section.title)' on '\(page.title)'.")
                     }
                 }
@@ -306,9 +316,11 @@ enum ScopePDFExporter {
                         pendingImage = nil
                         placedContent = true
                     } else if placedContent || !currentPage.sections.isEmpty {
-                        logger.info("page break scope=\(scopeID, privacy: .public) pageTitle=\(page.title, privacy: .public) section=\(section.title, privacy: .public) reason=image-overflow emittedSections=\(currentPage.sections.count + 1) nextRenderedPage=\(output.count + 1)")
+                        logger.info(
+                            "PDF image continuation emittedSections=\(currentPage.sections.count + 1, privacy: .public) nextRenderedPage=\(output.count + 1, privacy: .public)"
+                        )
                     } else {
-                        logger.error("skipped image placement scope=\(scopeID, privacy: .public) pageTitle=\(page.title, privacy: .public) section=\(section.title, privacy: .public) reason=no-usable-space")
+                        logger.error("PDF image placement failed reason=no-usable-space")
                         throw ExportError.contentRenderFailed("The PDF could not render the image in section '\(section.title)' on '\(page.title)'.")
                     }
                 }
@@ -322,15 +334,12 @@ enum ScopePDFExporter {
 
                 if !pendingRows.isEmpty || pendingThumbnails != nil || pendingImage != nil {
                     if currentPage.sections.isEmpty {
-                        logger.error("failed to place section content scope=\(scopeID, privacy: .public) pageTitle=\(page.title, privacy: .public) section=\(section.title, privacy: .public)")
+                        logger.error("PDF section content placement failed")
                         throw ExportError.contentRenderFailed("The PDF could not render all content for section '\(section.title)' on '\(page.title)'.")
                     }
 
                     sectionContinuation += 1
-                    let reason = pendingImage != nil
-                        ? "continued-image"
-                        : (pendingThumbnails != nil ? "continued-thumbnails" : "continued-rows")
-                    beginNewPage(reason: reason, sectionTitle: section.title)
+                    beginNewPage()
                 }
             }
         }
@@ -515,7 +524,7 @@ enum ScopePDFExporter {
     }
 
     private static func drawHeader(in context: CGContext, rect: CGRect, header: PDFHeaderContent) {
-        drawAdaptiveText(header.title, font: headerTitleFont, in: CGRect(x: 40, y: 34, width: rect.width - 80, height: 22), context: context, color: primaryTextColor, minimumScaleFactor: 0.72, logContext: "header-title")
+        drawAdaptiveText(header.title, font: headerTitleFont, in: CGRect(x: 40, y: 34, width: rect.width - 80, height: 22), context: context, color: primaryTextColor, minimumScaleFactor: 0.72)
 
         let contactLine = [
             header.phone.map { "Phone: \($0)" },
@@ -529,15 +538,15 @@ enum ScopePDFExporter {
         ].compactMap { $0 }
 
         for (index, line) in subtitleLines.enumerated() {
-            drawAdaptiveText(line, font: .systemFont(ofSize: 11), in: CGRect(x: 40, y: 58 + CGFloat(index * 14), width: rect.width - 80, height: 16), context: context, color: secondaryTextColor, minimumScaleFactor: 0.76, logContext: "header-subtitle-\(index)")
+            drawAdaptiveText(line, font: .systemFont(ofSize: 11), in: CGRect(x: 40, y: 58 + CGFloat(index * 14), width: rect.width - 80, height: 16), context: context, color: secondaryTextColor, minimumScaleFactor: 0.76)
         }
 
         if let projectType = header.projectType {
-            drawAdaptiveText("Project Type: \(projectType)", font: .systemFont(ofSize: 10), in: CGRect(x: 40, y: 104, width: 260, height: 14), context: context, color: secondaryTextColor, minimumScaleFactor: 0.8, logContext: "header-project-type")
+            drawAdaptiveText("Project Type: \(projectType)", font: .systemFont(ofSize: 10), in: CGRect(x: 40, y: 104, width: 260, height: 14), context: context, color: secondaryTextColor, minimumScaleFactor: 0.8)
         }
 
         if let jobNumber = header.jobNumber {
-            drawAdaptiveText("Job #: \(jobNumber)", font: .systemFont(ofSize: 10), in: CGRect(x: rect.width - 180, y: 104, width: 140, height: 14), context: context, alignment: .right, color: secondaryTextColor, minimumScaleFactor: 0.8, logContext: "header-job-number")
+            drawAdaptiveText("Job #: \(jobNumber)", font: .systemFont(ofSize: 10), in: CGRect(x: rect.width - 180, y: 104, width: 140, height: 14), context: context, alignment: .right, color: secondaryTextColor, minimumScaleFactor: 0.8)
         }
 
         context.setStrokeColor(separatorColor.cgColor)
@@ -549,12 +558,12 @@ enum ScopePDFExporter {
 
     private static func drawFooter(in context: CGContext, rect: CGRect, pageNumber: Int, totalPages: Int) {
         let dateText = "Generated: \(Date.now.formatted(date: .abbreviated, time: .shortened))"
-        drawAdaptiveText(dateText, font: .systemFont(ofSize: 9), in: CGRect(x: 40, y: rect.height - 32, width: 260, height: 12), context: context, color: secondaryTextColor, minimumScaleFactor: 0.84, logContext: "footer-generated-date")
-        drawAdaptiveText("Page \(pageNumber) of \(totalPages)", font: .systemFont(ofSize: 9), in: CGRect(x: rect.width - 160, y: rect.height - 32, width: 120, height: 12), context: context, alignment: .right, color: secondaryTextColor, minimumScaleFactor: 0.84, logContext: "footer-page-count")
+        drawAdaptiveText(dateText, font: .systemFont(ofSize: 9), in: CGRect(x: 40, y: rect.height - 32, width: 260, height: 12), context: context, color: secondaryTextColor, minimumScaleFactor: 0.84)
+        drawAdaptiveText("Page \(pageNumber) of \(totalPages)", font: .systemFont(ofSize: 9), in: CGRect(x: rect.width - 160, y: rect.height - 32, width: 120, height: 12), context: context, alignment: .right, color: secondaryTextColor, minimumScaleFactor: 0.84)
     }
 
     private static func drawPageContent(in context: CGContext, page: PDFRenderedPage, layout: PDFPageLayout) {
-        drawAdaptiveText(page.title, font: pageTitleFont, in: layout.pageTitleRect, context: context, color: primaryTextColor, minimumScaleFactor: 0.76, logContext: "page-title")
+        drawAdaptiveText(page.title, font: pageTitleFont, in: layout.pageTitleRect, context: context, color: primaryTextColor, minimumScaleFactor: 0.76)
 
         var y = layout.bodyRect.minY
         for section in page.sections {
@@ -899,7 +908,7 @@ enum ScopePDFExporter {
         var signatureImage: UIImage?
 
         if visibleSections.contains(.signatureAndExport), let path = scope.customerApproval?.signaturePNGPath {
-            signatureImage = try loadImage(at: path, scopeID: scope.id.uuidString, reasonContext: "signature image")
+            signatureImage = try loadImage(at: path, reasonContext: "signature image")
             signatureRows.append(PDFRow(label: "Signature", value: "Embedded"))
         }
 
@@ -928,7 +937,7 @@ enum ScopePDFExporter {
                     row("Notes", scope.customerApproval?.optionsConfirmedText)
                 ]) : nil,
                 visibleSections.contains(.documents) ? documentsSection(scope.documents) : nil,
-                visibleSections.contains(.documents) ? scopePhotoThumbnailSection(scope.photos, scopeID: scope.id) : nil,
+                visibleSections.contains(.documents) ? scopePhotoThumbnailSection(scope.photos) : nil,
                 visibleSections.contains(.signatureAndExport) ? section(title: "Customer Signature", rows: signatureRows, image: signatureImage, imageRole: .signature) : nil
             ]
         )
@@ -1017,9 +1026,7 @@ enum ScopePDFExporter {
         ChecklistPhotoAssetStore.categorizedPhotos(scopeID: scopeID).compactMap { category, photos in
             guard let thumbnails = thumbnailGrid(
                 paths: photos.map(\.filePath),
-                totalCount: photos.count,
-                scopeID: scopeID.uuidString,
-                reasonContext: "existing conditions \(category.displayName) thumbnails"
+                totalCount: photos.count
             ) else {
                 return nil
             }
@@ -1028,13 +1035,11 @@ enum ScopePDFExporter {
         }
     }
 
-    private static func scopePhotoThumbnailSection(_ photos: [PhotoAttachment]?, scopeID: UUID) -> PDFSection? {
+    private static func scopePhotoThumbnailSection(_ photos: [PhotoAttachment]?) -> PDFSection? {
         guard let photos, !photos.isEmpty else { return nil }
         guard let thumbnails = thumbnailGrid(
             paths: photos.map(\.imagePath),
-            totalCount: photos.count,
-            scopeID: scopeID.uuidString,
-            reasonContext: "scope photo thumbnails"
+            totalCount: photos.count
         ) else {
             return nil
         }
@@ -1044,14 +1049,12 @@ enum ScopePDFExporter {
 
     private static func thumbnailGrid(
         paths: [String],
-        totalCount: Int,
-        scopeID: String,
-        reasonContext: String
+        totalCount: Int
     ) -> PDFThumbnailGrid? {
         let visiblePaths = paths.prefix(compactThumbnailLimit)
         let images = visiblePaths.compactMap { path -> UIImage? in
             guard let image = UIImage(contentsOfFile: path), image.size.width > 0, image.size.height > 0 else {
-                logger.notice("skipped thumbnail scope=\(scopeID, privacy: .public) context=\(reasonContext, privacy: .public) reason=missing-or-invalid path=\(path, privacy: .private)")
+                logger.notice("PDF thumbnail skipped reason=missing-or-invalid")
                 return nil
             }
 
@@ -1168,7 +1171,7 @@ enum ScopePDFExporter {
         }
 
         if let diagram = scope.sketches?.first(where: { $0.title == "Site Diagram" }) {
-            let image = try loadImage(at: diagram.previewPNGPath, scopeID: scope.id.uuidString, reasonContext: "site diagram appendix")
+            let image = try loadImage(at: diagram.previewPNGPath, reasonContext: "site diagram appendix")
             pages.append(
                 PDFPageContent(
                     title: "Appendix: Site Diagram",
@@ -1183,14 +1186,14 @@ enum ScopePDFExporter {
         return pages
     }
 
-    private static func loadImage(at path: String, scopeID: String, reasonContext: String) throws -> UIImage {
+    private static func loadImage(at path: String, reasonContext: String) throws -> UIImage {
         guard let image = UIImage(contentsOfFile: path) else {
-            logger.error("skipped image scope=\(scopeID, privacy: .public) context=\(reasonContext, privacy: .public) reason=missing-or-unreadable path=\(path, privacy: .private)")
+            logger.error("PDF required image skipped reason=missing-or-unreadable")
             throw ExportError.contentRenderFailed("The PDF could not include the required \(reasonContext).")
         }
 
         guard image.size.width > 0, image.size.height > 0 else {
-            logger.error("skipped image scope=\(scopeID, privacy: .public) context=\(reasonContext, privacy: .public) reason=invalid-size path=\(path, privacy: .private)")
+            logger.error("PDF required image skipped reason=invalid-size")
             throw ExportError.contentRenderFailed("The PDF could not include the required \(reasonContext) because the image is invalid.")
         }
 
@@ -1244,12 +1247,13 @@ enum ScopePDFExporter {
         context: CGContext,
         alignment: NSTextAlignment = .left,
         color: UIColor = primaryTextColor,
-        minimumScaleFactor: CGFloat = 0.8,
-        logContext: String
+        minimumScaleFactor: CGFloat = 0.8
     ) {
         let fitted = fittedText(text, font: font, width: rect.width, height: rect.height, minimumScaleFactor: minimumScaleFactor)
         if fitted.scaled || fitted.truncated {
-            logger.notice("adjusted PDF text context=\(logContext, privacy: .public) scaled=\(fitted.scaled) truncated=\(fitted.truncated)")
+            logger.notice(
+                "PDF text adjusted scaled=\(fitted.scaled, privacy: .public) truncated=\(fitted.truncated, privacy: .public)"
+            )
         }
 
         drawText(fitted.text, font: fitted.font, in: rect, context: context, alignment: alignment, color: color)
@@ -1615,19 +1619,22 @@ private enum PDFImageRole {
 }
 
 private struct PDFRenderDiagnostics {
-    let scopeID: String
-    let filename: String
-    let missingFields: [String]
-    let plannedPages: [PDFPageContent]
-    let renderedPages: [PDFRenderedPage]
+    let missingFieldCount: Int
+    let plannedPageCount: Int
+    let renderedPageCount: Int
+    let renderedSectionCount: Int
+    let appendixPageCount: Int
 
-    var summary: String {
-        let plannedTitles = plannedPages.map(\.title).joined(separator: " | ")
-        let renderedTitles = renderedPages.map(\.title).joined(separator: " | ")
-        let renderedSectionCounts = renderedPages.map { String($0.sections.count) }.joined(separator: ",")
-        let appendixCount = renderedPages.filter { $0.kind != .core }.count
-
-        return "scope=\(scopeID) file=\(filename).pdf plannedPages=\(plannedPages.count) renderedPages=\(renderedPages.count) sectionCounts=[\(renderedSectionCounts)] appendixPages=\(appendixCount) plannedTitles=[\(plannedTitles)] renderedTitles=[\(renderedTitles)] missingFields=\(missingFields.count)"
+    init(
+        missingFieldCount: Int,
+        plannedPages: [PDFPageContent],
+        renderedPages: [PDFRenderedPage]
+    ) {
+        self.missingFieldCount = missingFieldCount
+        plannedPageCount = plannedPages.count
+        renderedPageCount = renderedPages.count
+        renderedSectionCount = renderedPages.reduce(0) { $0 + $1.sections.count }
+        appendixPageCount = renderedPages.filter { $0.kind != .core }.count
     }
 }
 

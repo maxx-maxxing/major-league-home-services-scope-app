@@ -1,7 +1,7 @@
 Read `codex_context.md` before making changes.
 
 Current working focus:
-Milestone 7.6.4.1 model-save failure containment and deterministic retry is implemented and repository-verified. Preserve this checkpoint while selecting the next bounded, feature-preserving production-hardening slice; lossless backup/import, migration architecture, deployment, and live-system work remain separate decisions.
+Milestones 7.6.4.1 save-failure containment and 4.8.4 PDF diagnostic privacy are implemented and repository-verified. Preserve these checkpoints. The next queued feature-preserving candidate is an offline JobTread read-contract regression gate using sanitized mocked transport only; production JobTread code, Release behavior, credentials, models/schema, and live systems must remain unchanged.
 
 Git checkpoint and authority:
 - Active branch: `ai-scope-assistant`
@@ -11,11 +11,12 @@ Git checkpoint and authority:
 - Verify and report each new bounded slice before treating it as complete; do not fold unrelated working-tree changes into a commit.
 
 Highest-priority requirement:
-Preserve the verified save-failure boundary: covered Release save failures must continue to show a persistent accessible `Changes Not Saved` warning, retry the existing dirty `ModelContext` deterministically, and clear only after a confirmed successful save.
+Preserve both verified privacy/durability boundaries: covered Release save failures must continue to show and retry through the persistence-health warning, and PDF diagnostics must never include raw customer-entered or identifying content, persistent scope IDs, filenames, paths, user labels/text, or raw dynamic contexts. Reviewed aggregate numeric/boolean metrics remain permitted.
 
 Current roadmap position:
 - `PLANS.md` contains the authoritative audited roadmap ledger dated 2026-07-20.
 - Milestones 0–4 are implemented in code; physical-device PDF validation remains a release gate.
+- Milestone 4.8.4 removes customer-/scope-derived PDF diagnostic content while preserving export behavior; representative target-device PDF/filename comparison remains manual.
 - Milestone 5 is partial: Debug customer read/link/refresh and internal sample/draft proposal-pricing scaffolding exist. Release authentication and every outbound JobTread write/sync remain unimplemented.
 - Milestone 5.6.1 is optional voice-note/AI-draft storage only; no AI capture or generation feature exists.
 - Milestone 7.2 acceptance closeout remains open.
@@ -53,6 +54,13 @@ Milestone 7.6.4.1 verified boundary:
 - Exclude migrations, store deletion/recreation, rollback, backup/import, asset-path redesign, JobTread behavior changes, pricing/PDF redesign, deployment, and all live-system mutations.
 - Repository verification passed for injected failure/retry behavior, exact save routing and privacy checks, Debug/Release builds, Release analysis, persistence compatibility, JobTread security, project/plist parsing, shell syntax/modes, and whitespace.
 - Manual acceptance still covers target-device warning layout/hit testing across presentations, retained-warning visibility after Apple-owned photo/file/camera pickers dismiss, VoiceOver, Dynamic Type, Reduce Motion, Light/Dark, background/foreground, force-close/relaunch, and signed build continuity.
+
+Milestone 4.8.4 verified boundary:
+- PDF logger calls use fixed events plus an exact allowlist of numeric/boolean metrics only.
+- Persistent scope IDs, customer-derived filenames, paths, page/section/row labels, rendered text contexts, and raw dynamic summaries remain excluded from diagnostics.
+- Keep customer-facing filename generation, PDF composition/layout/pagination, preview/share, and user-visible errors unchanged.
+- `./scripts/verify_pdf_export_privacy.sh` must pass alongside the existing save-health, compatibility, and JobTread security gates.
+- Manual acceptance still requires representative target-device PDF content/layout and share-sheet filename comparison.
 
 Persistence discipline:
 - Treat every `JobScope` property and nested stored `Codable` shape as a persistence contract.

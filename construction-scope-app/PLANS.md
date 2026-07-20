@@ -22,6 +22,7 @@ Status meanings:
 | 2–2.5 | Implemented | Schema-backed editors, multi-select workflows, review state, and project-type relevance are present. |
 | 3–3.4.4 | Implemented | PencilKit capture and deterministic signature/diagram restore paths are present. |
 | 4–4.8.3 | Implemented; manual release gate remains | Flattened PDF preview/export, relevance filtering, compact thumbnails/flow, and print-safe rendering are present; physical-device PDF smoke testing remains a release gate. |
+| 4.8.4 | Implemented; manual release gate remains | PDF diagnostics now use fixed events plus reviewed numeric/boolean metrics; representative target-device PDF/filename comparison remains manual. |
 | 5 | In progress | Debug-only JobTread customer read/link/refresh and internal proposal/pricing scaffolding exist; Release authentication and every outbound sync/write remain unimplemented. |
 | 5.1 | In progress | Linked model foundation is implemented; the canonical field-by-field JobTread mapping/readiness freeze is incomplete. |
 | 5.2 | Partially implemented | Typed Debug read client, hydration, and local fallback exist; production authentication, retry/backoff, offline operations, and outbound APIs are pending. |
@@ -266,6 +267,40 @@ Status meanings:
   - Preserve section-level continuation labels such as `Sunroom (Cont.)` when one section spans pages
   - Slightly strengthen section title typography while keeping it below the document title and page heading
   - Keep heading changes surgical and preserve relevance filtering, compact pagination, thumbnails, appendices, and flattened rendering
+- Milestone 4.8.4 – PDF Export Diagnostic Privacy Gate
+  - Status: Implemented and repository-verified on 2026-07-20; representative target-device PDF comparison remains manual
+  - Hierarchy: `Full Suite Program → Construction Scope Workstream → Phase 2 → PDF hardening → diagnostic privacy`
+  - Objective: prevent raw customer-entered, identifying, and persisted scope content from entering PDF export diagnostics while preserving the complete user-facing export workflow and reviewed aggregate numeric/boolean metrics
+  - Confirmed exposure:
+    - the share-ready log publishes a filename derived from customer identity, address, and project type plus the persistent scope UUID
+    - the render summary publishes that filename/scope UUID and page-title details
+    - pagination logs publish the persistent scope UUID and can publish user-entered row labels
+  - Scope:
+    - replace render-derived string diagnostics with fixed event text and numeric/boolean metrics
+    - remove persisted scope IDs, customer-derived filenames, paths, page/section/row labels, and rendered text contexts from PDF logger calls
+    - remove privacy-sensitive string fields from the diagnostic summary model
+    - add an executable source/privacy gate covering all PDF logger calls and known sensitive diagnostic fields
+  - Exclusions:
+    - no exported filename, PDF bytes/layout, pagination, relevance filtering, thumbnails, preview/share, or user-visible error changes
+    - no model/schema, persistence, pricing, JobTread, UI, deployment, or live-system changes
+    - no temporary-file cleanup or broader application logging redesign
+  - Expected files: `PDFEngine/PDFPreviewStubView.swift`, one standalone verification script/test if useful, `PLANS.md`, `DOCUMENTATION.md`, and `codex_context.md`
+  - Acceptance criteria:
+    - public diagnostics cannot include a customer name/address, persistent scope UUID, exported filename, user-entered label, or local asset path
+    - fixed event names retain useful page/section counts, byte counts, placement state, and scaled/truncated booleans
+    - the human-readable exported filename and all rendered PDF behavior remain unchanged
+    - `Models/SchemaModels.swift` and `schema.json` remain byte-for-byte unchanged
+  - Verification: dedicated PDF diagnostic privacy gate, Debug/Release builds, Release analysis, all existing verification scripts, plist/project/shell/mode checks, and whitespace checks
+  - Implementation evidence:
+    - every PDF `Logger` call now uses fixed event text and only explicitly reviewed numeric/boolean interpolations
+    - persistent scope UUIDs, customer-derived filenames, asset paths, page/section/row labels, rendered text contexts, and diagnostic summaries were removed from log payloads
+    - `PDFRenderDiagnostics` retains counts only and no longer stores render-derived strings
+    - the executable gate rejects every interpolation outside an exact numeric/boolean allowlist, rejects private path/string logging, rejects console output, and pins the frozen model/schema hashes
+    - existing filename construction, output URL construction, pagination decisions, renderer inputs, returned filename, and user-visible errors remain unchanged by code review
+    - the privacy gate, Debug/Release builds, Release analysis, persistence/save-health/JobTread security gates, plist/project/shell/mode checks, and whitespace checks passed
+  - Remaining manual gate: compare a representative target-device PDF and share-sheet filename before/after this slice and confirm no visual/content change
+  - Definition of done: automated gates pass, an independent review finds no customer-derived PDF logger path, docs match the implementation, and manual visual checks are reported honestly
+  - Checkpoint: stop before PDF redesign, file-retention behavior, deployment, or external-system work
 
 ## Milestone 5 – JobTread Integration
 - Milestone 5.1 – Integration Readiness Freeze

@@ -4,7 +4,7 @@
 ## Current Status
 - The audited ledger in `PLANS.md` is the authoritative roadmap status. This section is a compact snapshot, not a second milestone tracker.
 - Milestones 0–3.4.4 are implemented. The canonical Milestone 2.1 is **Enclosure Type Multi-Select**; the older Windows & Glass stability entry below is retained only as historical evidence.
-- Milestones 4–4.8.3 are implemented in code. Milestone 4.7 still has a signed physical-device PDF smoke-test gate before field release.
+- Milestones 4–4.8.4 are implemented in code. Milestone 4.7 and 4.8.4 still have signed physical-device PDF smoke/comparison gates before field release.
 - Milestone 5 is in progress: Debug-only JobTread customer read/link/refresh exists, while Release authentication and every outbound write/sync remain unimplemented. Milestones 5.2.28–5.2.39 are internal sample/draft pricing scaffolding, not a production pricing or proposal system.
 - Milestone 5.2.24.2 is the linked-customer unit-number milestone, disambiguating it from 5.2.24 phone/email hydration. Milestone 5.2.27 contains a useful architecture audit but needs a mapping-evidence refresh after later verified hydration work.
 - Milestone 5.6.1 implements optional voice-note and AI-draft **storage contracts only**. There is no recording, transcription, extraction/review, intent, render, or AI publishing feature.
@@ -13,6 +13,16 @@
 - Milestones 7.6.1–7.6.2.2, 7.6.3.1, 7.6.4.1, 7.6.5, and 7.6.6 are implemented; 7.6.3 remains an active persistence-shape guardrail. Milestone 7.6.4 remains in progress because its device continuity matrix and lossless backup/import path are still open.
 
 ## Decisions
+- Milestone 4.8.4 PDF export diagnostic privacy gate — 2026-07-20:
+  - A production-readiness audit confirmed that PDF diagnostics publicly logged a persistent scope UUID, a filename derived from customer identity/address/project type, page/section details, and a row label that can contain a user-entered measurement type. Asset paths were also passed into logger calls, even where marked private.
+  - PDF logging now uses fixed event text plus page/section/byte/count metrics and scaled/truncated booleans only. Persistent scope IDs, customer-derived filenames, paths, page/section/row labels, rendered text contexts, and raw dynamic summaries are omitted rather than redacted.
+  - `PDFRenderDiagnostics` now stores only missing-field, planned/rendered-page, rendered-section, and appendix-page counts.
+  - Removed parameters were diagnostic-only. Human-readable filename generation, temporary output URL construction, composition, pagination decisions, renderer inputs, flattened PDF bytes/layout, preview/share flow, return values, and user-visible errors were not intentionally changed.
+  - Added executable `scripts/verify_pdf_export_privacy.sh`. It rejects string/data-bearing logger interpolation, permits only an exact reviewed numeric/boolean interpolation allowlist, rejects even private path/string logging, rejects console output, confirms the existing filename flow, and pins the model/schema SHA-256 values so the freeze remains durable after commit.
+  - Verification passed: the dedicated privacy gate, unsigned generic-iOS Debug and Release builds, Release analysis, save-health gate, repository-baseline persistence compatibility, JobTread security containment, plist/project parsing, shell syntax/executable modes, and whitespace checks.
+  - Independent review found no product-code privacy or behavior regression. Its two gate-hardening findings—blacklist bypass risk and post-commit schema-freeze weakness—were resolved with the exact interpolation allowlist and pinned hashes.
+  - Manual acceptance remains: generate the same representative scope on a target device, compare the PDF content/layout and share-sheet filename with the pre-change behavior, and retain the broader signed-device PDF smoke gate. No PR, merge, deployment, TestFlight upload, credential rotation, cloud/backend work, or live JobTread mutation was performed.
+
 - Roadmap audit and save-failure containment implementation — 2026-07-20:
   - Evidence review reconciled the roadmap against current source, milestone logs, compatibility/security harnesses, and the pushed branch checkpoint. The audited ledger now lives in `PLANS.md` so implementation history and present status are no longer conflated.
   - The audit corrected material stale claims: Milestone 5 is partial rather than not started; 5.6.1 is storage-only; 7.5.1 was superseded by the 7.5.2 persistence diagnosis; and the implemented 7.7 section-scoped measurements milestone is now represented.

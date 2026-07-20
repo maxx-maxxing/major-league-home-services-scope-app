@@ -93,15 +93,22 @@ final class DebouncedAutosave: ObservableObject {
         }
     }
 
-    func flush(scope: JobScope) {
+    @discardableResult
+    func flush(
+        scope: JobScope,
+        afterConfirmedSave action: PersistenceSaveHealth.ConfirmedSaveAction? = nil
+    ) -> Bool {
         pendingSaveTask?.cancel()
         scope.updatedAt = .now
-        saveNow(.manualFlush)
+        return saveNow(.manualFlush, afterConfirmedSave: action)
     }
 
     @discardableResult
-    func saveNow(_ operation: PersistenceSaveOperation) -> Bool {
-        persistenceHealth.attempt(operation)
+    func saveNow(
+        _ operation: PersistenceSaveOperation,
+        afterConfirmedSave action: PersistenceSaveHealth.ConfirmedSaveAction? = nil
+    ) -> Bool {
+        persistenceHealth.attempt(operation, afterConfirmedSave: action)
     }
 }
 

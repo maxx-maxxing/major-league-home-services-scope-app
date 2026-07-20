@@ -40,6 +40,7 @@ struct PersistenceSaveIssue: Identifiable, Equatable, Sendable {
 @MainActor
 final class PersistenceSaveHealth: ObservableObject {
     typealias SaveAction = @MainActor () throws -> Void
+    typealias ConfirmedSaveAction = @MainActor () -> Void
 
     @Published private(set) var issue: PersistenceSaveIssue?
 
@@ -49,6 +50,7 @@ final class PersistenceSaveHealth: ObservableObject {
     )
 
     private var saveAction: SaveAction?
+    private var pendingConfirmedSaveActions: [ConfirmedSaveAction] = []
     private let now: () -> Date
 
     init(
@@ -64,7 +66,14 @@ final class PersistenceSaveHealth: ObservableObject {
     }
 
     @discardableResult
-    func attempt(_ operation: PersistenceSaveOperation) -> Bool {
+    func attempt(
+        _ operation: PersistenceSaveOperation,
+        afterConfirmedSave action: ConfirmedSaveAction? = nil
+    ) -> Bool {
+        if let action {
+            pendingConfirmedSaveActions.append(action)
+        }
+
         do {
             guard let saveAction else {
                 throw SaveActionUnavailable()
@@ -72,6 +81,9 @@ final class PersistenceSaveHealth: ObservableObject {
 
             try saveAction()
             issue = nil
+            let confirmedActions = pendingConfirmedSaveActions
+            pendingConfirmedSaveActions.removeAll()
+            confirmedActions.forEach { $0() }
             return true
         } catch {
             issue = PersistenceSaveIssue(operation: operation, occurredAt: now())

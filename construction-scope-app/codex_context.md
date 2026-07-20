@@ -1,11 +1,11 @@
 Read `codex_context.md` before making changes.
 
 Current working focus:
-Milestones 7.6.4.1 save-failure containment, 4.8.4 PDF diagnostic privacy, and 7.6.2.3 offline JobTread customer read-contract verification are implemented and repository-verified. Preserve these checkpoints. The next queued feature-preserving candidate is Documents asset-retirement safety after confirmed model saves; scope it separately and do not broaden it into backup/import, path migration, or unrelated asset systems.
+Milestones 7.6.4.1 save-failure containment, 4.8.4 PDF diagnostic privacy, 7.6.2.3 offline JobTread customer read-contract verification, and 7.6.4.2 save-confirmed Documents asset retirement are implemented and repository-verified. Preserve these checkpoints. The next queued feature-preserving candidate is Documents async-import concurrency safety; scope immutable request identity, stale-completion rejection, and never-adopted file cleanup separately without broadening into backup/import, path migration, or unrelated asset systems.
 
 Git checkpoint and authority:
 - Active branch: `ai-scope-assistant`
-- Verified checkpoints through `366b090` (`Contain PDF export diagnostic data`) have been pushed to `origin/ai-scope-assistant`; the current 7.6.2.3 contract gate remains the active bounded working-tree slice until its own verified commit/push.
+- Verified checkpoints `4b6bce0` (Release/compatibility), `2f544e7` (save containment/roadmap), `366b090` (PDF diagnostics), and `95a9978` (offline JobTread read contract) are pushed to `origin/ai-scope-assistant`. Milestone 7.6.4.2 is the current verified bounded checkpoint; confirm `HEAD` and upstream before beginning another slice.
 - The user has authorized commit/push for bounded, verified hardening work.
 - That authority does not include a pull request, merge, deployment/TestFlight upload, credential rotation, backend/cloud creation, or live JobTread write/sync.
 - Verify and report each new bounded slice before treating it as complete; do not fold unrelated working-tree changes into a commit.
@@ -22,7 +22,7 @@ Current roadmap position:
 - Milestone 5.6.1 is optional voice-note/AI-draft storage only; no AI capture or generation feature exists.
 - Milestone 7.2 acceptance closeout remains open.
 - Milestone 7.6.3 is an active persistence-shape guardrail; 7.6.3.1 host-reconstructed compatibility testing is implemented, while installed-build device continuity remains manual.
-- Milestone 7.6.4 remains in progress: 7.6.4.1 is implemented, while the device continuity matrix and lossless backup/import remain separate open work.
+- Milestone 7.6.4 remains in progress: 7.6.4.1 and 7.6.4.2 are implemented, while async Documents import concurrency, the device continuity matrix, and lossless backup/import remain separate open work.
 
 Important feature-preservation constraint:
 Do not destabilize the current JobTread customer search/select and linked-customer hydration, verified read-only ownership behavior, Documents / Attachments section, pricing engine/scaffolding, persistence continuity fixes, PDF export improvements, section review/completion workflow, project-type-driven visibility, section-scoped measurements, signature capture, or site-diagram flow unless the task explicitly requires it.
@@ -33,7 +33,7 @@ What is already true:
 - Debug JobTread customer search/select, verified hydration, and refresh work for the currently supported fields.
 - Release direct JobTread access and sensitive diagnostics are contained; distributed lookup/refresh is intentionally unavailable until an approved authenticated boundary exists.
 - Store-open failure blocks editing behind a recovery screen instead of silently substituting a new persisted store.
-- Documents use an app-controlled encoded payload, and app-owned files back photos, documents, sketches, and signatures.
+- Documents use an app-controlled encoded payload. Superseded Documents files retire only after a confirmed metadata save through a scope/attachment-bound, symlink-safe path; app-owned files also back photos, sketches, and signatures through their existing systems.
 - PDF preview/export, contextual section visibility, section review state, and section-scoped measurements are implemented.
 - The repository-baseline persistence harness verifies the current additive AI storage candidate against baseline commit `07b42f308cee328926046f3198bbaa5fe36fa43b` using the current host toolchain.
 
@@ -43,6 +43,8 @@ Known limitations and manual gates:
 - The host-reconstructed compatibility result is not proof of an original historical iOS-store upgrade or the installed field-device update path.
 - `documentsPayload` remains an opaque encoded persistence boundary.
 - Asset metadata uses absolute app-container paths; reinstall/new-container recovery is unsupported.
+- Documents retirement actions are in-memory and fail safe toward orphan retention; there is no durable retirement ledger or orphan sweep.
+- Documents async imports are not yet request-tokened or cancellation-aware; late/out-of-order completion and never-adopted file cleanup remain the next bounded concurrency candidate.
 - There is no lossless scope backup/import package or cross-device/company sync.
 - Signed TestFlight launch/UI smoke testing, build-A → update-in-place-to-B continuity, physical-device PDF/documents checks, Dynamic Type, VoiceOver, Reduce Motion, and Light/Dark acceptance remain manual release gates.
 
@@ -55,6 +57,15 @@ Milestone 7.6.4.1 verified boundary:
 - Exclude migrations, store deletion/recreation, rollback, backup/import, asset-path redesign, JobTread behavior changes, pricing/PDF redesign, deployment, and all live-system mutations.
 - Repository verification passed for injected failure/retry behavior, exact save routing and privacy checks, Debug/Release builds, Release analysis, persistence compatibility, JobTread security, project/plist parsing, shell syntax/modes, and whitespace.
 - Manual acceptance still covers target-device warning layout/hit testing across presentations, retained-warning visibility after Apple-owned photo/file/camera pickers dismiss, VoiceOver, Dynamic Type, Reduce Motion, Light/Dark, background/foreground, force-close/relaunch, and signed build continuity.
+
+Milestone 7.6.4.2 verified boundary:
+- Replace, clear, and additional-row deletion update visible Documents metadata first and retire the old file only after the shared model-context save succeeds; failed attempts/retries retain the cleanup action and old file.
+- Operations that supersede an existing file use the existing immediate manual-flush path. Metadata-only edits and rows without an attachment retain the existing debounce behavior.
+- Before cleanup, recheck the current scope for the old ID or standardized path. Retirement must remain bound to the exact current `Application Support/ScopeAssets/<scope-id>/Documents` directory and attachment-ID filename prefix.
+- Preserve `openat`/`fstatat`/`unlinkat`, `O_NOFOLLOW`, `AT_SYMLINK_NOFOLLOW`, regular-file-only deletion, fixed path-free outcomes, and fail-safe orphan retention.
+- `./scripts/verify_document_asset_retirement.sh` must pass alongside save-health, compatibility, JobTread contract/security, and PDF privacy gates. The model/schema freeze remains byte-for-byte unchanged.
+- Manual acceptance still requires target-device Files/Photos/Camera replace, clear, and row-delete flows; injected failure/retry; force-close/relaunch; current/new file reopening; and perceived responsiveness of the immediate destructive-save boundary.
+- Exclude async import request-token/task cancellation work, durable cleanup ledgers/sweeps, relative-path migration, backup/import, reinstall recovery, other asset systems, deployment, and external writes from maintenance of this checkpoint.
 
 Milestone 4.8.4 verified boundary:
 - PDF logger calls use fixed events plus an exact allowlist of numeric/boolean metrics only.

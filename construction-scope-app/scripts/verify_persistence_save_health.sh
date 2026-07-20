@@ -20,7 +20,7 @@ fail() {
   exit 1
 }
 
-for required_tool in git grep sed xcrun; do
+for required_tool in git grep sed shasum xcrun; do
   command -v "$required_tool" >/dev/null 2>&1 || fail "required tool is unavailable: $required_tool"
 done
 
@@ -51,6 +51,13 @@ if ! git -C "$PROJECT_DIR" diff --quiet -- Models/SchemaModels.swift schema.json
   fail "the save-health slice changes the frozen persistence model or schema"
 fi
 
+EXPECTED_MODEL_HASH="f848b2307fa94c64e8efe8c31a0201950d2036f596a54dabfbf75aee8ddbaee8"
+EXPECTED_SCHEMA_HASH="819b1b81ea23d3600ae83c05e073843f5036811c524b73bc743235be88a447f4"
+read -r actual_model_hash _ < <(shasum -a 256 "$MODEL_SOURCE")
+read -r actual_schema_hash _ < <(shasum -a 256 "$SCHEMA_SOURCE")
+[[ "$actual_model_hash" == "$EXPECTED_MODEL_HASH" ]] || fail "the frozen Swift model hash changed"
+[[ "$actual_schema_hash" == "$EXPECTED_SCHEMA_HASH" ]] || fail "the frozen schema hash changed"
+
 if grep -Eq 'modelContext[[:space:]]*\.[[:space:]]*save[[:space:]]*\(' "$ROOT_SOURCE"; then
   fail "RootNavigationView contains a direct ModelContext save outside the shared health boundary"
 fi
@@ -67,7 +74,14 @@ require_route() {
 }
 
 require_route "$PERSISTENCE_SOURCE" 'saveNow(.autosave)'
-require_route "$PERSISTENCE_SOURCE" 'saveNow(.manualFlush)'
+require_route "$PERSISTENCE_SOURCE" 'saveNow(.manualFlush, afterConfirmedSave: action)'
+require_route "$HEALTH_SOURCE" 'pendingConfirmedSaveActions.append(action)'
+require_route "$HEALTH_SOURCE" 'let confirmedActions = pendingConfirmedSaveActions'
+require_route "$HEALTH_SOURCE" 'pendingConfirmedSaveActions.removeAll()'
+require_route "$HEALTH_SOURCE" 'confirmedActions.forEach { $0() }'
+require_route "$HEALTH_TESTS" 'testConfirmedActionRunsOnlyAfterSave()'
+require_route "$HEALTH_TESTS" 'testConfirmedActionSurvivesFailedRetries()'
+require_route "$HEALTH_TESTS" 'testLaterSuccessfulSaveDrainsAllQueuedActionsOnce()'
 for operation in \
   createScope \
   renameScope \

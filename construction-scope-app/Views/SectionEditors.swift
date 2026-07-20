@@ -3736,11 +3736,9 @@ struct DocumentsEditorView: View {
     }
 
     private func removeAdditionalAttachmentRow(_ rowID: UUID) {
-        if let attachment = additionalAttachments.first(where: { $0.id == rowID })?.attachment {
-            DocumentAssetStore.removeAttachment(at: attachment.filePath)
-        }
+        let attachment = additionalAttachments.first(where: { $0.id == rowID })?.attachment
 
-        updateDocuments { documents in
+        updateDocuments(retiring: attachment) { documents in
             var rows = documents.additionalAttachments ?? []
             rows.removeAll { $0.id == rowID }
             documents.additionalAttachments = rows.isEmpty ? nil : rows
@@ -3748,11 +3746,9 @@ struct DocumentsEditorView: View {
     }
 
     private func clearAttachment(for target: DocumentSlotTarget) {
-        if let existing = existingAttachment(for: target) {
-            DocumentAssetStore.removeAttachment(at: existing.filePath)
-        }
+        let existing = existingAttachment(for: target)
 
-        updateDocuments { documents in
+        updateDocuments(retiring: existing) { documents in
             switch target {
             case .irrigation:
                 documents.irrigation = nil
@@ -3841,11 +3837,9 @@ struct DocumentsEditorView: View {
     private func persistImportedAttachment(_ attachment: DocumentAttachmentFile, for target: DocumentSlotTarget?) {
         guard let target else { return }
 
-        if let existing = existingAttachment(for: target) {
-            DocumentAssetStore.removeAttachment(at: existing.filePath)
-        }
+        let existing = existingAttachment(for: target)
 
-        updateDocuments { documents in
+        updateDocuments(retiring: existing) { documents in
             switch target {
             case .irrigation:
                 documents.irrigation = attachment
@@ -3873,11 +3867,50 @@ struct DocumentsEditorView: View {
         }
     }
 
-    private func updateDocuments(_ update: (inout DocumentsSection) -> Void) {
+    @discardableResult
+    private func updateDocuments(
+        retiring attachment: DocumentAttachmentFile? = nil,
+        _ update: (inout DocumentsSection) -> Void
+    ) -> Bool {
+        let previousDocuments = scope.documents
         var documents = scope.documents ?? emptyDocumentsSection()
         update(&documents)
-        scope.documents = documents.isEffectivelyEmpty ? nil : documents
-        autosave.scheduleSave(for: scope)
+        let updatedDocuments = documents.isEffectivelyEmpty ? nil : documents
+        scope.documents = updatedDocuments
+
+        let didChange = previousDocuments != updatedDocuments
+        guard let attachment, didChange else {
+            autosave.scheduleSave(for: scope)
+            return didChange
+        }
+
+        autosave.flush(
+            scope: scope,
+            afterConfirmedSave: { [weak scope] in
+                guard let scope,
+                      !Self.isAttachment(attachment, referencedIn: scope.documents) else {
+                    return
+                }
+
+                DocumentAssetStore.retireAttachment(attachment, scopeID: scope.id)
+            }
+        )
+        return true
+    }
+
+    private static func isAttachment(
+        _ candidate: DocumentAttachmentFile,
+        referencedIn documents: DocumentsSection?
+    ) -> Bool {
+        guard let documents else { return false }
+        let attachments = [documents.irrigation, documents.propertySurvey].compactMap { $0 } +
+            (documents.additionalAttachments ?? []).compactMap(\.attachment)
+        let candidatePath = URL(fileURLWithPath: candidate.filePath).standardizedFileURL.path
+
+        return attachments.contains { attachment in
+            attachment.id == candidate.id ||
+            URL(fileURLWithPath: attachment.filePath).standardizedFileURL.path == candidatePath
+        }
     }
 
     private func documentAttachmentSymbol(for attachment: DocumentAttachmentFile) -> String {

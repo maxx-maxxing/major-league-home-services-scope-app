@@ -10,6 +10,7 @@
 		AA0000010000000000000001 /* ConstructionScopeAppApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000010000000000000011 /* ConstructionScopeAppApp.swift */; };
 		AA0000010000000000000002 /* SchemaModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000010000000000000012 /* SchemaModels.swift */; };
 		AA0000010000000000000003 /* Persistence.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000010000000000000013 /* Persistence.swift */; };
+		DAR000010000000000000001 /* DocumentAssetRetirement.swift in Sources */ = {isa = PBXBuildFile; fileRef = DAR000010000000000000011 /* DocumentAssetRetirement.swift */; };
 		PSH000010000000000000001 /* PersistenceSaveHealth.swift in Sources */ = {isa = PBXBuildFile; fileRef = PSH000010000000000000011 /* PersistenceSaveHealth.swift */; };
 		AA0000010000000000000004 /* RootNavigationView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000010000000000000014 /* RootNavigationView.swift */; };
 		AA0000010000000000000005 /* CardComponents.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000010000000000000015 /* CardComponents.swift */; };
@@ -31,6 +32,7 @@
 		AA0000010000000000000011 /* ConstructionScopeAppApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConstructionScopeAppApp.swift; sourceTree = "<group>"; };
 		AA0000010000000000000012 /* SchemaModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SchemaModels.swift; sourceTree = "<group>"; };
 		AA0000010000000000000013 /* Persistence.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Persistence.swift; sourceTree = "<group>"; };
+		DAR000010000000000000011 /* DocumentAssetRetirement.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DocumentAssetRetirement.swift; sourceTree = "<group>"; };
 		PSH000010000000000000011 /* PersistenceSaveHealth.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PersistenceSaveHealth.swift; sourceTree = "<group>"; };
 		AA0000010000000000000014 /* RootNavigationView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootNavigationView.swift; sourceTree = "<group>"; };
 		AA0000010000000000000015 /* CardComponents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CardComponents.swift; sourceTree = "<group>"; };
@@ -106,6 +108,7 @@
 			isa = PBXGroup;
 			children = (
 				AA0000010000000000000013 /* Persistence.swift */,
+				DAR000010000000000000011 /* DocumentAssetRetirement.swift */,
 				PSH000010000000000000011 /* PersistenceSaveHealth.swift */,
 			);
 			path = Persistence;
@@ -256,6 +259,7 @@
 				AA0000010000000000000001 /* ConstructionScopeAppApp.swift in Sources */,
 				AA0000010000000000000002 /* SchemaModels.swift in Sources */,
 				AA0000010000000000000003 /* Persistence.swift in Sources */,
+				DAR000010000000000000001 /* DocumentAssetRetirement.swift in Sources */,
 				PSH000010000000000000001 /* PersistenceSaveHealth.swift in Sources */,
 				AA0000010000000000000004 /* RootNavigationView.swift in Sources */,
 				AA0000010000000000000005 /* CardComponents.swift in Sources */,

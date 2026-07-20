@@ -347,10 +347,16 @@ enum DocumentAssetStore {
     }
     #endif
 
-    static func removeAttachment(at path: String) {
-        let fileURL = URL(fileURLWithPath: path)
-        guard FileManager.default.fileExists(atPath: fileURL.path) else { return }
-        try? FileManager.default.removeItem(at: fileURL)
+    @discardableResult
+    static func retireAttachment(
+        _ attachment: DocumentAttachmentFile,
+        scopeID: UUID
+    ) -> DocumentAssetRetirementOutcome {
+        DocumentAssetRetirement.retire(
+            attachmentID: attachment.id,
+            path: attachment.filePath,
+            scopeID: scopeID
+        )
     }
 
     private static func saveImageData(

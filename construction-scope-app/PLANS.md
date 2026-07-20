@@ -48,6 +48,7 @@ Status meanings:
 | 7.6.3.1 | Implemented; manual release gate remains | Host-reconstructed compatibility gate passes; installed-build device continuity is not proven. |
 | 7.6.4 | In progress | Recovery risks are documented and 7.6.4.1 save-failure containment is implemented; the manual continuity matrix and lossless backup/import remain open. |
 | 7.6.4.1 | Implemented; manual acceptance remains | Core SwiftData saves share a privacy-safe failure warning and deterministic same-context retry; device layout, VoiceOver, Reduce Motion, and interruption behavior still require manual acceptance. |
+| 7.6.4.2 | Implemented; manual release gate remains | Superseded Documents files retire only after confirmed metadata saves through a scope/attachment-bound, symlink-safe deletion path; target-device import/removal and interruption checks remain manual. |
 | 7.6.5–7.6.6 | Implemented | General whitespace repair and persistent text-field labels are present. |
 | 7.7 | Implemented; compatibility gate applies | Section-owned measurement blocks and PDF mapping are present; future stored-shape changes remain governed by 7.6.3. |
 
@@ -1095,6 +1096,47 @@ Status meanings:
   - Size and estimate: Small, one bounded implementation/verification checkpoint
   - Definition of done: automated checks pass, the warning remains until confirmed save success, existing features and stored shapes are unchanged, and manual device checks are reported honestly
   - Checkpoint: stop before lossless backup/import, migration architecture, TestFlight deployment, credential rotation, or any live JobTread mutation
+- Milestone 7.6.4.2 – Documents Asset Retirement Safety
+  - Status: Implemented and repository-verified as of 2026-07-20; manual release acceptance remains
+  - Hierarchy: `Full Suite Program → Construction Scope Workstream → Phase 2 → Persistence hardening → save-confirmed Documents cleanup`
+  - Confirmed pre-change risk: replace, clear, and additional-row deletion removed the old local file before the debounced metadata save succeeded, so interruption/save failure could leave persisted metadata pointing to missing bytes; the deletion API also accepted an arbitrary persisted absolute path
+  - Objective: preserve the existing Documents UI/import behavior while retiring superseded app-owned files only after the corresponding in-memory metadata is durably saved
+  - Scope:
+    - add a nonthrowing confirmed-save action queue to the existing persistence-health boundary so actions survive failed attempts/retries and run exactly once after success
+    - mutate Documents metadata first and keep its immediate visible state unchanged
+    - use an immediate existing manual-flush path only when a replace/clear/row-delete actually supersedes a stored attachment; preserve the current debounce for metadata-only edits and rows without files
+    - after confirmed save, recheck that the old attachment is not still referenced in the current scope, then attempt scoped retirement
+    - require the candidate to be a direct, non-symlink file under `Application Support/ScopeAssets/<scope-id>/Documents` with the expected attachment-ID filename prefix
+    - standardize and resolve paths, reject traversal, sibling-scope/prefix-collision, wrong-ID, directory, and symlink escape cases, and prefer an orphan over any uncertain deletion
+    - keep cleanup outcome/error diagnostics fixed and path-free; cleanup failure must not become a false model-save failure
+  - Exclusions:
+    - no `JobScope`/`schema.json` change, migration, relative-path conversion, durable retirement ledger, orphan sweep, backup/import, reinstall/device recovery, or scope-wide deletion redesign
+    - no changes to general photos, checklist photos, signatures, sketches, PDFs, pricing, JobTread, cloud/backend, deployment, or live systems
+    - no broad async import-token/task cancellation redesign in this slice; late/stale import adoption and camera main-actor work remain a separately tracked concurrency follow-up
+  - Expected files: one pure Foundation retirement helper, persistence-health/autosave integration, Documents store/editor routing, standalone tests/gate, Xcode source membership, and status/context documentation
+  - Acceptance criteria:
+    - successful replace/clear/row-delete saves metadata before deleting only the old managed file
+    - injected save failure and failed retry retain the warning, queued action, old file, and same dirty context; successful retry runs cleanup once and clears the warning
+    - A→B→C before a confirmed save may retire A/B after success but never C; a still-referenced path is preserved
+    - outside-root, wrong-scope/ID, traversal, prefix-collision, directory, file-symlink, and symlinked-ancestor fixtures are rejected and remain intact
+    - missing files are idempotent; cleanup failure leaves an orphan without changing confirmed-save success
+    - existing labels, menus, import sources, attachment metadata, row/name behavior, warning copy, and non-destructive debounce/timestamp behavior remain unchanged
+    - `Models/SchemaModels.swift` and `schema.json` remain byte-for-byte unchanged
+  - Implementation evidence:
+    - `PersistenceSaveHealth` retains nonthrowing confirmed-save actions across failed attempts/retries and drains them exactly once after the next successful model-context save
+    - destructive Documents mutations update visible metadata first and immediately use the existing manual-flush boundary; metadata-only changes and rows without a stored file retain the existing debounce path
+    - confirmed actions recheck current-scope references by attachment ID and standardized path before invoking retirement
+    - `DocumentAssetRetirement` validates the exact current Application Support container, scope UUID, direct `Documents` child, and attachment UUID prefix, then traverses with `openat(... O_NOFOLLOW)`, inspects with `fstatat(... AT_SYMLINK_NOFOLLOW)`, and removes regular files only with `unlinkat`
+    - cleanup outcomes are fixed/path-free and cleanup failure cannot convert a confirmed metadata save into a save warning
+  - Verification evidence:
+    - `verify_document_asset_retirement.sh` passed strict-concurrency compilation, save-before-cleanup routes, failed-save/retry action retention, frozen model/schema/project hashes, and filesystem fixtures for valid, missing, traversal, prefix collision, wrong container/scope/ID, directory/FIFO, final/dangling symlink, and symlinked ancestor cases
+    - unsigned generic-iOS Debug and Release builds and Release analysis passed
+    - persistence compatibility, persistence save-health, offline JobTread read-contract, JobTread Release security/artifact, and PDF diagnostic privacy gates passed
+    - project/plist parsing, shell syntax/executable mode, frozen hashes, and whitespace checks passed
+    - independent security and behavior/privacy reviews found no blocking regression; the existing async import race family remains explicitly outside this bounded slice
+  - Manual gate: target-device replace/clear/additional-row removal through Files, Photos, and Camera; save-failure warning/retry; force-close/relaunch; and confirmation that current/new files reopen while retired files do not
+  - Definition of done: automated tests and independent review prove save-before-delete and fail-closed path containment, docs preserve exclusions, and no existing user workflow or stored shape is redesigned
+  - Checkpoint: stop before async import concurrency redesign, durable cleanup/backup architecture, migration/path-format work, TestFlight/deployment, or any external-system mutation
 - Milestone 7.6.5 – General Text Entry Whitespace Repair
   - Audit SwiftUI `TextField` / `TextEditor` bindings and related setter paths for live whitespace normalization
   - Keep the established Scope Title behavior: editable text stores raw user input during typing, while display/export/persistence boundaries may still trim blank-only values

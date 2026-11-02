@@ -71,8 +71,11 @@ enum ScopeInputKey: String, Codable, CaseIterable, Identifiable {
     case structuralLegacySummary
     case structuralBranchNotes
     case structuralNotes
+    case structuralMeasurements
     case enclosureType
     case screenEnclosureNotes
+    case screenMeasurements
+    case sunroomMeasurements
     case screenWallType
     case screenTint
     case screenFrameSize
@@ -109,10 +112,12 @@ enum ScopeInputKey: String, Codable, CaseIterable, Identifiable {
     case switchLocations
     case dedicatedCircuits
     case electricalNotes
+    case electricalMeasurements
     case gutters
     case downspoutLocations
     case drainTieIn
     case slopeNotes
+    case drainageMeasurements
     case houseWallMaterial
     case houseWallOther
     case houseMountingType
@@ -126,12 +131,14 @@ enum ScopeInputKey: String, Codable, CaseIterable, Identifiable {
     case mountCondition
     case fastenerPlan
     case attachmentNotes
+    case attachmentMeasurements
     case irrigationDocument
     case propertySurveyDocument
     case additionalDocumentCount
     case additionalDocumentNames
     case finishTrimType
     case finishColor
+    case finishMeasurements
     case sidingReplacementRequired
     case caulkingSealingNotes
     case permitRequired
@@ -899,7 +906,7 @@ struct ProposalFoundationSnapshot: Codable, Hashable {
 enum ProposalFoundationBuilder {
     static func compose(
         scope: JobScope,
-        template: ProposalTemplateDefinition = .editableFoundationV1
+        template: ProposalTemplateDefinition = .editableFoundationV2
     ) -> ProposalFoundationSnapshot {
         let pricingConfiguration = PricingConfigurationProvider.activeSnapshot()
         let input = makeCompositionInput(scope: scope, template: template)
@@ -921,7 +928,7 @@ enum ProposalFoundationBuilder {
 
     static func makeCompositionInput(
         scope: JobScope,
-        template: ProposalTemplateDefinition = .editableFoundationV1
+        template: ProposalTemplateDefinition = .editableFoundationV2
     ) -> ProposalCompositionInput {
         let documents = scope.documents
         let exportExistingConditions = scope.existingConditions?.normalizedForExport()
@@ -929,7 +936,6 @@ enum ProposalFoundationBuilder {
         let exportEnclosure = scope.enclosure?.normalizedForExport()
         let checklistPhotoSummary = ChecklistPhotoAssetStore.summary(scopeID: scope.id)
         let visibleScopeSections = ScopeSection.visibleSectionSet(for: scope)
-        let hasSelectedProjectTypes = !scope.projectInfo.activeProjectTypes.isEmpty
         let showsScreenEnclosure = visibleScopeSections.contains(.enclosure)
         let showsSunroom = visibleScopeSections.contains(.windowsAndGlass)
 
@@ -941,6 +947,7 @@ enum ProposalFoundationBuilder {
         let screenEnclosureValues: [ProposalInputValue?] = showsScreenEnclosure ? [
             textValue(.enclosureType, "Screen Enclosure Type", exportEnclosure?.enclosureTypeDisplaySummary),
             textValue(.screenEnclosureNotes, "Screen Enclosure Notes", exportEnclosure?.screenEnclosureNotes),
+            measurementsValue(.screenMeasurements, "Screen Enclosure Measurements", exportEnclosure?.screenMeasurements),
             enumValue(.screenWallType, "Screen Wall Type", exportEnclosure?.screenWallType),
             enumValue(.screenTint, "Screen Tint", exportEnclosure?.screenTint),
             enumValue(.screenFrameSize, "Screen Frame Size", exportEnclosure?.screenFrameSize),
@@ -962,6 +969,7 @@ enum ProposalFoundationBuilder {
             textValue(.doorNotes, "Door Notes", exportEnclosure?.doors?.notes)
         ] : []
         let sunroomValues: [ProposalInputValue?] = showsSunroom ? [
+            measurementsValue(.sunroomMeasurements, "Sunroom Measurements", exportEnclosure?.sunroomMeasurements),
             enumValue(.windowType, "Window Type", exportEnclosure?.windowSystem?.windowType),
             enumValue(.windowFrameSystem, "Window Frame System", exportEnclosure?.windowSystem?.frameSystem),
             enumValue(.glassType, "Glass Type", exportEnclosure?.windowSystem?.glassType),
@@ -1016,18 +1024,6 @@ enum ProposalFoundationBuilder {
                 ].compactMap { $0 }
             ),
             ScopeCaptureSectionSnapshot(
-                section: .dimensions,
-                values: [
-                    measurementValue(.widthFeet, "Width", scope.dimensions?.width, suffix: "ft"),
-                    measurementValue(.projectionFeet, "Projection", scope.dimensions?.projection, suffix: "ft"),
-                    measurementValue(.fasciaHeightFeet, "Fascia Height", scope.dimensions?.fasciaHeight, suffix: "ft"),
-                    measurementValue(.beamHeightFeet, "Beam Height", scope.dimensions?.beamHeight, suffix: "ft"),
-                    enumValue(.roofStyle, "Roof Style", scope.dimensions?.roofStyle),
-                    enumValue(.attachmentType, "Attachment Type", scope.dimensions?.attachmentType),
-                    textValue(.elevationNotes, "Elevation Notes", scope.dimensions?.elevationNotes)
-                ].compactMap { $0 }
-            ),
-            ScopeCaptureSectionSnapshot(
                 section: .structuralSystem,
                 values: [
                     textValue(.structuralSystemSelection, "Structural System", exportStructural?.resolvedSelectionDisplayName),
@@ -1035,6 +1031,7 @@ enum ProposalFoundationBuilder {
                     textValue(.structuralSystemDetails, "Structural Details", exportStructural?.resolvedDetailSummary),
                     textValue(.structuralLegacySummary, "Legacy Structural Summary", exportStructural?.systemType == nil ? exportStructural?.legacyFlatSummary : nil),
                     textValue(.structuralNotes, "Structural Notes", exportStructural?.notes),
+                    measurementsValue(.structuralMeasurements, "Structural System Measurements", exportStructural?.measurements),
                     textValue(.structuralBranchNotes, "Pergola Notes", exportStructural?.resolvedPergolaNotes)
                 ].compactMap { $0 }
             ),
@@ -1050,7 +1047,8 @@ enum ProposalFoundationBuilder {
                     boolValue(.fanInstall, "Fan Install", scope.electrical?.fanInstall),
                     textValue(.switchLocations, "Switch Locations", scope.electrical?.switchLocations),
                     textValue(.dedicatedCircuits, "Dedicated Circuits", scope.electrical?.dedicatedCircuits?.map(\.displayName).joined(separator: ", ")),
-                    textValue(.electricalNotes, "Electrical Notes", scope.electrical?.notes)
+                    textValue(.electricalNotes, "Electrical Notes", scope.electrical?.notes),
+                    measurementsValue(.electricalMeasurements, "Electrical Measurements", scope.electrical?.measurements)
                 ].compactMap { $0 }
             ),
             ScopeCaptureSectionSnapshot(
@@ -1059,7 +1057,8 @@ enum ProposalFoundationBuilder {
                     boolValue(.gutters, "Gutters", scope.drainage?.gutters),
                     textValue(.downspoutLocations, "Downspout Locations", scope.drainage?.downspoutLocations),
                     boolValue(.drainTieIn, "Drain Tie-In", scope.drainage?.drainTieIn),
-                    textValue(.slopeNotes, "Slope Notes", scope.drainage?.slopeNotes)
+                    textValue(.slopeNotes, "Slope Notes", scope.drainage?.slopeNotes),
+                    measurementsValue(.drainageMeasurements, "Drainage Measurements", scope.drainage?.measurements)
                 ].compactMap { $0 }
             ),
             ScopeCaptureSectionSnapshot(
@@ -1077,7 +1076,8 @@ enum ProposalFoundationBuilder {
                     textValue(.trimThickness, "Trim Thickness", resolvedTrimThickness(scope.attachment)),
                     enumValue(.mountCondition, "Mount Condition", scope.attachment?.mountCondition),
                     textValue(.fastenerPlan, "Fastener Plan", scope.attachment?.fastenerPlan?.map(\.displayName).joined(separator: ", ")),
-                    textValue(.attachmentNotes, "Attachment Notes", scope.attachment?.notes)
+                    textValue(.attachmentNotes, "Attachment Notes", scope.attachment?.notes),
+                    measurementsValue(.attachmentMeasurements, "Attachment Conditions Measurements", scope.attachment?.measurements)
                 ].compactMap { $0 }
             ),
             ScopeCaptureSectionSnapshot(
@@ -1094,6 +1094,7 @@ enum ProposalFoundationBuilder {
                 values: [
                     textValue(.finishTrimType, "Trim Type", scope.finishes?.trimType),
                     textValue(.finishColor, "Paint / Powder Color", scope.finishes?.paintOrPowderColor),
+                    measurementsValue(.finishMeasurements, "Finishes Measurements", scope.finishes?.measurements),
                     boolValue(.sidingReplacementRequired, "Siding Replacement Required", scope.finishes?.sidingReplacementRequired),
                     textValue(.caulkingSealingNotes, "Caulking / Sealing Notes", scope.finishes?.caulkingSealingNotes)
                 ].compactMap { $0 }
@@ -1131,8 +1132,7 @@ enum ProposalFoundationBuilder {
             !snapshot.values.isEmpty &&
                 isCaptureSectionVisible(
                     snapshot.section,
-                    visibleScopeSections: visibleScopeSections,
-                    hasSelectedProjectTypes: hasSelectedProjectTypes
+                    visibleScopeSections: visibleScopeSections
                 )
         }
 
@@ -1153,14 +1153,13 @@ enum ProposalFoundationBuilder {
 
     private static func isCaptureSectionVisible(
         _ section: ScopeCaptureSectionKey,
-        visibleScopeSections: Set<ScopeSection>,
-        hasSelectedProjectTypes: Bool
+        visibleScopeSections: Set<ScopeSection>
     ) -> Bool {
         switch section {
         case .projectInfo:
             return true
         case .dimensions:
-            return hasSelectedProjectTypes
+            return false // Decode compatibility only; current measurements belong to sections.
         case .existingConditions:
             return visibleScopeSections.contains(.existingConditions)
         case .structuralSystem:
@@ -3255,6 +3254,20 @@ enum ProposalFoundationBuilder {
         return ProposalInputValue(key: key, label: label, stringValue: value.displayName, numericValue: nil, boolValue: nil)
     }
 
+    // Keep field-entered units and approximations as text. Repeated rows must not
+    // become one global dimension or silently seed a numeric pricing quantity.
+    private static func measurementsValue(_ key: ScopeInputKey, _ label: String, _ block: MeasurementsBlock?) -> ProposalInputValue? {
+        let rows = block?.activeItems.compactMap { item -> String? in
+            let value = item.value?.nilIfBlank
+            let notes = item.notes?.nilIfBlank
+            guard value != nil || notes != nil else { return nil }
+            let type = item.resolvedType ?? "Measurement"
+            let detail = [value, notes.map { "Notes: \($0)" }].compactMap { $0 }.joined(separator: "\n")
+            return "\(type): \(detail)"
+        } ?? []
+        return textValue(key, label, rows.isEmpty ? nil : rows.joined(separator: "\n\n"))
+    }
+
     private static func measurementValue(_ key: ScopeInputKey, _ label: String, _ value: Double?, suffix: String?) -> ProposalInputValue? {
         guard let value else { return nil }
         let number = ProposalFoundationFormatter.number.string(from: NSNumber(value: value)) ?? "\(value)"
@@ -3787,13 +3800,13 @@ private enum ReturnedPricingSheetImportAdapter {
             let rows = try JSONDecoder().decode([ReturnedPricingSheetRow].self, from: data)
             let normalizationResult = PricingReturnedSheetRowNormalizer.normalize(
                 rows: rows,
-                template: .editableFoundationV1
+                template: .editableFoundationV2
             )
 
             return PricingImportedConfigurationMerger.merge(
                 rows: normalizationResult.rows,
                 onto: baseline,
-                template: .editableFoundationV1,
+                template: .editableFoundationV2,
                 adapterID: adapterID,
                 sourceDescription: "Returned pricing sheet rows normalized and merged onto the embedded draft baseline.",
                 mergedSourceKind: .returnedSheetNormalizedMerged,
@@ -3861,7 +3874,7 @@ private enum BundlePricingConfigurationImportAdapter {
             return PricingImportedConfigurationMerger.merge(
                 rows: rows,
                 onto: baseline,
-                template: .editableFoundationV1,
+                template: .editableFoundationV2,
                 adapterID: adapterID,
                 sourceDescription: "Bundle JSON pricing import merged onto the embedded draft baseline.",
                 mergedSourceKind: .importedJSONMerged,
@@ -4763,16 +4776,16 @@ private extension PricingConfigurationSnapshot {
 }
 
 extension ProposalTemplateDefinition {
-    static let editableFoundationV1 = ProposalTemplateDefinition(
+    static let editableFoundationV2 = ProposalTemplateDefinition(
         id: "editable-pricing-proposal-foundation",
-        version: 1,
+        version: 2,
         name: "Editable Pricing / Proposal Foundation",
         sections: [
             ProposalTemplateSectionDefinition(
                 id: .projectSummary,
                 title: "Project Summary",
-                sourceSections: [.projectInfo, .dimensions],
-                customerFacingInputKeys: [.scopeTitle, .customerName, .projectType, .widthFeet, .projectionFeet, .roofStyle, .attachmentType],
+                sourceSections: [.projectInfo],
+                customerFacingInputKeys: [.scopeTitle, .customerName, .projectType],
                 internalInputKeys: [.linkedCustomerID, .salesperson, .estimator, .siteVisitDate, .projectNotes],
                 visibility: ProposalVisibilityDefinition(rule: .always, triggerInputKeys: []),
                 relatedPricingGroupIDs: ["site-readiness-and-coordination", "base-structure"],
@@ -4786,10 +4799,10 @@ extension ProposalTemplateDefinition {
                 title: "Site Conditions",
                 sourceSections: [.existingConditions, .attachmentConditions],
                 customerFacingInputKeys: [.houseStories, .exteriorFinish, .existingStructure, .existingStructureNotes, .houseWallMaterial, .houseMountingType],
-                internalInputKeys: [.obstaclesNotes, .utilitiesNotes, .hoaNotes, .mountCondition, .fastenerPlan, .attachmentNotes],
+                internalInputKeys: [.obstaclesNotes, .utilitiesNotes, .hoaNotes, .mountCondition, .fastenerPlan, .attachmentNotes, .attachmentMeasurements],
                 visibility: ProposalVisibilityDefinition(
                     rule: .whenAnyTriggerValueAffirmativeOrMeaningful,
-                    triggerInputKeys: [.houseStories, .exteriorFinish, .existingStructure, .existingStructureNotes, .obstaclesNotes, .utilitiesNotes, .houseWallMaterial, .houseMountingType]
+                    triggerInputKeys: [.houseStories, .exteriorFinish, .existingStructure, .existingStructureNotes, .obstaclesNotes, .utilitiesNotes, .houseWallMaterial, .houseMountingType, .attachmentMeasurements]
                 ),
                 relatedPricingGroupIDs: ["site-readiness-and-coordination", "base-structure"],
                 syncTargets: [
@@ -4799,12 +4812,12 @@ extension ProposalTemplateDefinition {
             ProposalTemplateSectionDefinition(
                 id: .structuralSystem,
                 title: "Structural System",
-                sourceSections: [.dimensions, .structuralSystem, .attachmentConditions],
-                customerFacingInputKeys: [.structuralSystemSelection, .pergolaType, .structuralSystemDetails],
+                sourceSections: [.structuralSystem, .attachmentConditions],
+                customerFacingInputKeys: [.structuralSystemSelection, .pergolaType, .structuralSystemDetails, .structuralMeasurements],
                 internalInputKeys: [.structuralLegacySummary, .structuralBranchNotes, .postSpacing, .fastenerPlan, .structuralNotes, .attachmentPostSize],
                 visibility: ProposalVisibilityDefinition(
                     rule: .whenAnyTriggerValueAffirmativeOrMeaningful,
-                    triggerInputKeys: [.structuralSystemSelection, .pergolaType, .structuralSystemDetails, .structuralLegacySummary, .structuralNotes]
+                    triggerInputKeys: [.structuralSystemSelection, .pergolaType, .structuralSystemDetails, .structuralLegacySummary, .structuralNotes, .structuralMeasurements]
                 ),
                 relatedPricingGroupIDs: ["base-structure"],
                 syncTargets: [
@@ -4816,11 +4829,11 @@ extension ProposalTemplateDefinition {
                 id: .enclosureAndOpenings,
                 title: "Screen Enclosure and Openings",
                 sourceSections: [.enclosure],
-                customerFacingInputKeys: [.enclosureType, .screenEnclosureNotes, .screenWallType, .windowType, .glassType, .windowBayCount, .kneeWallOption, .doorType, .doorStyle],
+                customerFacingInputKeys: [.screenMeasurements, .sunroomMeasurements, .enclosureType, .screenEnclosureNotes, .screenWallType, .windowType, .glassType, .windowBayCount, .kneeWallOption, .doorType, .doorStyle],
                 internalInputKeys: [.windowFrameSystem, .glassSafety, .gridOption, .windowOperation, .windowColor, .windowHeight, .windowConfiguration, .windowNotes, .kneeWallPanelHeight, .kneeWallPanelColor, .kneeWallLinearFootage, .kneeWallHeight, .kneeWallFraming, .doorOperableSide, .doorHingeSide, .doorWidth, .doorHeight, .doorColor, .doorDimensions, .doorNotes],
                 visibility: ProposalVisibilityDefinition(
                     rule: .whenAnyTriggerValueAffirmativeOrMeaningful,
-                    triggerInputKeys: [.enclosureType, .screenEnclosureNotes, .screenWallType, .windowType, .glassType, .windowBayCount, .kneeWallOption, .doorType]
+                    triggerInputKeys: [.screenMeasurements, .sunroomMeasurements, .enclosureType, .screenEnclosureNotes, .screenWallType, .windowType, .glassType, .windowBayCount, .kneeWallOption, .doorType]
                 ),
                 relatedPricingGroupIDs: ["enclosure-options"],
                 syncTargets: [
@@ -4832,11 +4845,11 @@ extension ProposalTemplateDefinition {
                 id: .electricalAndDrainage,
                 title: "Electrical and Drainage",
                 sourceSections: [.electrical, .drainage],
-                customerFacingInputKeys: [.outletCount, .lighting, .fanInstall, .gutters, .drainTieIn],
+                customerFacingInputKeys: [.electricalMeasurements, .drainageMeasurements, .outletCount, .lighting, .fanInstall, .gutters, .drainTieIn],
                 internalInputKeys: [.switchLocations, .dedicatedCircuits, .electricalNotes, .downspoutLocations, .slopeNotes],
                 visibility: ProposalVisibilityDefinition(
                     rule: .whenAnyTriggerValueAffirmativeOrMeaningful,
-                    triggerInputKeys: [.outletCount, .lighting, .fanInstall, .gutters, .drainTieIn, .dedicatedCircuits]
+                    triggerInputKeys: [.electricalMeasurements, .drainageMeasurements, .outletCount, .lighting, .fanInstall, .gutters, .drainTieIn, .dedicatedCircuits]
                 ),
                 relatedPricingGroupIDs: ["electrical-drainage"],
                 syncTargets: [
@@ -4848,11 +4861,11 @@ extension ProposalTemplateDefinition {
                 id: .finishesAndPermitting,
                 title: "Finishes and Permitting",
                 sourceSections: [.finishes, .permitsHOA, .production],
-                customerFacingInputKeys: [.finishTrimType, .finishColor, .permitRequired, .hoaApprovalRequired, .engineeringRequired],
+                customerFacingInputKeys: [.finishMeasurements, .finishTrimType, .finishColor, .permitRequired, .hoaApprovalRequired, .engineeringRequired],
                 internalInputKeys: [.caulkingSealingNotes, .jurisdiction, .permitStatusNotes, .productionStartDate, .crewLead, .durationEstimate, .materialOrderStatus, .permitStatus],
                 visibility: ProposalVisibilityDefinition(
                     rule: .whenAnyTriggerValueAffirmativeOrMeaningful,
-                    triggerInputKeys: [.finishTrimType, .finishColor, .permitRequired, .hoaApprovalRequired, .engineeringRequired, .materialOrderStatus, .permitStatus]
+                    triggerInputKeys: [.finishMeasurements, .finishTrimType, .finishColor, .permitRequired, .hoaApprovalRequired, .engineeringRequired, .materialOrderStatus, .permitStatus]
                 ),
                 relatedPricingGroupIDs: ["finishes-permits-and-closeout"],
                 syncTargets: [
@@ -4941,7 +4954,7 @@ extension ProposalTemplateDefinition {
             PricingGroupDefinition(
                 id: "base-structure",
                 title: "Base Structure",
-                sourceSections: [.projectInfo, .dimensions, .structuralSystem, .attachmentConditions],
+                sourceSections: [.projectInfo, .structuralSystem, .attachmentConditions],
                 outputChannels: [.internalOnly, .syncCandidate],
                 components: [
                     PricingComponentDefinition(
@@ -4963,7 +4976,7 @@ extension ProposalTemplateDefinition {
                         draftUnitCostPlaceholderKey: "draft.frame-and-roof-package.unit_cost",
                         draftUnitPricePlaceholderKey: "draft.frame-and-roof-package.unit_price",
                         subtotalPlaceholderKey: "draft.frame-and-roof-package.subtotal",
-                        seedNotes: ["Area is derived from width x projection from the current scope."],
+                        seedNotes: ["Section measurement text is review context only; footprint pricing awaits a validated numeric quantity mapping."],
                         assumptions: ["Real structural formulas, waste factors, and vendor rates remain deferred."],
                         outputChannels: [.internalOnly, .syncCandidate],
                         syncTargets: [

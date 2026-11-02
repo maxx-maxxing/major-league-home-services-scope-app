@@ -4,6 +4,15 @@
 This is the milestone-by-milestone plan. Treat the audited ledger and active phase card in this file as the **source of truth** for current status and execution order.
 Detailed historical cards are intentionally retained even where earlier work accumulated out of numeric order. Keep new milestones small, testable, and reviewable.
 
+## Completed Fix – Proposal Section Measurements – 2026-11-02
+
+- Work in isolated branch `fix/proposal-section-measurements` from `896964e`; preserve the original checkout and existing data.
+- Replace the proposal foundation's retired global Dimensions input with summaries of all seven enabled, visible section-owned Measurements blocks. Preserve row order, free-form units/approximations, custom types, and notes without inferring numeric pricing quantities.
+- Keep legacy enum cases decode-compatible, but exclude legacy global dimensions from newly composed proposals and pricing seeds. Do not change the persisted model, schema, UI, PDF renderer, signing, credentials, or outbound JobTread behavior.
+- Add an offline regression gate compiling the real proposal builder/model and current section-visibility rules. Cover repeated measurements, hidden/disabled blocks, measurements-only sections, custom/partial rows, legacy exclusion, round-trip snapshots, and no source mutation.
+- Implemented and verified with Debug/Release builds, Release analysis, and the proposal/persistence/save/import/JobTread/PDF gates; details and manual release limits are in `DOCUMENTATION.md`.
+- Mainline catch-up is separately authorized: preserve the six existing feature commits, use fast-forward integration after remote/protection checks, and publish only to the verified existing origin. No force push, history rewrite, branch/worktree deletion, intelligence-setting changes, signing changes, deployment, TestFlight upload, or JobTread writes.
+
 ## Audited Roadmap Status – 2026-07-20
 
 This ledger is the authoritative current-status view. The milestone definitions below remain the implementation history and intended order; `DOCUMENTATION.md` records evidence, decisions, and superseded behavior.

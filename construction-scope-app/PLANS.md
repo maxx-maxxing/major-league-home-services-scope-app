@@ -11,7 +11,7 @@ Detailed historical cards are intentionally retained even where earlier work acc
 - Keep legacy enum cases decode-compatible, but exclude legacy global dimensions from newly composed proposals and pricing seeds. Do not change the persisted model, schema, UI, PDF renderer, signing, credentials, or outbound JobTread behavior.
 - Add an offline regression gate compiling the real proposal builder/model and current section-visibility rules. Cover repeated measurements, hidden/disabled blocks, measurements-only sections, custom/partial rows, legacy exclusion, round-trip snapshots, and no source mutation.
 - Implemented and verified with Debug/Release builds, Release analysis, and the proposal/persistence/save/import/JobTread/PDF gates; details and manual release limits are in `DOCUMENTATION.md`.
-- Mainline catch-up is separately authorized: preserve the six existing feature commits, use fast-forward integration after remote/protection checks, and publish only to the verified existing origin. No force push, history rewrite, branch/worktree deletion, intelligence-setting changes, signing changes, deployment, TestFlight upload, or JobTread writes.
+- Mainline catch-up: the six existing feature commits and fix `43d7ada` were fast-forwarded into local main without conflicts; the affected regression gate passed again in main. Publish synchronized refs only to the verified existing origin after final status checks. No force push, history rewrite, branch/worktree deletion, intelligence-setting changes, signing changes, deployment, TestFlight upload, or JobTread writes.
 
 ## Audited Roadmap Status – 2026-07-20
 

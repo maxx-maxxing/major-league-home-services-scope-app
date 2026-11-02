@@ -14,6 +14,13 @@
 - Milestones 7.6.1–7.6.2.3, 7.6.3.1, 7.6.4.1–7.6.4.3, 7.6.5, and 7.6.6 are implemented; 7.6.3 remains an active persistence-shape guardrail. Milestone 7.6.4 remains in progress because its device continuity matrix and lossless backup/import path are still open.
 
 ## Decisions
+- Mainline integration verification — 2026-11-02:
+  - Fast-forwarded clean local `ai-scope-assistant` and then `main` to `43d7adac28d5c2957cc9dda94581ca9989e3c176` (proposal measurement fix), preserving the six existing commits from `4b6bce0` through `896964e`. No merge conflicts, cherry-picks, squash, reset, or history rewrite were needed. The primary checkout is now on `main`; the isolated fix worktree is retained.
+  - Confirmed the integrated main tree exactly matched the tested fix tree, then reran `scripts/verify_proposal_measurements.sh` in the primary main checkout: all six regression groups passed. This integration record changes documentation only, so the completed Debug/Release builds, Release analysis, and remaining gates still apply to the same product/test source.
+  - The verified destination is the existing `origin` at `https://github.com/maxx-maxxing/major-league-home-services-scope-app.git`. Publish the synchronized `main`, `ai-scope-assistant`, and fix refs using a normal atomic fast-forward push, then verify remote heads and zero ahead/behind counts. Retain branches/worktrees; no deployment or app data operation is part of Git integration.
+  - For subsequent development: fetch first, start one focused branch/worktree from current main, inspect status before switching, stage explicit paths, review staged diffs, run relevant gates, and make small coherent commits. Integrate without rewriting shared history. Respect any future branch protection/required checks; create a draft PR if required, with PR approval left to the user.
+  - Repository catch-up does not close the physical-device, installed-update/restore, or TestFlight release gates described below. User-configured intelligence settings remain unchanged.
+
 - Proposal section measurements and Git catch-up — 2026-11-02:
   - Started from clean `ai-scope-assistant` at `896964ea2681db80bb24df76321802941346e609` in an isolated `fix/proposal-section-measurements` worktree. All previously missing test/harness files were already present and matched Git; no restoration or deletion was performed.
   - Newly composed proposal inputs now include Structural System, Screen Enclosure, Sunroom, Electrical, Drainage, Attachment Conditions, and Finishes Measurements under their owning capture sections. The default proposal template includes measurements-only sections and routes the summaries into the corresponding composed sections.

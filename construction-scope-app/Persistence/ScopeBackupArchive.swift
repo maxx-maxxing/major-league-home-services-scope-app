@@ -123,10 +123,22 @@ enum ScopeBackupArchive {
         guard scopeIDs.count == contents.records.count else { throw ScopeBackupError.invalidArchive }
         var paths = Set<String>()
         var portablePaths = Set<String>()
+        var portableComponents: [String: String] = [:]
         var total = 0
         for asset in contents.assets {
             try validatePath(asset.path, scopeIDs: scopeIDs)
             guard paths.insert(asset.path).inserted, portablePaths.insert(portablePath(asset.path)).inserted else { throw ScopeBackupError.invalidArchive }
+            // Check directories too: aliases such as ß/a and ss/b must not merge
+            // on a case-insensitive destination even though their leaves differ.
+            var prefix = ""
+            for component in asset.path.components(separatedBy: "/") {
+                prefix += prefix.isEmpty ? component : "/" + component
+                let key = portablePath(prefix)
+                if let prior = portableComponents[key], !prior.utf8.elementsEqual(prefix.utf8) {
+                    throw ScopeBackupError.invalidArchive
+                }
+                portableComponents[key] = prefix
+            }
             guard asset.data.count <= maximumAssetBytes else { throw ScopeBackupError.sizeLimit }
             total += asset.data.count
             guard total <= maximumTotalAssetBytes else { throw ScopeBackupError.sizeLimit }
@@ -160,7 +172,9 @@ enum ScopeBackupArchive {
     static func digest(_ data: Data) -> String { SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined() }
 
     private static func portablePath(_ path: String) -> String {
-        path.precomposedStringWithCanonicalMapping.lowercased()
+        // Full Unicode case folding includes multi-character mappings (ß -> ss).
+        path.folding(options: .caseInsensitive, locale: Locale(identifier: "en_US_POSIX"))
+            .precomposedStringWithCanonicalMapping
     }
 
     private static func manifestDigest(_ contents: ScopeBackupContents) throws -> String {
@@ -176,6 +190,23 @@ enum ScopeBackupArchive {
 }
 
 enum ScopeBackupFiles {
+    /// Never replace an existing file, including aliases resolved by the volume.
+    static func writeNew(_ data: Data, to url: URL) throws {
+        try rejectLinks(at: url, allowMissing: true)
+        let descriptor = open(url.path, O_WRONLY | O_CREAT | O_EXCL | O_NOFOLLOW | O_CLOEXEC, 0o600)
+        guard descriptor >= 0 else { throw ScopeBackupError.fileOperation }
+        defer { close(descriptor) }
+        try data.withUnsafeBytes { buffer in
+            var offset = 0
+            while offset < buffer.count {
+                let count = Darwin.write(descriptor, buffer.baseAddress!.advanced(by: offset), buffer.count - offset)
+                if count < 0 && errno == EINTR { continue }
+                guard count > 0 else { throw ScopeBackupError.fileOperation }
+                offset += count
+            }
+        }
+    }
+
     static func read(_ url: URL, limit: Int) throws -> Data {
         try rejectLinks(at: url)
         let descriptor = open(url.path, O_RDONLY | O_NOFOLLOW | O_CLOEXEC)

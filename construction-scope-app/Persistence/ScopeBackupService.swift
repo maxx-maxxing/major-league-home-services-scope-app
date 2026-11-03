@@ -17,9 +17,51 @@ struct StagedScopeBackup {
 }
 
 private struct ScopeBackupRestoreJournal: Codable {
+    static let maximumBytes = 64 * 1_024
+    // Version 1 duplicated review payloads that could exceed its 8 MiB reader.
+    // Its original archive limit plus ID overhead bounds migration recovery.
+    static let maximumLegacyBytes = ScopeBackupArchive.maximumArchiveBytes + maximumBytes
+    let formatVersion: Int
     let transactionID: UUID
     let scopeIDs: [UUID]
-    let reviewStates: [String: [String: Date]]
+
+    private enum CodingKeys: String, CodingKey { case formatVersion, transactionID, scopeIDs, reviewStates }
+    private struct ReviewKey: CodingKey {
+        let stringValue: String
+        var intValue: Int? { nil }
+        init?(stringValue: String) { self.stringValue = stringValue }
+        init?(intValue: Int) { return nil }
+    }
+
+    init(transactionID: UUID, scopeIDs: [UUID]) {
+        formatVersion = 2
+        self.transactionID = transactionID
+        self.scopeIDs = scopeIDs
+    }
+
+    init(from decoder: Decoder) throws {
+        let values = try decoder.container(keyedBy: CodingKeys.self)
+        formatVersion = try values.decodeIfPresent(Int.self, forKey: .formatVersion) ?? 1
+        guard formatVersion == 1 || formatVersion == 2 else { throw ScopeBackupError.recoveryRequired }
+        transactionID = try values.decode(UUID.self, forKey: .transactionID)
+        scopeIDs = try values.decode([UUID].self, forKey: .scopeIDs)
+        if formatVersion == 1 {
+            // Old marks are never replayed. Inspect only owning IDs, avoiding a
+            // second allocation of potentially very large, unused review keys.
+            let legacy = try values.nestedContainer(keyedBy: ReviewKey.self, forKey: .reviewStates)
+            guard Set(legacy.allKeys.map(\.stringValue)) == Set(scopeIDs.map(\.uuidString)) else { throw ScopeBackupError.recoveryRequired }
+            for key in legacy.allKeys { _ = try legacy.nestedContainer(keyedBy: ReviewKey.self, forKey: key) }
+        } else if values.contains(.reviewStates) {
+            throw ScopeBackupError.recoveryRequired
+        }
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var values = encoder.container(keyedBy: CodingKeys.self)
+        try values.encode(formatVersion, forKey: .formatVersion)
+        try values.encode(transactionID, forKey: .transactionID)
+        try values.encode(scopeIDs, forKey: .scopeIDs)
+    }
 }
 
 private struct ScopeBackupFileSnapshot: @unchecked Sendable {
@@ -180,12 +222,19 @@ final class ScopeBackupService {
                         let relative = String(asset.path.dropFirst("assets/\(sourceID.uuidString)/".count))
                         let destination = directory.appendingPathComponent(relative)
                         try ScopeBackupFiles.makeDirectory(destination.deletingLastPathComponent())
-                        try asset.data.write(to: destination, options: .atomic)
+                        try ScopeBackupFiles.writeNew(asset.data, to: destination)
                         // Checklist ordering/createdAt are reconstructed from file attributes.
                         var attributes: [FileAttributeKey: Any] = [:]
                         if let createdAt = asset.createdAt { attributes[.creationDate] = createdAt }
                         if let modifiedAt = asset.modifiedAt { attributes[.modificationDate] = modifiedAt }
                         if !attributes.isEmpty { try FileManager.default.setAttributes(attributes, ofItemAtPath: destination.path) }
+                    }
+                    // Re-read the complete prepared set before adoption. No live
+                    // rows or files are touched if destination semantics differ.
+                    for asset in contents.assets where asset.path.hasPrefix("assets/\(sourceID.uuidString)/") {
+                        let relative = String(asset.path.dropFirst("assets/\(sourceID.uuidString)/".count))
+                        let prepared = try ScopeBackupFiles.read(directory.appendingPathComponent(relative), limit: ScopeBackupArchive.maximumAssetBytes)
+                        guard ScopeBackupArchive.digest(prepared) == asset.sha256 else { throw ScopeBackupError.invalidArchive }
                     }
                 }
             }.value
@@ -194,10 +243,12 @@ final class ScopeBackupService {
             let nowExisting = Set(try ModelContext(container).fetch(FetchDescriptor<JobScope>()).map(\.id))
             guard selected.allSatisfy({ !nowExisting.contains($0.id) && !FileManager.default.fileExists(atPath: assetsRoot.appendingPathComponent($0.id.uuidString).path) }) else { throw ScopeBackupError.changedDuringExport }
             let states = Dictionary(uniqueKeysWithValues: selected.map { ($0.id, $0.reviewState) })
-            let journal = ScopeBackupRestoreJournal(transactionID: UUID(), scopeIDs: selected.map(\.id), reviewStates: Dictionary(uniqueKeysWithValues: states.map { ($0.key.uuidString, $0.value) }))
+            let journal = ScopeBackupRestoreJournal(transactionID: UUID(), scopeIDs: selected.map(\.id))
+            let journalData = try JSONEncoder().encode(journal)
+            guard journalData.count <= ScopeBackupRestoreJournal.maximumBytes else { throw ScopeBackupError.sizeLimit }
             try ScopeBackupFiles.makeDirectory(supportDirectory)
             try ScopeBackupFiles.rejectLinks(at: journalURL, allowMissing: true)
-            try JSONEncoder().encode(journal).write(to: journalURL, options: .atomic)
+            try journalData.write(to: journalURL, options: .atomic)
             journalWasWritten = true
             try ScopeBackupFiles.makeDirectory(assetsRoot)
             for record in selected {
@@ -269,10 +320,11 @@ final class ScopeBackupService {
         try ScopeBackupFiles.rejectLinks(at: supportDirectory, allowMissing: true)
         guard FileManager.default.fileExists(atPath: journalURL.path) else { return }
         try ScopeBackupFiles.rejectLinks(at: journalURL)
-        let journal = try JSONDecoder().decode(ScopeBackupRestoreJournal.self, from: ScopeBackupFiles.read(journalURL, limit: 8 * 1_024 * 1_024))
+        let journalData = try ScopeBackupFiles.read(journalURL, limit: ScopeBackupRestoreJournal.maximumLegacyBytes)
+        let journal = try JSONDecoder().decode(ScopeBackupRestoreJournal.self, from: journalData)
+        guard journal.formatVersion == 1 || journalData.count <= ScopeBackupRestoreJournal.maximumBytes else { throw ScopeBackupError.recoveryRequired }
         guard !journal.scopeIDs.isEmpty, journal.scopeIDs.count <= ScopeBackupArchive.maximumScopeCount,
-              Set(journal.scopeIDs).count == journal.scopeIDs.count,
-              Set(journal.reviewStates.keys) == Set(journal.scopeIDs.map(\.uuidString)) else { throw ScopeBackupError.recoveryRequired }
+              Set(journal.scopeIDs).count == journal.scopeIDs.count else { throw ScopeBackupError.recoveryRequired }
         let saved = Set(try ModelContext(container).fetch(FetchDescriptor<JobScope>()).map(\.id))
         var states: [UUID: [String: Date]] = [:]
         for id in journal.scopeIDs {

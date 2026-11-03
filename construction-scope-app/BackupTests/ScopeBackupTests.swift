@@ -52,6 +52,7 @@ struct ScopeBackupTests {
         let archivedPaths = try Set(contents.records[0].referencedAssetPaths())
         try require(archivedPaths.isSubset(of: Set(contents.assets.map(\.path))), "all references are backed by archive bytes")
         try testArchiveRejections(archive, original: original, assetsRoot: assetsRoot, root: root)
+        try testPortableCollisions(contents, root: root)
 #if !BACKUP_ARCHIVE_ONLY
         try await testRestore(archive, original: original, contents: contents, root: root)
 #endif
@@ -217,6 +218,67 @@ struct ScopeBackupTests {
         try require(try Data(contentsOf: outside) == Data("outside synthetic image".utf8), "unsafe export never changes external bytes")
     }
 
+    // Recompute valid checksums so collision regressions cannot accidentally
+    // pass merely because a mutated archive has an obsolete manifest.
+    private struct ManifestFixture: Encodable {
+        struct File: Encodable { let path: String; let size: Int; let sha256: String; let createdAt: Date?; let modifiedAt: Date? }
+        let formatVersion: Int
+        let schemaVersion: Int
+        let createdAt: Date
+        let records: [ScopeBackupRecord]
+        let files: [File]
+    }
+
+    private static func checksummedArchive(_ input: ScopeBackupContents) throws -> Data {
+        var contents = input
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.sortedKeys]
+        let manifest = ManifestFixture(formatVersion: contents.formatVersion, schemaVersion: contents.schemaVersion, createdAt: contents.createdAt, records: contents.records, files: contents.assets.map {
+            ManifestFixture.File(path: $0.path, size: $0.data.count, sha256: $0.sha256, createdAt: $0.createdAt, modifiedAt: $0.modifiedAt)
+        })
+        contents.manifestSHA256 = ScopeBackupArchive.digest(try encoder.encode(manifest))
+        return try encoder.encode(contents)
+    }
+
+    private static func collisionArchive(_ input: ScopeBackupContents, names: [String]) throws -> Data {
+        var contents = input
+        for (index, name) in names.enumerated() {
+            let bytes = Data("Distinct synthetic collision asset \(index)".utf8)
+            contents.assets.append(ScopeBackupAsset(path: "assets/\(input.records[0].id.uuidString)/\(name)", data: bytes, sha256: ScopeBackupArchive.digest(bytes)))
+        }
+        return try checksummedArchive(contents)
+    }
+
+    private static func testPortableCollisions(_ contents: ScopeBackupContents, root: URL) throws {
+        _ = try ScopeBackupArchive.validate(data: checksummedArchive(contents))
+        let control = try collisionArchive(contents, names: ["distinct-a.dat", "distinct-b.dat"])
+        try require(try ScopeBackupArchive.validate(data: control).assetCount == contents.assetCount + 2, "fresh valid collision-fixture manifests are accepted")
+        for names in [
+            ["ß.dat", "ss.dat"], ["Straße.dat", "STRASSE.dat"], ["ﬀ.dat", "ff.dat"],
+            ["σ.dat", "ς.dat"], ["café.dat", "cafe\u{0301}.dat"],
+            ["ß/first.dat", "ss/second.dat"], ["Folder/first.dat", "folder/second.dat"],
+            ["ß", "ss/child.dat"]
+        ] {
+            let archive = try collisionArchive(contents, names: names)
+            try rejects("checksummed filesystem-equivalent file/directory aliases") { _ = try ScopeBackupArchive.validate(data: archive) }
+        }
+        let directory = root.appendingPathComponent("ExclusiveWrites", isDirectory: true)
+        try ScopeBackupFiles.makeDirectory(directory)
+        let first = directory.appendingPathComponent("ß.dat")
+        let second = directory.appendingPathComponent("ss.dat")
+        let original = Data("preserve the first synthetic bytes".utf8)
+        try ScopeBackupFiles.writeNew(original, to: first)
+        try rejects("exclusive writer never replaces an exact existing file") { try ScopeBackupFiles.writeNew(Data("replacement".utf8), to: first) }
+        // Lookup APIs and exclusive creation can disagree about Unicode aliases
+        // on a simulator volume. Let O_EXCL decide, then assert byte preservation
+        // in either supported outcome instead of predicting it with fileExists.
+        do {
+            try ScopeBackupFiles.writeNew(Data("separate bytes".utf8), to: second)
+            try require(try Data(contentsOf: second) == Data("separate bytes".utf8), "distinct-volume alias retains its own bytes")
+        } catch is ScopeBackupError { }
+        try require(try Data(contentsOf: first) == original, "exclusive writer preserves original bytes")
+    }
+
 #if !BACKUP_ARCHIVE_ONLY
     private static func testRestore(_ archive: Data, original: ScopeBackupRecord, contents: ScopeBackupContents, root: URL) async throws {
         let archiveURL = root.appendingPathComponent("Synthetic.scopebackup")
@@ -298,6 +360,16 @@ struct ScopeBackupTests {
         try await testReviewFailureRollback(service: service, container: container, support: support, archiveURL: archiveURL, contents: contents)
         try testMultipleReviewStores(support: support, scopeID: original.id)
         try await testStagingCleanup(service: service, support: support, archiveURL: archiveURL)
+        let collisionURL = root.appendingPathComponent("UnicodeCollision.scopebackup")
+        try collisionArchive(contents, names: ["ß.dat", "ss.dat"]).write(to: collisionURL)
+        var collisionRejected = false
+        do { _ = try await service.stage(fileURL: collisionURL) }
+        catch { collisionRejected = true }
+        try require(collisionRejected, "validly checksummed Unicode collision cannot enter restore preview")
+        try require(try fetch(container).count == before, "Unicode collision adds no rows")
+        try verifyAssets(contents, support: support)
+        try verifyAssets(contents, support: support, scopeIDOverride: clone.id)
+        try await testLargeReviewJournal(service: service, container: container, reviewStore: reviewStore, support: support, contents: contents, root: root)
     }
 
     private struct JournalFixture: Codable {
@@ -384,6 +456,9 @@ struct ScopeBackupTests {
         try require(failed, "review-write boundary failure rejects restore")
         try require(try fetch(container).count == before, "review failure commits no imported record")
         try require(try Data(contentsOf: sidecar) == corrupt, "failed restore never replaces the prior sidecar")
+        let journal = try Data(contentsOf: support.appendingPathComponent("ScopeBackupRestoreJournal.json"))
+        let object = try JSONSerialization.jsonObject(with: journal) as! [String: Any]
+        try require(journal.count <= 64 * 1_024 && object["formatVersion"] as? Int == 2 && object["reviewStates"] == nil, "new recovery journal is bounded and contains IDs only")
         try verifyAssets(contents, support: support)
         // Repair only this synthetic sidecar, then prove interrupted recovery finishes.
         try original.write(to: sidecar, options: .atomic)
@@ -391,6 +466,80 @@ struct ScopeBackupTests {
         try require(!fileManager.fileExists(atPath: support.appendingPathComponent("ScopeBackupRestoreJournal.json").path), "repair permits journal recovery")
         try require(try fetch(container).count == before, "recovered failure preserves prior scopes")
         try verifyAssets(contents, support: support)
+        service.discard(stage)
+    }
+
+    private static func testLargeReviewJournal(service: ScopeBackupService, container: ModelContainer, reviewStore: SectionReviewStore, support: URL, contents: ScopeBackupContents, root: URL) async throws {
+        let hugeKey = String(repeating: "R", count: 8 * 1_024 * 1_024)
+        let marks = [hugeKey: PersistenceFixtureValues.fixtureDate, "future_review_key": PersistenceFixtureValues.fixtureDate]
+        var large = contents
+        large.records[0].reviewState = marks
+        let data = try checksummedArchive(large)
+        _ = try ScopeBackupArchive.validate(data: data)
+        let url = root.appendingPathComponent("LargeReview.scopebackup")
+        try data.write(to: url)
+        let before = Set(try fetch(container).map(\.id))
+        let stage = try await service.stage(fileURL: url)
+        let result = try await service.restore(stage, policy: .keepBoth)
+        let newIDs = Set(try fetch(container).map(\.id)).subtracting(before)
+        try require(result.restoredCount == 1 && newIDs.count == 1, "accepted large review key restores successfully")
+        let id = newIDs.first!
+        try require(try reviewStore.backupReviewState(for: id) == marks, "large review metadata preserved exactly")
+        let journalURL = support.appendingPathComponent("ScopeBackupRestoreJournal.json")
+        try require(!fileManager.fileExists(atPath: journalURL.path), "large review restore retires journal")
+        try service.recoverInterruptedRestores()
+        try verifyAssets(contents, support: support, scopeIDOverride: id)
+        let reopened = try makeContainer(support.appendingPathComponent("Recovery.store"))
+        try require(try fetch(reopened).count == before.count + 1, "large review restore persists after reopening")
+        try require(try SectionReviewStore(supportDirectory: support).backupReviewState(for: id) == marks, "large review key survives fresh review store")
+
+        let legacy = try JSONEncoder().encode(JournalFixture(transactionID: UUID(), scopeIDs: [id], reviewStates: [id.uuidString: marks]))
+        try require(legacy.count > 8 * 1_024 * 1_024, "legacy fixture crosses old recovery read limit")
+        try legacy.write(to: journalURL)
+        try service.recoverInterruptedRestores()
+        try require(try reviewStore.backupReviewState(for: id) == marks, "oversized committed legacy journal preserves current marks")
+        try require(!fileManager.fileExists(atPath: journalURL.path), "oversized legacy journal retired")
+        // Recovery must not resurrect marks cleared after the database commit.
+        try legacy.write(to: journalURL)
+        try reviewStore.restoreReviewStates([id: [:]])
+        try service.recoverInterruptedRestores()
+        try require(try reviewStore.backupReviewState(for: id).isEmpty, "oversized legacy journal never replays stale review keys")
+        try reviewStore.restoreReviewStates([id: marks])
+
+        let orphanID = UUID()
+        let orphan = support.appendingPathComponent("ScopeAssets/\(orphanID.uuidString)")
+        try ScopeBackupFiles.makeDirectory(orphan)
+        try Data("synthetic uncommitted large-review asset".utf8).write(to: orphan.appendingPathComponent("orphan.dat"))
+        try reviewStore.restoreReviewStates([orphanID: marks])
+        try JSONEncoder().encode(JournalFixture(transactionID: UUID(), scopeIDs: [orphanID], reviewStates: [orphanID.uuidString: marks])).write(to: journalURL)
+        try service.recoverInterruptedRestores()
+        try require(!fileManager.fileExists(atPath: orphan.path), "oversized uncommitted legacy journal rolls back only registered files")
+        try require(try reviewStore.backupReviewState(for: orphanID).isEmpty, "oversized uncommitted legacy journal clears its review state")
+        try require(Set(try fetch(container).map(\.id)) == before.union([id]), "large journal recovery preserves all committed rows")
+        try require(try reviewStore.backupReviewState(for: id) == marks, "large journal rollback preserves unrelated review metadata")
+        try verifyAssets(contents, support: support)
+        try verifyAssets(contents, support: support, scopeIDOverride: id)
+
+        for invalid: [String: Any] in [
+            ["formatVersion": 999, "transactionID": UUID().uuidString, "scopeIDs": [id.uuidString]],
+            ["formatVersion": 2, "transactionID": UUID().uuidString, "scopeIDs": [id.uuidString], "padding": String(repeating: "x", count: 64 * 1_024)]
+        ] {
+            let bytes = try JSONSerialization.data(withJSONObject: invalid)
+            try bytes.write(to: journalURL)
+            try rejects("unsupported or oversized new journal fails closed") { try service.recoverInterruptedRestores() }
+            try require(try Data(contentsOf: journalURL) == bytes, "invalid journal retained without mutation")
+            try require(Set(try fetch(container).map(\.id)) == before.union([id]), "invalid journal changes no rows")
+            try verifyAssets(contents, support: support, scopeIDOverride: id)
+            try fileManager.removeItem(at: journalURL)
+        }
+        let maximumIDs = (0..<ScopeBackupArchive.maximumScopeCount).map { _ in UUID().uuidString }
+        let maximumJournal = try JSONSerialization.data(withJSONObject: ["formatVersion": 2, "transactionID": UUID().uuidString, "scopeIDs": maximumIDs])
+        try require(maximumJournal.count <= 64 * 1_024, "every allowed scope ID fits the compact journal bound")
+        try maximumJournal.write(to: journalURL)
+        try service.recoverInterruptedRestores()
+        try require(!fileManager.fileExists(atPath: journalURL.path), "maximum-scope compact journal recovers")
+        try require(Set(try fetch(container).map(\.id)) == before.union([id]), "maximum journal preserves committed rows")
+        try require(try reviewStore.backupReviewState(for: id) == marks, "maximum journal preserves unrelated large review metadata")
         service.discard(stage)
     }
 

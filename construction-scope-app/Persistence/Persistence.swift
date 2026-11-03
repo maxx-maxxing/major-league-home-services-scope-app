@@ -61,6 +61,7 @@ final class DebouncedAutosave: ObservableObject {
     let persistenceHealth: PersistenceSaveHealth
 
     private var pendingSaveTask: Task<Void, Never>?
+    private var pendingScope: JobScope?
     private let delay: TimeInterval
 
     init(
@@ -79,6 +80,7 @@ final class DebouncedAutosave: ObservableObject {
 
     func scheduleSave(for scope: JobScope) {
         pendingSaveTask?.cancel()
+        pendingScope = scope
 
         pendingSaveTask = Task { [weak self] in
             guard let self else { return }
@@ -89,6 +91,8 @@ final class DebouncedAutosave: ObservableObject {
             guard !Task.isCancelled else { return }
 
             scope.updatedAt = .now
+            self.pendingScope = nil
+            self.pendingSaveTask = nil
             self.saveNow(.autosave)
         }
     }
@@ -99,8 +103,20 @@ final class DebouncedAutosave: ObservableObject {
         afterConfirmedSave action: PersistenceSaveHealth.ConfirmedSaveAction? = nil
     ) -> Bool {
         pendingSaveTask?.cancel()
+        pendingScope = nil
         scope.updatedAt = .now
         return saveNow(.manualFlush, afterConfirmedSave: action)
+    }
+
+    /// Freeze the pending edit timestamp before the backup sheet takes its snapshot.
+    /// This saves the existing context; it never rolls back unrelated edits.
+    @discardableResult
+    func prepareForBackup() -> Bool {
+        pendingSaveTask?.cancel()
+        pendingSaveTask = nil
+        pendingScope?.updatedAt = .now
+        pendingScope = nil
+        return saveNow(.manualFlush)
     }
 
     @discardableResult
@@ -115,14 +131,72 @@ final class DebouncedAutosave: ObservableObject {
 @MainActor
 final class SectionReviewStore: ObservableObject {
     @Published private var completedSectionsByScope: [UUID: [ScopeSection: Date]] = [:]
+    private var dirtyReviewKeys: [UUID: Set<String>] = [:]
 
     private let fileManager: FileManager
     private let fileURL: URL
 
-    init(fileManager: FileManager = .default) {
+    init(fileManager: FileManager = .default, supportDirectory: URL? = nil) {
         self.fileManager = fileManager
-        self.fileURL = Self.defaultFileURL(fileManager: fileManager)
+        self.fileURL = supportDirectory.map {
+            $0.appendingPathComponent("WorkflowState", isDirectory: true).appendingPathComponent("SectionReviewState.json")
+        } ?? Self.defaultFileURL(fileManager: fileManager)
         load()
+    }
+
+    /// Include future/unrecognized review keys from disk as well as current in-memory marks.
+    /// Corrupt sidecars fail export rather than silently producing an incomplete backup.
+    func backupReviewState(for scopeID: UUID) throws -> [String: Date] {
+        let payload = try backupPayload()
+        return Dictionary(uniqueKeysWithValues: (payload.scopes.first { $0.scopeID == scopeID }?.completedSections ?? []).map { ($0.sectionKey, $0.completedAt) })
+    }
+
+    /// Restore only the explicitly supplied scope IDs. Empty state removes those IDs' marks.
+    /// The restore service only supplies newly adopted IDs, never existing conflicting scopes.
+    func restoreReviewStates(_ states: [UUID: [String: Date]]) throws {
+        var payload = try backupPayload()
+        payload.scopes.removeAll { states[$0.scopeID] != nil }
+        for (id, state) in states where !state.isEmpty {
+            payload.scopes.append(ScopeReviewRecord(scopeID: id, completedSections: state.map { CompletedSectionRecord(sectionKey: $0.key, completedAt: $0.value) }.sorted { $0.sectionKey < $1.sectionKey }))
+        }
+        payload.scopes.sort { $0.scopeID.uuidString < $1.scopeID.uuidString }
+        let directory = fileURL.deletingLastPathComponent()
+        try fileManager.createDirectory(at: directory, withIntermediateDirectories: true)
+        try JSONEncoder().encode(payload).write(to: fileURL, options: .atomic)
+        completedSectionsByScope = payload.inMemoryState
+        dirtyReviewKeys = [:]
+    }
+
+    private func backupPayload() throws -> SectionReviewPayload {
+        var merged: [UUID: [String: Date]] = [:]
+        if fileManager.fileExists(atPath: fileURL.path) {
+            let disk = try JSONDecoder().decode(SectionReviewPayload.self, from: Data(contentsOf: fileURL))
+            guard Set(disk.scopes.map(\.scopeID)).count == disk.scopes.count else {
+                throw CocoaError(.fileReadCorruptFile)
+            }
+            for scope in disk.scopes {
+                guard Set(scope.completedSections.map(\.sectionKey)).count == scope.completedSections.count else {
+                    throw CocoaError(.fileReadCorruptFile)
+                }
+                for section in scope.completedSections {
+                    merged[scope.scopeID, default: [:]][section.sectionKey] = section.completedAt
+                }
+            }
+        }
+        // Only locally edited section keys overlay disk. Another window may have
+        // written unrelated scope/section marks since this instance was loaded.
+        for (scopeID, keys) in dirtyReviewKeys {
+            for key in keys {
+                guard let section = ScopeSection.section(reviewStateKey: key) else { continue }
+                var state = merged[scopeID] ?? [:]
+                for oldKey in Array(state.keys) where ScopeSection.section(reviewStateKey: oldKey) == section { state[oldKey] = nil }
+                state[section.reviewStateKey] = completedSectionsByScope[scopeID]?[section]
+                merged[scopeID] = state
+            }
+        }
+        return SectionReviewPayload(scopes: merged.filter { !$0.value.isEmpty }.map { id, state in
+            ScopeReviewRecord(scopeID: id, completedSections: state.map { CompletedSectionRecord(sectionKey: $0.key, completedAt: $0.value) })
+        })
     }
 
     func isComplete(_ section: ScopeSection, in scope: JobScope) -> Bool {
@@ -137,6 +211,7 @@ final class SectionReviewStore: ObservableObject {
         var scopeSections = completedSectionsByScope[scope.id] ?? [:]
         scopeSections[section] = .now
         completedSectionsByScope[scope.id] = scopeSections
+        dirtyReviewKeys[scope.id, default: []].insert(section.reviewStateKey)
         persist()
     }
 
@@ -148,6 +223,7 @@ final class SectionReviewStore: ObservableObject {
 
         scopeSections[section] = nil
         completedSectionsByScope[scope.id] = scopeSections.isEmpty ? nil : scopeSections
+        dirtyReviewKeys[scope.id, default: []].insert(section.reviewStateKey)
         persist()
     }
 
@@ -171,9 +247,11 @@ final class SectionReviewStore: ObservableObject {
 
             let encoder = JSONEncoder()
             encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
-            let payload = SectionReviewPayload(completedSectionsByScope: completedSectionsByScope)
+            let payload = try backupPayload()
             let data = try encoder.encode(payload)
             try data.write(to: fileURL, options: .atomic)
+            completedSectionsByScope = payload.inMemoryState
+            dirtyReviewKeys = [:]
         } catch {
             assertionFailure("Failed to persist section review state: \(error)")
         }

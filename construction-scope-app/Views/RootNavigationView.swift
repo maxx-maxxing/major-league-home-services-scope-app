@@ -355,6 +355,9 @@ struct RootNavigationView: View {
     @State private var sidebarFolderPulseToken = 0
     @State private var sidebarRenameOrigin = CGPoint(x: 28, y: 28)
     @State private var showingScopeCreationSheet = false
+    @State private var showingBackupRestoreSheet = false
+    @State private var hasCheckedBackupRecovery = false
+    @State private var backupRecoveryMessage: String?
     @StateObject private var autosave = DebouncedAutosave()
     @StateObject private var sectionReviewStore = SectionReviewStore()
 
@@ -404,7 +407,8 @@ struct RootNavigationView: View {
                         autosave: autosave,
                         sectionReviewStore: sectionReviewStore,
                         renameScope: renameScope,
-                        deleteScope: deleteScope
+                        deleteScope: deleteScope,
+                        openBackupRestore: openBackupRestore
                     )
                 } else {
                     NavigationSplitView {
@@ -415,6 +419,7 @@ struct RootNavigationView: View {
                             selectedScopeID: $selectedScopeID,
                             selectedSection: $selectedSection,
                             createNewScope: handleSidebarCreateScope,
+                            openBackupRestore: openBackupRestore,
                             onSelectScope: handleScopeSelection,
                             requestRename: { beginSidebarRename(for: $0, mode: .existingScope) },
                             deleteScope: deleteScope,
@@ -505,6 +510,10 @@ struct RootNavigationView: View {
         .coordinateSpace(name: rootNavigationCoordinateSpace)
         .onAppear {
             autosave.configure(with: modelContext)
+            if !hasCheckedBackupRecovery {
+                hasCheckedBackupRecovery = true
+                _ = reconcileInterruptedBackupRestore()
+            }
             selectFirstScopeIfNeeded()
 #if DEBUG
             syncDebugSelectedScopeID()
@@ -537,6 +546,43 @@ struct RootNavigationView: View {
                 )
             }
         }
+        .sheet(isPresented: $showingBackupRestoreSheet) {
+            ScopeBackupView(
+                scopes: scopes,
+                service: ScopeBackupService(container: modelContext.container, reviewStore: sectionReviewStore)
+            )
+        }
+        .alert("Restore Recovery Needs Attention", isPresented: backupRecoveryAlertPresented) {
+            Button("Try Again") { _ = reconcileInterruptedBackupRestore() }
+            Button("Close", role: .cancel) { backupRecoveryMessage = nil }
+        } message: {
+            Text(backupRecoveryMessage ?? "An interrupted restore could not be reconciled.")
+        }
+    }
+
+    private var backupRecoveryAlertPresented: Binding<Bool> {
+        Binding(
+            get: { backupRecoveryMessage != nil },
+            set: { if !$0 { backupRecoveryMessage = nil } }
+        )
+    }
+
+    private func reconcileInterruptedBackupRestore() -> Bool {
+        do {
+            try ScopeBackupService(container: modelContext.container, reviewStore: sectionReviewStore)
+                .recoverInterruptedRestores()
+            backupRecoveryMessage = nil
+            return true
+        } catch {
+            backupRecoveryMessage = "An interrupted restore needs attention before another backup or restore can begin. Keep the app installed and retain your backup file. You can try recovery again."
+            return false
+        }
+    }
+
+    private func openBackupRestore() {
+        guard !showingBackupRestoreSheet, !showingScopeCreationSheet, sidebarRenameScope == nil else { return }
+        guard autosave.prepareForBackup(), reconcileInterruptedBackupRestore() else { return }
+        showingBackupRestoreSheet = true
     }
 
     private func handleSidebarCreateScope() {
@@ -705,6 +751,7 @@ private struct ScopeSidebarView: View {
     @Binding var selectedScopeID: UUID?
     @Binding var selectedSection: ScopeSection
     let createNewScope: () -> Void
+    let openBackupRestore: () -> Void
     let onSelectScope: (JobScope) -> Void
     let requestRename: (JobScope) -> Void
     let deleteScope: (JobScope) -> Void
@@ -766,6 +813,12 @@ private struct ScopeSidebarView: View {
                                 }
                         }
                     )
+
+                Button(action: openBackupRestore) {
+                    Label("Backup & Restore", systemImage: "externaldrive")
+                        .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+                }
+                .accessibilityHint("Back up local scopes and files, or review a backup to restore.")
 
                 if !scopes.isEmpty {
                     ScopeSidebarHeaderRow(
@@ -1126,6 +1179,7 @@ private struct PhoneScopesListView: View {
     @ObservedObject var sectionReviewStore: SectionReviewStore
     let renameScope: (JobScope, String) -> Void
     let deleteScope: (JobScope) -> Void
+    let openBackupRestore: () -> Void
 
     @State private var scopePendingRename: JobScope?
     @State private var renamePromptMode: SidebarRenamePromptMode = .existingScope
@@ -1158,6 +1212,18 @@ private struct PhoneScopesListView: View {
                         Button(action: handleCreateScope) {
                             Label("New Scope", systemImage: "plus")
                         }
+                    }
+
+                    ToolbarItem(placement: .topBarTrailing) {
+                        Menu {
+                            Button(action: openBackupRestore) {
+                                Label("Backup & Restore", systemImage: "externaldrive")
+                            }
+                        } label: {
+                            Label("More", systemImage: "ellipsis.circle")
+                                .frame(minWidth: 44, minHeight: 44)
+                        }
+                        .accessibilityLabel("Scope Library Actions")
                     }
                 }
             }

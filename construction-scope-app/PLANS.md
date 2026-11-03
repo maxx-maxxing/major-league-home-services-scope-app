@@ -4,6 +4,16 @@
 This is the milestone-by-milestone plan. Treat the audited ledger and active phase card in this file as the **source of truth** for current status and execution order.
 Detailed historical cards are intentionally retained even where earlier work accumulated out of numeric order. Keep new milestones small, testable, and reviewable.
 
+## Active – Lossless Local Backup and Restore – 2026-11-03
+
+- Isolated branch `feature/scope-backup-restore` starts at verified clean main `c034f74`. Preserve the original checkout, installed app containers, all existing scopes and assets, and configured intelligence settings. No JobTread changes, signing, distribution, deployment, or remote writes.
+- Milestone A: define a separately versioned, bounded `.scopebackup` archive with typed snapshots of every current/legacy `JobScope` value, all scope-owned files (including folder-discovered checklist photos and deterministic PencilKit files), and section review state. No SwiftData stored-shape changes. Use relative archive paths, SHA-256 integrity checks, strict decoding, and fail closed for missing files, unsupported versions, malformed document payloads, unsafe paths, links, or oversized inputs.
+- Milestone B: stage and validate before a native review screen. Restore into new local rows only; existing UUIDs default to skip, with explicit keep-both available and no overwrite. Rebase all file references, retain JobTread identity references without any network operation, and journal asset/review adoption so interrupted or failed restores can be recovered without deleting existing work.
+- Milestone C: provide a native Backup & Restore sheet on iPad and phone, require confirmed saves, show counts/conflicts, and use Files/ShareLink for user-controlled destinations. Keep export/import work off the main actor where possible and prevent concurrent user edits during snapshots.
+- Milestone D: compile/run synthetic archive, integrity, conflict, recovery and full-field coverage gates; run existing persistence/import/proposal/security/PDF checks and unsigned builds; restore a fictional archive in a fresh simulator app container without uninstalling/resetting populated simulators. Record actual passes and simulator/hardware limits in `DOCUMENTATION.md`.
+- Scope limits: no encryption/password manager, cloud sync, customer creation, financial writes, store-shape migration, automatic damaged-store replacement, or release-readiness promise. Backups contain private scope data; the user chooses where to save them. Genuine network-isolated and physical Pencil/camera/TestFlight validation remain separate.
+- Checkpoint: A–C implemented; D host matrix, fresh-iPad simulator service matrix (no skips), existing regression gates, unsigned Debug/Release builds and Release analysis passed. Native prepare/share/Save-to-Files/select/review/restore passed for an incomplete scope and a full 12-asset cross-container fixture; keep-both produced distinct IDs and cleanup/persistence checks passed. Some app-folder navigation was unresponsive under remote control, so the supported Files-root/share route was used. Physical devices and alternate file providers remain release checks. See `BACKUP_FORMAT.md` and `DOCUMENTATION.md`.
+
 ## Completed Fix – Proposal Section Measurements – 2026-11-02
 
 - Work in isolated branch `fix/proposal-section-measurements` from `896964e`; preserve the original checkout and existing data.
@@ -55,10 +65,11 @@ Status meanings:
 | 7.6.2.3 | Implemented | A standalone synthetic offline transport gate pins the current Debug customer-search/detail request, decoder, fallback, and error contracts without changing production code or contacting JobTread. |
 | 7.6.3 | Active guardrail | Persistence-shape policy is in force; enforcement remains review-driven. |
 | 7.6.3.1 | Implemented; manual release gate remains | Host-reconstructed compatibility gate passes; installed-build device continuity is not proven. |
-| 7.6.4 | In progress | Recovery risks are documented and 7.6.4.1 save-failure containment is implemented; the manual continuity matrix and lossless backup/import remain open. |
+| 7.6.4 | In progress | Save-failure containment and local backup/import are implemented; the complete manual continuity/native Files/device acceptance matrix remains open. |
 | 7.6.4.1 | Implemented; manual acceptance remains | Core SwiftData saves share a privacy-safe failure warning and deterministic same-context retry; device layout, VoiceOver, Reduce Motion, and interruption behavior still require manual acceptance. |
 | 7.6.4.2 | Implemented; manual release gate remains | Superseded Documents files retire only after confirmed metadata saves through a scope/attachment-bound, symlink-safe deletion path; target-device import/removal and interruption checks remain manual. |
 | 7.6.4.3 | Implemented; manual release gate remains | Documents imports use immutable request identity, reject stale/out-of-order completion, and safely retire never-adopted managed files; rapid target-device picker/interruption checks remain manual. |
+| 7.6.4.4 | Implemented; manual release gate remains | Versioned scope/asset/review archives, staged conflict review and journaled local restore pass host and fresh-simulator service matrices. Native Files-root/share round trips also pass; physical-device responsiveness, alternate file providers and distribution remain unverified. |
 | 7.6.5–7.6.6 | Implemented | General whitespace repair and persistent text-field labels are present. |
 | 7.7 | Implemented; compatibility gate applies | Section-owned measurement blocks and PDF mapping are present; future stored-shape changes remain governed by 7.6.3. |
 

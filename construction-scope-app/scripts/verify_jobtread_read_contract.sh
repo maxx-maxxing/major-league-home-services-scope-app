@@ -57,7 +57,7 @@ verify_hash "f848b2307fa94c64e8efe8c31a0201950d2036f596a54dabfbf75aee8ddbaee8" \
   "$MODEL_SOURCE" "frozen SwiftData model"
 verify_hash "819b1b81ea23d3600ae83c05e073843f5036811c524b73bc743235be88a447f4" \
   "$SCHEMA_SOURCE" "frozen schema"
-verify_hash "1219995261ff7b4acb20c9ecbeaa782915d303132306b0fedee5807aee7ec569" \
+verify_hash "8e0404d1e42d280dcc7bad3144e3e1cb403dfa5c446d3bcddf31291b79b7b1aa" \
   "$PROJECT_FILE" "Xcode project wiring"
 
 grep -Fq 'https://jobtread-contract.invalid/pave' "$CONTRACT_TEST_SOURCE" || \

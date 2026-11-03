@@ -71,7 +71,7 @@ fi
 
 EXPECTED_MODEL_HASH="f848b2307fa94c64e8efe8c31a0201950d2036f596a54dabfbf75aee8ddbaee8"
 EXPECTED_SCHEMA_HASH="819b1b81ea23d3600ae83c05e073843f5036811c524b73bc743235be88a447f4"
-EXPECTED_PROJECT_HASH="1219995261ff7b4acb20c9ecbeaa782915d303132306b0fedee5807aee7ec569"
+EXPECTED_PROJECT_HASH="8e0404d1e42d280dcc7bad3144e3e1cb403dfa5c446d3bcddf31291b79b7b1aa"
 read -r actual_model_hash _ < <(shasum -a 256 "$MODEL_SOURCE")
 read -r actual_schema_hash _ < <(shasum -a 256 "$SCHEMA_SOURCE")
 read -r actual_project_hash _ < <(shasum -a 256 "$PROJECT_FILE")

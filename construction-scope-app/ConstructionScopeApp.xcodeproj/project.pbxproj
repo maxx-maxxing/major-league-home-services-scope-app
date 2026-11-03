@@ -7,6 +7,10 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		BACA00000000000000000001 /* ScopeBackupRecord.swift in Sources */ = {isa = PBXBuildFile; fileRef = BACA00000000000000000011 /* ScopeBackupRecord.swift */; };
+		BACA00000000000000000002 /* ScopeBackupArchive.swift in Sources */ = {isa = PBXBuildFile; fileRef = BACA00000000000000000012 /* ScopeBackupArchive.swift */; };
+		BACA00000000000000000003 /* ScopeBackupService.swift in Sources */ = {isa = PBXBuildFile; fileRef = BACA00000000000000000013 /* ScopeBackupService.swift */; };
+		BACA00000000000000000004 /* ScopeBackupView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BACA00000000000000000014 /* ScopeBackupView.swift */; };
 		AA0000010000000000000001 /* ConstructionScopeAppApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000010000000000000011 /* ConstructionScopeAppApp.swift */; };
 		AA0000010000000000000002 /* SchemaModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000010000000000000012 /* SchemaModels.swift */; };
 		AA0000010000000000000003 /* Persistence.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000010000000000000013 /* Persistence.swift */; };
@@ -30,6 +34,10 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		BACA00000000000000000011 /* ScopeBackupRecord.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScopeBackupRecord.swift; sourceTree = "<group>"; };
+		BACA00000000000000000012 /* ScopeBackupArchive.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScopeBackupArchive.swift; sourceTree = "<group>"; };
+		BACA00000000000000000013 /* ScopeBackupService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScopeBackupService.swift; sourceTree = "<group>"; };
+		BACA00000000000000000014 /* ScopeBackupView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScopeBackupView.swift; sourceTree = "<group>"; };
 		AA0000010000000000000011 /* ConstructionScopeAppApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConstructionScopeAppApp.swift; sourceTree = "<group>"; };
 		AA0000010000000000000012 /* SchemaModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SchemaModels.swift; sourceTree = "<group>"; };
 		AA0000010000000000000013 /* Persistence.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Persistence.swift; sourceTree = "<group>"; };
@@ -100,6 +108,7 @@
 		AA0000010000000000000033 /* Models */ = {
 			isa = PBXGroup;
 			children = (
+				BACA00000000000000000011 /* ScopeBackupRecord.swift */,
 				AA0000010000000000000012 /* SchemaModels.swift */,
 				AA00000100000000000000B1 /* PricingProposalFoundation.swift */,
 			);
@@ -109,6 +118,8 @@
 		AA0000010000000000000034 /* Persistence */ = {
 			isa = PBXGroup;
 			children = (
+				BACA00000000000000000012 /* ScopeBackupArchive.swift */,
+				BACA00000000000000000013 /* ScopeBackupService.swift */,
 				AA0000010000000000000013 /* Persistence.swift */,
 				DAR000010000000000000011 /* DocumentAssetRetirement.swift */,
 				PSH000010000000000000011 /* PersistenceSaveHealth.swift */,
@@ -119,6 +130,7 @@
 		AA0000010000000000000035 /* Views */ = {
 			isa = PBXGroup;
 			children = (
+				BACA00000000000000000014 /* ScopeBackupView.swift */,
 				AA0000010000000000000014 /* RootNavigationView.swift */,
 				D1C000010000000000000011 /* DocumentImportCoordination.swift */,
 				AA0000010000000000000018 /* SectionEditors.swift */,
@@ -259,6 +271,10 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				BACA00000000000000000001 /* ScopeBackupRecord.swift in Sources */,
+				BACA00000000000000000002 /* ScopeBackupArchive.swift in Sources */,
+				BACA00000000000000000003 /* ScopeBackupService.swift in Sources */,
+				BACA00000000000000000004 /* ScopeBackupView.swift in Sources */,
 				AA0000010000000000000001 /* ConstructionScopeAppApp.swift in Sources */,
 				AA0000010000000000000002 /* SchemaModels.swift in Sources */,
 				AA0000010000000000000003 /* Persistence.swift in Sources */,
